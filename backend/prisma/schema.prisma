@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -8,10 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ThreadStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ThreadMode {
+  WEB
+}
+
 model Thread {
   id            String   @id @default(uuid()) @db.Uuid
   title         String
   answerPreview String?  @db.VarChar(300)
+  status        ThreadStatus @default(COMPLETED)
+  mode          ThreadMode   @default(WEB)
 
   createdAt     DateTime @default(now()) @db.Timestamp(6)
   updatedAt     DateTime @updatedAt @db.Timestamp(6)
@@ -60,7 +71,9 @@ model Source {
   domain         String
   snippet        String   @db.Text
 
+  provider       String   @default("tavily")
   providerScore  Float?
+  publishedAt    DateTime? @db.Timestamp(6)
 
   createdAt      DateTime @default(now()) @db.Timestamp(6)
 
