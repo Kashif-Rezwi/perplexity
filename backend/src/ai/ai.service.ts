@@ -6,9 +6,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText } from 'ai';
+import {
+  DEFAULT_OPENAI_MODEL,
+  OPENAI_API_KEY_CONFIG_KEY,
+  OPENAI_MODEL_CONFIG_KEY,
+} from './ai.constants';
 
 @Injectable()
-export class aiService {
+export class AiService {
   constructor(private readonly configService: ConfigService) { }
 
   async generateAnswer(question: string): Promise<string> {
@@ -42,22 +47,23 @@ export class aiService {
   }
 
   private getRequiredApiKey(): string {
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY')?.trim();
+    const apiKey = this.configService
+      .get<string>(OPENAI_API_KEY_CONFIG_KEY)
+      ?.trim();
 
     if (!apiKey) {
-      throw new ServiceUnavailableException('OPENAI_API_KEY is not configured');
+      throw new ServiceUnavailableException(
+        `${OPENAI_API_KEY_CONFIG_KEY} is not configured`,
+      );
     }
 
     return apiKey;
   }
 
-  private getModel(): string {
-    const model = this.configService.get<string>('OPENAI_MODEL')?.trim();
-
-    if (!model) {
-      throw new ServiceUnavailableException('OPENAI_MODEL is not configured');
-    }
-
-    return model;
+  getModel(): string {
+    return (
+      this.configService.get<string>(OPENAI_MODEL_CONFIG_KEY)?.trim() ||
+      DEFAULT_OPENAI_MODEL
+    );
   }
 }

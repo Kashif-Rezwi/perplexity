@@ -1,0 +1,3 @@
+export const OPENAI_API_KEY_CONFIG_KEY = 'OPENAI_API_KEY';
+export const OPENAI_MODEL_CONFIG_KEY = 'OPENAI_MODEL';
+export const DEFAULT_OPENAI_MODEL = 'gpt-5-mini';
