@@ -2,8 +2,7 @@
 
 ## POST /perplexity/ask
 
-Generates a minimal AI answer for a question.
-<!-- Creates a new research turn. If `threadId` is omitted, the server creates a new thread. -->
+Creates a new thread with one turn and generates an AI answer.
 
 Request:
 
@@ -18,15 +17,6 @@ Request:
 Response:
 
 ```json
-{
-  "answerMarkdown": "Answer text..."
-}
-```
-
-Note: thread persistence, web search, sources, citations, follow-up context, and
-streaming are intentionally deferred to later chunks.
-
-<!-- ```json
 {
   "thread": {
     "threadId": "uuid",
@@ -53,7 +43,10 @@ streaming are intentionally deferred to later chunks.
     "completedAt": "2026-06-04T00:00:00.000Z"
   }
 }
-``` -->
+```
+
+Note: web search, source persistence, citations, follow-up context, and
+streaming are intentionally deferred to later chunks.
 
 ## GET /perplexity/recents
 

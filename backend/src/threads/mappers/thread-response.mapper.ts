@@ -1,9 +1,9 @@
 import { ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
-import type { ThreadDetailRecord } from '../repositories/threads.repository';
 import type {
   ApiThreadMode,
   ApiThreadStatus,
   ApiTurnStatus,
+  ThreadDetailRecord,
   ThreadDetailResponse,
   ThreadHeaderRecord,
   ThreadSummaryItem,

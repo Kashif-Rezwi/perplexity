@@ -1,4 +1,38 @@
-import type { ThreadMode, ThreadStatus } from '@prisma/client';
+import type { Prisma, ThreadMode, ThreadStatus } from '@prisma/client';
+
+export const threadDetailInclude = {
+  _count: { select: { turns: true } },
+  turns: {
+    orderBy: { createdAt: 'asc' as const },
+    include: {
+      sources: { orderBy: { citationNumber: 'asc' as const } },
+      citations: { orderBy: { citationNumber: 'asc' as const } },
+    },
+  },
+} satisfies Prisma.ThreadInclude;
+
+export type ThreadDetailRecord = Prisma.ThreadGetPayload<{
+  include: typeof threadDetailInclude;
+}>;
+
+export type CreateThreadWithPendingTurnInput = {
+  title: string;
+  question: string;
+  searchQuery: string;
+};
+
+export type CompleteTurnInput = {
+  threadId: string;
+  turnId: string;
+  answerMarkdown: string;
+  answerPreview: string;
+};
+
+export type FailTurnInput = {
+  threadId: string;
+  turnId: string;
+  errorMessage: string;
+};
 
 export type ApiThreadStatus = 'running' | 'completed' | 'failed';
 export type ApiThreadMode = 'web';

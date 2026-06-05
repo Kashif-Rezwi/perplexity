@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { ServiceUnavailableException } = require('@nestjs/common');
+const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const { AskService } = require('../dist/src/ask/ask.service.js');
 const { AiService } = require('../dist/src/ai/ai.service.js');
 const {
@@ -9,31 +10,149 @@ const {
   OPENAI_MODEL_CONFIG_KEY,
 } = require('../dist/src/ai/ai.constants.js');
 
-test('AskService returns answerMarkdown from the AI service', async () => {
-  const service = new AskService({
-    async generateAnswer() {
-      return 'Prisma relations connect records across tables.';
-    },
-  });
+const threadId = '11111111-1111-4111-8111-111111111111';
+const turnId = '22222222-2222-4222-8222-222222222222';
+const createdAt = new Date('2026-06-04T00:00:00.000Z');
+const updatedAt = new Date('2026-06-04T00:05:00.000Z');
+const completedAt = new Date('2026-06-04T00:04:00.000Z');
 
-  assert.deepEqual(await service.ask({ question: 'Explain Prisma relations' }), {
-    answerMarkdown: 'Prisma relations connect records across tables.',
-  });
+function createThreadRecord(overrides = {}) {
+  return {
+    id: threadId,
+    title: 'Explain Prisma relations',
+    answerPreview: overrides.answerPreview ?? 'Prisma relations connect rows.',
+    status: overrides.status ?? ThreadStatus.COMPLETED,
+    mode: ThreadMode.WEB,
+    createdAt,
+    updatedAt,
+    _count: { turns: 1 },
+    turns: [
+      {
+        id: turnId,
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+        answerMarkdown:
+          overrides.answerMarkdown ?? 'Prisma relations connect rows.',
+        status: overrides.turnStatus ?? TurnStatus.COMPLETED,
+        errorMessage: overrides.errorMessage ?? null,
+        createdAt,
+        completedAt: overrides.completedAt ?? completedAt,
+        sources: [],
+        citations: [],
+      },
+    ],
+  };
+}
+
+test('AskService creates a thread, completes its turn, and returns persisted data', async () => {
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(question) {
+        calls.push(['generateAnswer', question]);
+        return answerMarkdown;
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({ answerMarkdown });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+
+  assert.equal(response.thread.threadId, threadId);
+  assert.equal(response.thread.status, 'completed');
+  assert.equal(response.thread.sourceCount, 0);
+  assert.equal(response.turn.turnId, turnId);
+  assert.equal(response.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(response.turn.sources, []);
+  assert.deepEqual(response.turn.citations, []);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['generateAnswer', 'Explain Prisma relations'],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
 });
 
-test('AskService passes the exact question to the AI service', async () => {
-  let receivedQuestion;
-  const question = 'Explain Prisma relations simply';
-  const service = new AskService({
-    async generateAnswer(input) {
-      receivedQuestion = input;
-      return 'Done.';
+test('AskService marks the pending turn failed when AI generation fails', async () => {
+  const error = new ServiceUnavailableException('OpenAI answer generation failed');
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer() {
+        throw error;
+      },
     },
-  });
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
 
-  await service.ask({ question });
-
-  assert.equal(receivedQuestion, question);
+  await assert.rejects(
+    () => service.ask({ question: 'Explain Prisma relations' }),
+    (receivedError) => receivedError === error,
+  );
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId,
+        errorMessage: 'OpenAI answer generation failed',
+      },
+    ],
+  ]);
 });
 
 test('AiService fails clearly when OPENAI_API_KEY is missing', async () => {

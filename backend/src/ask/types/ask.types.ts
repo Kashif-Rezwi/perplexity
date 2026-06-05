@@ -1,7 +1,10 @@
+import type { ThreadSummaryItem, TurnItem } from '../../threads/types/thread.types';
+
 export type AskInput = {
   question: string;
 };
 
 export type AskResponse = {
-  answerMarkdown: string;
+  thread: ThreadSummaryItem;
+  turn: TurnItem;
 };
