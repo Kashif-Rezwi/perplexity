@@ -81,6 +81,7 @@ model Source {
   citations      Citation[]
 
   @@index([turnId])
+  @@index([createdAt])
   @@unique([turnId, citationNumber])
 }
 

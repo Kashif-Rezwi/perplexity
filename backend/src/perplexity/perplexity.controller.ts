@@ -1,13 +1,23 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { RecentsQueryDto } from './dto/recents-query.dto';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { RecentSourcesQueryDto } from './dto/recent-sources-query.dto';
+import { ThreadParamsDto } from './dto/thread-params.dto';
+import { SourcesService } from '../sources/sources.service';
 import { ThreadsService } from '../threads/threads.service';
 
 @Controller('perplexity')
 export class PerplexityController {
-  constructor(private readonly threadsService: ThreadsService) {}
+  constructor(
+    private readonly sourcesService: SourcesService,
+    private readonly threadsService: ThreadsService,
+  ) {}
 
   @Get('recents')
-  listRecents(@Query() query: RecentsQueryDto) {
-    return this.threadsService.listRecents({ limit: query.limit });
+  listRecentSources(@Query() query: RecentSourcesQueryDto) {
+    return this.sourcesService.listRecentSources({ limit: query.limit });
+  }
+
+  @Get('threads/:threadId')
+  getThreadDetail(@Param() params: ThreadParamsDto) {
+    return this.threadsService.getThreadDetail(params.threadId);
   }
 }
