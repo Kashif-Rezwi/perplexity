@@ -2,21 +2,31 @@
 
 ## POST /perplexity/ask
 
-Creates a new research turn. If `threadId` is omitted, the server creates a new thread.
+Generates a minimal AI answer for a question.
+<!-- Creates a new research turn. If `threadId` is omitted, the server creates a new thread. -->
 
 Request:
 
 ```json
 {
   "question": "What changed in Next.js 15?",
-  "threadId": "optional-existing-thread-uuid",
-  "mode": "web"
+  // "threadId": "optional-existing-thread-uuid",
+  // "mode": "web"
 }
 ```
 
 Response:
 
 ```json
+{
+  "answerMarkdown": "Answer text..."
+}
+```
+
+Note: thread persistence, web search, sources, citations, follow-up context, and
+streaming are intentionally deferred to later chunks.
+
+<!-- ```json
 {
   "thread": {
     "threadId": "uuid",
@@ -43,7 +53,7 @@ Response:
     "completedAt": "2026-06-04T00:00:00.000Z"
   }
 }
-```
+``` -->
 
 ## GET /perplexity/recents
 
@@ -75,7 +85,7 @@ Response:
       "provider": "tavily",
       "providerScore": 0.95,
       "publishedAt": null,
-      "createdAt": "2026-06-04T00:00:00.000Z",
+      "createdAt": "2026-06-04T00:00:00.000Z"
     }
   ],
   "nextCursor": null
