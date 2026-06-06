@@ -31,7 +31,10 @@ export class AiService {
           'You are a concise research assistant. Answer in clear Markdown. ' +
           'Use the provided numbered sources when they are relevant. ' +
           'Cite source-supported claims with [n] markers. ' +
-          'Use only citation markers from the provided sources.',
+          'Use only citation markers from the provided sources. ' +
+          'Use individual citation markers only, like [1][2], never ranges like [1-5] or grouped markers like [1,2]. ' +
+          'When sources are provided, do not say you can fetch, check, look up, or obtain more information later. ' +
+          'If the provided sources are not fresh or conclusive enough, state that uncertainty clearly.',
         prompt: createAnswerPrompt(input),
       });
 

@@ -8,6 +8,9 @@ const {
   TavilySearchService,
 } = require('../dist/src/search/tavily-search.service.js');
 const {
+  mapAskTurnSummary,
+} = require('../dist/src/ask/mappers/ask-response.mapper.js');
+const {
   DEFAULT_OPENAI_MODEL,
   OPENAI_API_KEY_CONFIG_KEY,
   OPENAI_MODEL_CONFIG_KEY,
@@ -42,7 +45,7 @@ function createSourceRecord(overrides = {}) {
       overrides.snippet ?? 'Relations describe connections between records.',
     provider: overrides.provider ?? 'tavily',
     providerScore: overrides.providerScore ?? 0.91,
-    publishedAt: overrides.publishedAt ?? publishedAt,
+    publishedAt: 'publishedAt' in overrides ? overrides.publishedAt : publishedAt,
     createdAt,
   };
 }
@@ -102,6 +105,77 @@ function createPriorCompletedTurns(count) {
     });
   });
 }
+
+test('mapAskTurnSummary returns only cited source previews', () => {
+  const summary = mapAskTurnSummary({
+    turnId,
+    question: 'Explain Prisma relations',
+    searchQuery: 'Explain Prisma relations',
+    answerMarkdown: 'Only the second source is cited. [2]',
+    status: 'completed',
+    errorMessage: null,
+    sourceCount: 2,
+    sources: [
+      {
+        sourceId: 'source-1',
+        citationNumber: 1,
+        title: 'Uncited source',
+        url: 'https://example.com/uncited',
+        domain: 'example.com',
+        snippet: 'This source was saved but not cited.',
+        provider: 'tavily',
+        providerScore: 0.5,
+        publishedAt: null,
+        createdAt: createdAt.toISOString(),
+      },
+      {
+        sourceId: 'source-2',
+        citationNumber: 2,
+        title: 'Cited source',
+        url: 'https://example.com/cited',
+        domain: 'example.com',
+        snippet: 'This source supports the answer.',
+        provider: 'tavily',
+        providerScore: 0.9,
+        publishedAt: publishedAt.toISOString(),
+        createdAt: createdAt.toISOString(),
+      },
+    ],
+    citations: [
+      {
+        citationId: 'citation-2',
+        sourceId: 'source-2',
+        citationNumber: 2,
+        createdAt: createdAt.toISOString(),
+      },
+      {
+        citationId: 'citation-missing-source',
+        sourceId: 'missing-source',
+        citationNumber: 3,
+        createdAt: createdAt.toISOString(),
+      },
+    ],
+    citationCount: 2,
+    createdAt: createdAt.toISOString(),
+    completedAt: completedAt.toISOString(),
+  });
+
+  assert.equal(summary.sourceCount, 2);
+  assert.equal(summary.citationCount, 2);
+  assert.equal('sources' in summary, false);
+  assert.deepEqual(summary.citations, [
+    {
+      citationId: 'citation-2',
+      citationNumber: 2,
+      sourceId: 'source-2',
+      title: 'Cited source',
+      domain: 'example.com',
+      url: 'https://example.com/cited',
+      snippet: 'This source supports the answer.',
+      publishedAt: publishedAt.toISOString(),
+    },
+  ]);
+});
 
 test('AskService creates a thread, completes its turn, and returns persisted data', async () => {
   const answerMarkdown = 'Prisma relations connect rows across tables. [1]';
@@ -171,26 +245,19 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   assert.equal(response.thread.sourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
-  assert.deepEqual(response.turn.sources, [
-    {
-      sourceId,
-      citationNumber: 1,
-      title: 'Prisma relations',
-      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
-      domain: 'prisma.io',
-      snippet: 'Relations describe connections between records.',
-      provider: 'tavily',
-      providerScore: 0.91,
-      publishedAt: publishedAt.toISOString(),
-      createdAt: createdAt.toISOString(),
-    },
-  ]);
+  assert.equal(response.turn.sourceCount, 1);
+  assert.equal(response.turn.citationCount, 1);
+  assert.equal('sources' in response.turn, false);
   assert.deepEqual(response.turn.citations, [
     {
       citationId,
-      sourceId,
       citationNumber: 1,
-      createdAt: createdAt.toISOString(),
+      sourceId,
+      title: 'Prisma relations',
+      domain: 'prisma.io',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      snippet: 'Relations describe connections between records.',
+      publishedAt: publishedAt.toISOString(),
     },
   ]);
   assert.deepEqual(calls, [
@@ -220,6 +287,182 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService normalizes citation ranges before persistence', async () => {
+  const rawAnswerMarkdown = 'The available sources point to one theme [1-3].';
+  const normalizedAnswerMarkdown =
+    'The available sources point to one theme [1][2][3].';
+  const searchResults = [1, 2, 3].map((citationNumber) => ({
+    title: `Source ${citationNumber}`,
+    url: `https://example.com/source-${citationNumber}`,
+    content: `Snippet ${citationNumber}`,
+    score: 0.9,
+    publishedAt: null,
+  }));
+  const sourceInputs = [1, 2, 3].map((citationNumber) => ({
+    citationNumber,
+    title: `Source ${citationNumber}`,
+    url: `https://example.com/source-${citationNumber}`,
+    domain: 'example.com',
+    snippet: `Snippet ${citationNumber}`,
+    provider: 'tavily',
+    providerScore: 0.9,
+    publishedAt: null,
+  }));
+  const savedSourceIds = ['source-1', 'source-2', 'source-3'];
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return rawAnswerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return searchResults;
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({
+          answerMarkdown: normalizedAnswerMarkdown,
+          sources: sourceInputs.map((source, index) =>
+            createSourceRecord({
+              id: savedSourceIds[index],
+              ...source,
+            }),
+          ),
+          citations: sourceInputs.map((source, index) =>
+            createCitationRecord({
+              id: `citation-${source.citationNumber}`,
+              sourceId: savedSourceIds[index],
+              citationNumber: source.citationNumber,
+            }),
+          ),
+        });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+  const completeTurnCall = calls.find(([name]) => name === 'completeTurn');
+
+  assert.equal(response.turn.answerMarkdown, normalizedAnswerMarkdown);
+  assert.equal(response.turn.citationCount, 3);
+  assert.deepEqual(
+    response.turn.citations.map((citation) => citation.citationNumber),
+    [1, 2, 3],
+  );
+  assert.equal(completeTurnCall[1].answerMarkdown, normalizedAnswerMarkdown);
+  assert.deepEqual(completeTurnCall[1].citationNumbers, [1, 2, 3]);
+});
+
+test('AskService returns its completed turn when another turn is newer', async () => {
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const newerTurn = createTurnRecord({
+    id: '66666666-6666-4666-8666-666666666666',
+    question: 'A different question',
+    searchQuery: 'A different question',
+    answerMarkdown: 'A different answer.',
+    createdAt: new Date('2026-06-04T00:06:00.000Z'),
+    completedAt: new Date('2026-06-04T00:07:00.000Z'),
+  });
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({
+          turns: [
+            createTurnRecord({
+              answerMarkdown,
+              sources: [],
+              citations: [],
+            }),
+            newerTurn,
+          ],
+        });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+
+  assert.equal(response.thread.turnCount, 2);
+  assert.equal(response.turn.turnId, turnId);
+  assert.equal(response.turn.question, 'Explain Prisma relations');
+  assert.equal(response.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
+        citationNumbers: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -265,7 +508,10 @@ test('AskService completes successfully when search returns no sources', async (
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
   assert.equal(response.thread.sourceCount, 0);
-  assert.deepEqual(response.turn.sources, []);
+  assert.equal(response.turn.sourceCount, 0);
+  assert.equal(response.turn.citationCount, 0);
+  assert.equal('sources' in response.turn, false);
+  assert.deepEqual(response.turn.citations, []);
   assert.deepEqual(calls, [
     [
       'createThreadWithPendingTurn',
@@ -362,6 +608,9 @@ test('AskService completes with sources and no citations when answer has no mark
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
   assert.equal(response.thread.sourceCount, 1);
+  assert.equal(response.turn.sourceCount, 1);
+  assert.equal(response.turn.citationCount, 0);
+  assert.equal('sources' in response.turn, false);
   assert.deepEqual(response.turn.citations, []);
   assert.deepEqual(calls, [
     [
@@ -494,6 +743,21 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   assert.equal(response.turn.turnId, followUpTurnId);
   assert.equal(response.turn.searchQuery, question);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
+  assert.equal(response.turn.sourceCount, 1);
+  assert.equal(response.turn.citationCount, 1);
+  assert.equal('sources' in response.turn, false);
+  assert.deepEqual(response.turn.citations, [
+    {
+      citationId,
+      citationNumber: 1,
+      sourceId,
+      title: 'Prisma pricing',
+      domain: 'prisma.io',
+      url: 'https://www.prisma.io/pricing',
+      snippet: 'Prisma pricing includes multiple plans.',
+      publishedAt: null,
+    },
+  ]);
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [

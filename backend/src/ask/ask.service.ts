@@ -6,12 +6,16 @@ import {
 import { TurnStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 import type { PriorTurn } from '../ai/types/ai.types';
-import { extractCitationNumbers } from '../citations/citation-marker.parser';
+import {
+  extractCitationNumbers,
+  normalizeCitationMarkers,
+} from '../citations/citation-marker.parser';
 import { TavilySearchService } from '../search/tavily-search.service';
 import { mapSearchResultsToSourceInputs } from '../sources/mappers/source-persistence.mapper';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
 import { ThreadsRepository } from '../threads/repositories/threads.repository';
 import type { ThreadDetailRecord } from '../threads/types/thread.types';
+import { mapAskTurnSummary } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
 
 const ANSWER_PREVIEW_MAX_LENGTH = 300;
@@ -26,6 +30,7 @@ export class AskService {
   ) {}
 
   async ask(input: AskInput): Promise<AskResponse> {
+    // TODO: Rewrite follow-up questions into standalone search queries using prior thread context.
     const searchQuery = input.question;
     const existingThread = input.threadId
       ? await this.loadExistingThreadOrThrow(input.threadId)
@@ -56,9 +61,14 @@ export class AskService {
         priorTurns,
         sources,
       });
+      const validCitationNumbers = sources.map((source) => source.citationNumber);
+      answerMarkdown = normalizeCitationMarkers(
+        answerMarkdown,
+        validCitationNumbers,
+      );
       const citationNumbers = extractCitationNumbers(
         answerMarkdown,
-        sources.map((source) => source.citationNumber),
+        validCitationNumbers,
       );
       await this.threadsRepository.completeTurn({
         threadId: thread.id,
@@ -81,17 +91,19 @@ export class AskService {
     const completedThread = await this.loadThreadOrThrow(thread.id);
     const response = mapThreadDetail(completedThread);
     const { turns, ...threadSummary } = response;
-    const completedTurn = turns[turns.length - 1];
+    const completedTurn = turns.find(
+      (candidateTurn) => candidateTurn.turnId === turn.id,
+    );
 
     if (!completedTurn) {
       throw new InternalServerErrorException(
-        `Thread ${thread.id} was loaded without turns after ask completion`,
+        `Turn ${turn.id} was not found after ask completion`,
       );
     }
 
     return {
       thread: threadSummary,
-      turn: completedTurn,
+      turn: mapAskTurnSummary(completedTurn),
     };
   }
 
