@@ -1,4 +1,5 @@
 import type { Prisma, ThreadMode, ThreadStatus } from '@prisma/client';
+import type { CreateTurnSourceInput } from '../../sources/types/source-persistence.types';
 
 export const threadDetailInclude = {
   _count: { select: { turns: true } },
@@ -26,6 +27,7 @@ export type CompleteTurnInput = {
   turnId: string;
   answerMarkdown: string;
   answerPreview: string;
+  sources: CreateTurnSourceInput[];
 };
 
 export type FailTurnInput = {

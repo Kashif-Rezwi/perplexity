@@ -9,4 +9,5 @@ export type SearchResult = {
   url: string;
   content: string;
   score: number | null;
+  publishedAt: string | null;
 };

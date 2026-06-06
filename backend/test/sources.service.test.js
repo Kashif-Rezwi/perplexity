@@ -1,5 +1,8 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const {
+  mapSearchResultsToSourceInputs,
+} = require('../dist/src/sources/mappers/source-persistence.mapper.js');
 const { mapRecentSource } = require('../dist/src/sources/mappers/source-response.mapper.js');
 const { SourcesService } = require('../dist/src/sources/sources.service.js');
 
@@ -67,4 +70,56 @@ test('SourcesService lists recent sources through the repository', async () => {
   assert.equal(response.items.length, 1);
   assert.equal(response.items[0].sourceId, sourceId);
   assert.equal(response.nextCursor, null);
+});
+
+test('mapSearchResultsToSourceInputs maps ordered unique source inputs', () => {
+  const publishedAt = '2026-06-03T00:00:00.000Z';
+
+  assert.deepEqual(
+    mapSearchResultsToSourceInputs([
+      {
+        title: ' First source ',
+        url: 'https://www.example.com/first',
+        content: ' First snippet ',
+        score: 0.9,
+        publishedAt,
+      },
+      {
+        title: 'Duplicate source',
+        url: 'https://www.example.com/first',
+        content: 'Duplicate snippet',
+        score: 0.8,
+        publishedAt: null,
+      },
+      {
+        title: '',
+        url: 'not-a-url',
+        content: 'Second snippet',
+        score: null,
+        publishedAt: 'not-a-date',
+      },
+    ]),
+    [
+      {
+        citationNumber: 1,
+        title: 'First source',
+        url: 'https://www.example.com/first',
+        domain: 'example.com',
+        snippet: 'First snippet',
+        provider: 'tavily',
+        providerScore: 0.9,
+        publishedAt: new Date(publishedAt),
+      },
+      {
+        citationNumber: 2,
+        title: 'not-a-url',
+        url: 'not-a-url',
+        domain: 'unknown',
+        snippet: 'Second snippet',
+        provider: 'tavily',
+        providerScore: null,
+        publishedAt: null,
+      },
+    ],
+  );
 });

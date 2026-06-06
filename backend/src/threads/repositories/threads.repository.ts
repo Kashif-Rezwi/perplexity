@@ -33,8 +33,17 @@ export class ThreadsRepository {
   }
 
   async completeTurn(input: CompleteTurnInput): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.turn.update({
+    await this.prisma.$transaction(async (tx) => {
+      if (input.sources.length > 0) {
+        await tx.source.createMany({
+          data: input.sources.map((source) => ({
+            ...source,
+            turnId: input.turnId,
+          })),
+        });
+      }
+
+      await tx.turn.update({
         where: { id: input.turnId },
         data: {
           answerMarkdown: input.answerMarkdown,
@@ -42,15 +51,16 @@ export class ThreadsRepository {
           errorMessage: null,
           completedAt: new Date(),
         },
-      }),
-      this.prisma.thread.update({
+      });
+
+      await tx.thread.update({
         where: { id: input.threadId },
         data: {
           answerPreview: input.answerPreview,
           status: ThreadStatus.COMPLETED,
         },
-      }),
-    ]);
+      });
+    });
   }
 
   async failTurn(input: FailTurnInput): Promise<void> {

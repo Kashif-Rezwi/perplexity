@@ -38,6 +38,7 @@ export class TavilySearchService {
         url: result.url,
         content: result.content,
         score: result.score ?? null,
+        publishedAt: result.publishedDate ?? null,
       }));
     } catch {
       throw new ServiceUnavailableException('Tavily search failed');

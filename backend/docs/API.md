@@ -25,7 +25,7 @@ Response:
     "status": "completed",
     "mode": "web",
     "answerPreview": "Short answer preview...",
-    "sourceCount": 0,
+    "sourceCount": 1,
     "turnCount": 1,
     "createdAt": "2026-06-04T00:00:00.000Z",
     "updatedAt": "2026-06-04T00:00:00.000Z"
@@ -37,7 +37,20 @@ Response:
     "answerMarkdown": "Answer text...",
     "status": "completed",
     "errorMessage": null,
-    "sources": [],
+    "sources": [
+      {
+        "sourceId": "uuid",
+        "citationNumber": 1,
+        "title": "Source title",
+        "url": "https://example.com",
+        "domain": "example.com",
+        "snippet": "Relevant source snippet...",
+        "provider": "tavily",
+        "providerScore": 0.95,
+        "publishedAt": null,
+        "createdAt": "2026-06-04T00:00:00.000Z"
+      }
+    ],
     "citations": [],
     "createdAt": "2026-06-04T00:00:00.000Z",
     "completedAt": "2026-06-04T00:00:00.000Z"
@@ -45,7 +58,9 @@ Response:
 }
 ```
 
-Note: D3 uses Tavily search results as internal AI context. Source persistence, citations, follow-up context, and streaming are intentionally deferred to later chunks, so `sources` and `citations` remain empty in the ask response for now.
+Note: D4 persists Tavily search results as sources. Citation extraction,
+follow-up context, and streaming are intentionally deferred to later chunks, so
+`citations` remains empty in the ask response for now.
 
 ## GET /perplexity/recents
 

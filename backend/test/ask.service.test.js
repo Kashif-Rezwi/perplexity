@@ -20,9 +20,30 @@ const {
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
+const sourceId = '33333333-3333-4333-8333-333333333333';
 const createdAt = new Date('2026-06-04T00:00:00.000Z');
 const updatedAt = new Date('2026-06-04T00:05:00.000Z');
 const completedAt = new Date('2026-06-04T00:04:00.000Z');
+const publishedAt = new Date('2026-06-03T00:00:00.000Z');
+
+function createSourceRecord(overrides = {}) {
+  return {
+    id: sourceId,
+    turnId,
+    citationNumber: overrides.citationNumber ?? 1,
+    title: overrides.title ?? 'Prisma relations',
+    url:
+      overrides.url ??
+      'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+    domain: overrides.domain ?? 'prisma.io',
+    snippet:
+      overrides.snippet ?? 'Relations describe connections between records.',
+    provider: overrides.provider ?? 'tavily',
+    providerScore: overrides.providerScore ?? 0.91,
+    publishedAt: overrides.publishedAt ?? publishedAt,
+    createdAt,
+  };
+}
 
 function createThreadRecord(overrides = {}) {
   return {
@@ -45,7 +66,7 @@ function createThreadRecord(overrides = {}) {
         errorMessage: overrides.errorMessage ?? null,
         createdAt,
         completedAt: overrides.completedAt ?? completedAt,
-        sources: [],
+        sources: overrides.sources ?? [],
         citations: [],
       },
     ],
@@ -60,6 +81,19 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
       url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
       content: 'Relations describe connections between records.',
       score: 0.91,
+      publishedAt: publishedAt.toISOString(),
+    },
+  ];
+  const sourceInputs = [
+    {
+      citationNumber: 1,
+      title: 'Prisma relations',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      domain: 'prisma.io',
+      snippet: 'Relations describe connections between records.',
+      provider: 'tavily',
+      providerScore: 0.91,
+      publishedAt,
     },
   ];
   const calls = [];
@@ -91,7 +125,10 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
       },
       async findThreadDetailById(id) {
         calls.push(['findThreadDetailById', id]);
-        return createThreadRecord({ answerMarkdown });
+        return createThreadRecord({
+          answerMarkdown,
+          sources: [createSourceRecord()],
+        });
       },
     },
   );
@@ -100,10 +137,23 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
 
   assert.equal(response.thread.threadId, threadId);
   assert.equal(response.thread.status, 'completed');
-  assert.equal(response.thread.sourceCount, 0);
+  assert.equal(response.thread.sourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
-  assert.deepEqual(response.turn.sources, []);
+  assert.deepEqual(response.turn.sources, [
+    {
+      sourceId,
+      citationNumber: 1,
+      title: 'Prisma relations',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      domain: 'prisma.io',
+      snippet: 'Relations describe connections between records.',
+      provider: 'tavily',
+      providerScore: 0.91,
+      publishedAt: publishedAt.toISOString(),
+      createdAt: createdAt.toISOString(),
+    },
+  ]);
   assert.deepEqual(response.turn.citations, []);
   assert.deepEqual(calls, [
     [
@@ -129,6 +179,78 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         turnId,
         answerMarkdown,
         answerPreview: answerMarkdown,
+        sources: sourceInputs,
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService completes successfully when search returns no sources', async () => {
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({ answerMarkdown });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+
+  assert.equal(response.thread.sourceCount, 0);
+  assert.deepEqual(response.turn.sources, []);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        searchResults: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -251,6 +373,105 @@ test('AskService marks the pending turn failed when AI generation fails', async 
         threadId,
         turnId,
         errorMessage: 'OpenAI answer generation failed',
+      },
+    ],
+  ]);
+});
+
+test('AskService marks the pending turn failed when completion fails', async () => {
+  const error = new ServiceUnavailableException('Source persistence failed');
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const searchResults = [
+    {
+      title: 'Prisma relations',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      content: 'Relations describe connections between records.',
+      score: 0.91,
+      publishedAt: null,
+    },
+  ];
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return searchResults;
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+        throw error;
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => service.ask({ question: 'Explain Prisma relations' }),
+    (receivedError) => receivedError === error,
+  );
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        searchResults,
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [
+          {
+            citationNumber: 1,
+            title: 'Prisma relations',
+            url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+            domain: 'prisma.io',
+            snippet: 'Relations describe connections between records.',
+            provider: 'tavily',
+            providerScore: 0.91,
+            publishedAt: null,
+          },
+        ],
+      },
+    ],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId,
+        errorMessage: 'Source persistence failed',
       },
     ],
   ]);
