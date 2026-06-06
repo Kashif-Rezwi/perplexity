@@ -34,7 +34,7 @@ Response:
     "turnId": "uuid",
     "question": "What changed in Next.js 15?",
     "searchQuery": "What changed in Next.js 15?",
-    "answerMarkdown": "Answer text...",
+    "answerMarkdown": "Answer text with a citation. [1]",
     "status": "completed",
     "errorMessage": null,
     "sources": [
@@ -51,16 +51,23 @@ Response:
         "createdAt": "2026-06-04T00:00:00.000Z"
       }
     ],
-    "citations": [],
+    "citations": [
+      {
+        "citationId": "uuid",
+        "sourceId": "uuid",
+        "citationNumber": 1,
+        "createdAt": "2026-06-04T00:00:00.000Z"
+      }
+    ],
     "createdAt": "2026-06-04T00:00:00.000Z",
     "completedAt": "2026-06-04T00:00:00.000Z"
   }
 }
 ```
 
-Note: D4 persists Tavily search results as sources. Citation extraction,
-follow-up context, and streaming are intentionally deferred to later chunks, so
-`citations` remains empty in the ask response for now.
+Note: D5 persists citation rows only for citation markers that appear in the
+generated answer and match saved sources. Follow-up context and streaming are
+intentionally deferred to later chunks.
 
 ## GET /perplexity/recents
 

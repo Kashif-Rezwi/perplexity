@@ -34,13 +34,42 @@ export class ThreadsRepository {
 
   async completeTurn(input: CompleteTurnInput): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      if (input.sources.length > 0) {
-        await tx.source.createMany({
-          data: input.sources.map((source) => ({
+      const sourceIdsByCitationNumber = new Map<number, string>();
+
+      for (const source of input.sources) {
+        const createdSource = await tx.source.create({
+          data: {
             ...source,
             turnId: input.turnId,
-          })),
+          },
+          select: {
+            id: true,
+            citationNumber: true,
+          },
         });
+
+        sourceIdsByCitationNumber.set(
+          createdSource.citationNumber,
+          createdSource.id,
+        );
+      }
+
+      const citations = input.citationNumbers.flatMap((citationNumber) => {
+        const sourceId = sourceIdsByCitationNumber.get(citationNumber);
+
+        return sourceId
+          ? [
+              {
+                turnId: input.turnId,
+                sourceId,
+                citationNumber,
+              },
+            ]
+          : [];
+      });
+
+      if (citations.length > 0) {
+        await tx.citation.createMany({ data: citations });
       }
 
       await tx.turn.update({

@@ -1,6 +1,12 @@
-import type { SearchResult } from '../../search/types/search.types';
+export type AnswerSource = {
+  citationNumber: number;
+  title: string;
+  url: string;
+  domain: string;
+  snippet: string;
+};
 
 export type GenerateAnswerInput = {
   question: string;
-  searchResults?: SearchResult[];
+  sources?: AnswerSource[];
 };

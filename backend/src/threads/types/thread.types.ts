@@ -28,6 +28,7 @@ export type CompleteTurnInput = {
   answerMarkdown: string;
   answerPreview: string;
   sources: CreateTurnSourceInput[];
+  citationNumbers: number[];
 };
 
 export type FailTurnInput = {

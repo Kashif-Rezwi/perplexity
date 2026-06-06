@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { extractCitationNumbers } from '../citations/citation-marker.parser';
 import { TavilySearchService } from '../search/tavily-search.service';
 import { mapSearchResultsToSourceInputs } from '../sources/mappers/source-persistence.mapper';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
@@ -34,14 +35,19 @@ export class AskService {
       const sources = mapSearchResultsToSourceInputs(searchResults);
       answerMarkdown = await this.aiService.generateAnswer({
         question: input.question,
-        searchResults,
+        sources,
       });
+      const citationNumbers = extractCitationNumbers(
+        answerMarkdown,
+        sources.map((source) => source.citationNumber),
+      );
       await this.threadsRepository.completeTurn({
         threadId: thread.id,
         turnId: turn.id,
         answerMarkdown,
         answerPreview: createAnswerPreview(answerMarkdown),
         sources,
+        citationNumbers,
       });
     } catch (error) {
       await this.threadsRepository.failTurn({

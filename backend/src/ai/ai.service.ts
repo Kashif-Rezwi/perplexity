@@ -13,7 +13,7 @@ import {
 } from './ai.constants';
 import type { GenerateAnswerInput } from './types/ai.types';
 
-const SEARCH_RESULT_CONTENT_MAX_LENGTH = 1200;
+const SOURCE_SNIPPET_MAX_LENGTH = 1200;
 
 @Injectable()
 export class AiService {
@@ -29,8 +29,9 @@ export class AiService {
         model: openaiClient(model),
         system:
           'You are a concise research assistant. Answer in clear Markdown. ' +
-          'Use the provided web search results when they are relevant. ' +
-          'Do not invent citation markers, citations, URLs, or source claims.',
+          'Use the provided numbered sources when they are relevant. ' +
+          'Cite source-supported claims with [n] markers. ' +
+          'Use only citation markers from the provided sources.',
         prompt: createAnswerPrompt(input),
       });
 
@@ -75,30 +76,31 @@ export class AiService {
 function createAnswerPrompt(input: GenerateAnswerInput): string {
   return [
     `Question:\n${input.question}`,
-    `Web search results:\n${formatSearchResults(input.searchResults ?? [])}`,
+    `Sources:\n${formatSources(input.sources ?? [])}`,
     'Write the answer in Markdown.',
   ].join('\n\n');
 }
 
-function formatSearchResults(searchResults: GenerateAnswerInput['searchResults']): string {
-  if (!searchResults?.length) {
-    return 'No web search results were returned. Answer from general knowledge only when useful, and do not claim web sources were found.';
+function formatSources(sources: GenerateAnswerInput['sources']): string {
+  if (!sources?.length) {
+    return 'No sources were returned. Answer from general knowledge only when useful, and do not include citation markers.';
   }
 
-  return searchResults
-    .map((result, index) =>
+  return sources
+    .map((source) =>
       [
-        `Result ${index + 1}`,
-        `Title: ${result.title}`,
-        `URL: ${result.url}`,
-        `Content: ${truncateSearchContent(result.content)}`,
+        `Source [${source.citationNumber}]`,
+        `Title: ${source.title}`,
+        `Domain: ${source.domain}`,
+        `URL: ${source.url}`,
+        `Snippet: ${truncateSourceSnippet(source.snippet)}`,
       ].join('\n'),
     )
     .join('\n\n');
 }
 
-function truncateSearchContent(content: string): string {
-  return content.length > SEARCH_RESULT_CONTENT_MAX_LENGTH
-    ? `${content.slice(0, SEARCH_RESULT_CONTENT_MAX_LENGTH)}...`
-    : content;
+function truncateSourceSnippet(snippet: string): string {
+  return snippet.length > SOURCE_SNIPPET_MAX_LENGTH
+    ? `${snippet.slice(0, SOURCE_SNIPPET_MAX_LENGTH)}...`
+    : snippet;
 }
