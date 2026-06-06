@@ -6,7 +6,13 @@ export type AnswerSource = {
   snippet: string;
 };
 
+export type PriorTurn = {
+  question: string;
+  answerMarkdown: string;
+};
+
 export type GenerateAnswerInput = {
   question: string;
+  priorTurns?: PriorTurn[];
   sources?: AnswerSource[];
 };

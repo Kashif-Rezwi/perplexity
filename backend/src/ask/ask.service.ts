@@ -1,13 +1,21 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { TurnStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
+import type { PriorTurn } from '../ai/types/ai.types';
 import { extractCitationNumbers } from '../citations/citation-marker.parser';
 import { TavilySearchService } from '../search/tavily-search.service';
 import { mapSearchResultsToSourceInputs } from '../sources/mappers/source-persistence.mapper';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
 import { ThreadsRepository } from '../threads/repositories/threads.repository';
+import type { ThreadDetailRecord } from '../threads/types/thread.types';
 import type { AskInput, AskResponse } from './types/ask.types';
 
 const ANSWER_PREVIEW_MAX_LENGTH = 300;
+const PRIOR_TURN_CONTEXT_LIMIT = 5;
 
 @Injectable()
 export class AskService {
@@ -19,11 +27,21 @@ export class AskService {
 
   async ask(input: AskInput): Promise<AskResponse> {
     const searchQuery = input.question;
-    const thread = await this.threadsRepository.createThreadWithPendingTurn({
-      title: createThreadTitle(input.question),
-      question: input.question,
-      searchQuery,
-    });
+    const existingThread = input.threadId
+      ? await this.loadExistingThreadOrThrow(input.threadId)
+      : null;
+    const priorTurns = existingThread ? getPriorTurns(existingThread) : [];
+    const thread = existingThread
+      ? await this.threadsRepository.appendPendingTurnToThread({
+          threadId: existingThread.id,
+          question: input.question,
+          searchQuery,
+        })
+      : await this.threadsRepository.createThreadWithPendingTurn({
+          title: createThreadTitle(input.question),
+          question: input.question,
+          searchQuery,
+        });
     const turn = getLatestTurn(thread);
 
     let answerMarkdown: string;
@@ -35,6 +53,7 @@ export class AskService {
       const sources = mapSearchResultsToSourceInputs(searchResults);
       answerMarkdown = await this.aiService.generateAnswer({
         question: input.question,
+        priorTurns,
         sources,
       });
       const citationNumbers = extractCitationNumbers(
@@ -87,6 +106,16 @@ export class AskService {
 
     return thread;
   }
+
+  private async loadExistingThreadOrThrow(threadId: string) {
+    const thread = await this.threadsRepository.findThreadDetailById(threadId);
+
+    if (!thread) {
+      throw new NotFoundException(`Thread ${threadId} was not found`);
+    }
+
+    return thread;
+  }
 }
 
 function createThreadTitle(question: string): string {
@@ -107,6 +136,19 @@ function getLatestTurn(thread: { turns: { id: string }[] }): { id: string } {
   }
 
   return turn;
+}
+
+function getPriorTurns(thread: ThreadDetailRecord): PriorTurn[] {
+  return thread.turns
+    .filter(
+      (turn) =>
+        turn.status === TurnStatus.COMPLETED && turn.answerMarkdown !== null,
+    )
+    .slice(-PRIOR_TURN_CONTEXT_LIMIT)
+    .map((turn) => ({
+      question: turn.question,
+      answerMarkdown: turn.answerMarkdown as string,
+    }));
 }
 
 function getErrorMessage(error: unknown): string {

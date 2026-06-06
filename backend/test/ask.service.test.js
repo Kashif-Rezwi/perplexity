@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { ServiceUnavailableException } = require('@nestjs/common');
+const { NotFoundException, ServiceUnavailableException } = require('@nestjs/common');
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const { AskService } = require('../dist/src/ask/ask.service.js');
 const { AiService } = require('../dist/src/ai/ai.service.js');
@@ -20,6 +20,7 @@ const {
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
+const followUpTurnId = '55555555-5555-4555-8555-555555555555';
 const sourceId = '33333333-3333-4333-8333-333333333333';
 const citationId = '44444444-4444-4444-8444-444444444444';
 const createdAt = new Date('2026-06-04T00:00:00.000Z');
@@ -56,7 +57,25 @@ function createCitationRecord(overrides = {}) {
   };
 }
 
+function createTurnRecord(overrides = {}) {
+  return {
+    id: overrides.id ?? turnId,
+    question: overrides.question ?? 'Explain Prisma relations',
+    searchQuery: overrides.searchQuery ?? 'Explain Prisma relations',
+    answerMarkdown:
+      overrides.answerMarkdown ?? 'Prisma relations connect rows.',
+    status: overrides.turnStatus ?? TurnStatus.COMPLETED,
+    errorMessage: overrides.errorMessage ?? null,
+    createdAt: overrides.createdAt ?? createdAt,
+    completedAt: overrides.completedAt ?? completedAt,
+    sources: overrides.sources ?? [],
+    citations: overrides.citations ?? [],
+  };
+}
+
 function createThreadRecord(overrides = {}) {
+  const turns = overrides.turns ?? [createTurnRecord(overrides)];
+
   return {
     id: threadId,
     title: 'Explain Prisma relations',
@@ -65,23 +84,23 @@ function createThreadRecord(overrides = {}) {
     mode: ThreadMode.WEB,
     createdAt,
     updatedAt,
-    _count: { turns: 1 },
-    turns: [
-      {
-        id: turnId,
-        question: 'Explain Prisma relations',
-        searchQuery: 'Explain Prisma relations',
-        answerMarkdown:
-          overrides.answerMarkdown ?? 'Prisma relations connect rows.',
-        status: overrides.turnStatus ?? TurnStatus.COMPLETED,
-        errorMessage: overrides.errorMessage ?? null,
-        createdAt,
-        completedAt: overrides.completedAt ?? completedAt,
-        sources: overrides.sources ?? [],
-        citations: overrides.citations ?? [],
-      },
-    ],
+    _count: { turns: turns.length },
+    turns,
   };
+}
+
+function createPriorCompletedTurns(count) {
+  return Array.from({ length: count }, (_, index) => {
+    const turnNumber = index + 1;
+
+    return createTurnRecord({
+      id: `prior-turn-${turnNumber}`,
+      question: `Prior question ${turnNumber}`,
+      searchQuery: `Prior question ${turnNumber}`,
+      answerMarkdown: `Prior answer ${turnNumber}`,
+      completedAt,
+    });
+  });
 }
 
 test('AskService creates a thread, completes its turn, and returns persisted data', async () => {
@@ -188,6 +207,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
       'generateAnswer',
       {
         question: 'Explain Prisma relations',
+        priorTurns: [],
         sources: sourceInputs,
       },
     ],
@@ -260,6 +280,7 @@ test('AskService completes successfully when search returns no sources', async (
       'generateAnswer',
       {
         question: 'Explain Prisma relations',
+        priorTurns: [],
         sources: [],
       },
     ],
@@ -356,6 +377,7 @@ test('AskService completes with sources and no citations when answer has no mark
       'generateAnswer',
       {
         question: 'Explain Prisma relations',
+        priorTurns: [],
         sources: sourceInputs,
       },
     ],
@@ -371,6 +393,234 @@ test('AskService completes with sources and no citations when answer has no mark
       },
     ],
     ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService appends a follow-up turn with prior thread context', async () => {
+  const question = 'What about Prisma pricing?';
+  const answerMarkdown = 'Prisma pricing depends on the plan. [1]';
+  const priorTurns = createPriorCompletedTurns(6);
+  const expectedPriorTurns = priorTurns.slice(-5).map((turn) => ({
+    question: turn.question,
+    answerMarkdown: turn.answerMarkdown,
+  }));
+  const searchResults = [
+    {
+      title: 'Prisma pricing',
+      url: 'https://www.prisma.io/pricing',
+      content: 'Prisma pricing includes multiple plans.',
+      score: 0.87,
+      publishedAt: null,
+    },
+  ];
+  const sourceInputs = [
+    {
+      citationNumber: 1,
+      title: 'Prisma pricing',
+      url: 'https://www.prisma.io/pricing',
+      domain: 'prisma.io',
+      snippet: 'Prisma pricing includes multiple plans.',
+      provider: 'tavily',
+      providerScore: 0.87,
+      publishedAt: null,
+    },
+  ];
+  const pendingFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown: null,
+    turnStatus: TurnStatus.PENDING,
+    completedAt: null,
+  });
+  const completedFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown,
+    sources: [
+      createSourceRecord({
+        title: 'Prisma pricing',
+        url: 'https://www.prisma.io/pricing',
+        snippet: 'Prisma pricing includes multiple plans.',
+        providerScore: 0.87,
+        publishedAt: null,
+      }),
+    ],
+    citations: [createCitationRecord()],
+  });
+  let findCalls = 0;
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return searchResults;
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        findCalls += 1;
+
+        return findCalls === 1
+          ? createThreadRecord({ turns: priorTurns })
+          : createThreadRecord({
+              turns: [...priorTurns, completedFollowUpTurn],
+            });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          turns: [...priorTurns, pendingFollowUpTurn],
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+    },
+  );
+
+  const response = await service.ask({ question, threadId });
+
+  assert.equal(response.thread.threadId, threadId);
+  assert.equal(response.thread.turnCount, 7);
+  assert.equal(response.turn.turnId, followUpTurnId);
+  assert.equal(response.turn.searchQuery, question);
+  assert.equal(response.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(calls, [
+    ['findThreadDetailById', threadId],
+    [
+      'appendPendingTurnToThread',
+      {
+        threadId,
+        question,
+        searchQuery: question,
+      },
+    ],
+    ['search', { query: question }],
+    [
+      'generateAnswer',
+      {
+        question,
+        priorTurns: expectedPriorTurns,
+        sources: sourceInputs,
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId: followUpTurnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: sourceInputs,
+        citationNumbers: [1],
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService rejects follow-up for a missing thread before search', async () => {
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer() {
+        calls.push(['generateAnswer']);
+      },
+    },
+    {
+      async search() {
+        calls.push(['search']);
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return null;
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => service.ask({ question: 'What about pricing?', threadId }),
+    (error) => error instanceof NotFoundException,
+  );
+  assert.deepEqual(calls, [['findThreadDetailById', threadId]]);
+});
+
+test('AskService marks the appended follow-up turn failed when search fails', async () => {
+  const question = 'What about pricing?';
+  const error = new ServiceUnavailableException('Tavily search failed');
+  const priorTurns = createPriorCompletedTurns(1);
+  const pendingFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown: null,
+    turnStatus: TurnStatus.PENDING,
+    completedAt: null,
+  });
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer() {
+        calls.push(['generateAnswer']);
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        throw error;
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({ turns: priorTurns });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          turns: [...priorTurns, pendingFollowUpTurn],
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => service.ask({ question, threadId }),
+    (receivedError) => receivedError === error,
+  );
+  assert.deepEqual(calls, [
+    ['findThreadDetailById', threadId],
+    [
+      'appendPendingTurnToThread',
+      {
+        threadId,
+        question,
+        searchQuery: question,
+      },
+    ],
+    ['search', { query: question }],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId: followUpTurnId,
+        errorMessage: 'Tavily search failed',
+      },
+    ],
   ]);
 });
 
@@ -481,6 +731,7 @@ test('AskService marks the pending turn failed when AI generation fails', async 
       'generateAnswer',
       {
         question: 'Explain Prisma relations',
+        priorTurns: [],
         sources: [],
       },
     ],
@@ -571,6 +822,7 @@ test('AskService marks the pending turn failed when completion fails', async () 
       'generateAnswer',
       {
         question: 'Explain Prisma relations',
+        priorTurns: [],
         sources: sourceInputs,
       },
     ],

@@ -75,10 +75,27 @@ export class AiService {
 
 function createAnswerPrompt(input: GenerateAnswerInput): string {
   return [
+    `Prior thread context:\n${formatPriorTurns(input.priorTurns ?? [])}`,
     `Question:\n${input.question}`,
     `Sources:\n${formatSources(input.sources ?? [])}`,
     'Write the answer in Markdown.',
   ].join('\n\n');
+}
+
+function formatPriorTurns(priorTurns: GenerateAnswerInput['priorTurns']): string {
+  if (!priorTurns?.length) {
+    return 'No prior turns.';
+  }
+
+  return priorTurns
+    .map((turn, index) =>
+      [
+        `Turn ${index + 1}`,
+        `Question: ${turn.question}`,
+        `Answer: ${turn.answerMarkdown}`,
+      ].join('\n'),
+    )
+    .join('\n\n');
 }
 
 function formatSources(sources: GenerateAnswerInput['sources']): string {

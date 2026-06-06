@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ThreadStatus, TurnStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type {
+  AppendPendingTurnToThreadInput,
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
@@ -19,6 +20,25 @@ export class ThreadsRepository {
     return this.prisma.thread.create({
       data: {
         title: input.title,
+        status: ThreadStatus.RUNNING,
+        turns: {
+          create: {
+            question: input.question,
+            searchQuery: input.searchQuery,
+            status: TurnStatus.PENDING,
+          },
+        },
+      },
+      include: threadDetailInclude,
+    });
+  }
+
+  appendPendingTurnToThread(
+    input: AppendPendingTurnToThreadInput,
+  ): Promise<ThreadDetailRecord> {
+    return this.prisma.thread.update({
+      where: { id: input.threadId },
+      data: {
         status: ThreadStatus.RUNNING,
         turns: {
           create: {

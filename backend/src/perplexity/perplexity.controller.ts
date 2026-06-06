@@ -16,7 +16,10 @@ export class PerplexityController {
 
   @Post('ask')
   ask(@Body() body: AskRequestDto) {
-    return this.askService.ask({ question: body.question });
+    return this.askService.ask({
+      question: body.question,
+      threadId: body.threadId,
+    });
   }
 
   @Get('recents')

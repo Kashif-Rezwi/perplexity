@@ -8,6 +8,38 @@ const {
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
 
+test('ThreadsRepository.appendPendingTurnToThread marks thread running and creates a turn', async () => {
+  const repository = new ThreadsRepository({
+    thread: {
+      async update(args) {
+        return args;
+      },
+    },
+  });
+
+  const response = await repository.appendPendingTurnToThread({
+    threadId,
+    question: 'What about pricing?',
+    searchQuery: 'What about pricing?',
+  });
+
+  assert.deepEqual(response, {
+    where: { id: threadId },
+    data: {
+      status: ThreadStatus.RUNNING,
+      turns: {
+        create: {
+          question: 'What about pricing?',
+          searchQuery: 'What about pricing?',
+          status: TurnStatus.PENDING,
+        },
+      },
+    },
+    include: response.include,
+  });
+  assert(response.include.turns);
+});
+
 test('ThreadsRepository.completeTurn persists sources and matching citations', async () => {
   const operations = [];
   const repository = new ThreadsRepository({

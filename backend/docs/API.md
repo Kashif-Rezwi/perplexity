@@ -2,14 +2,15 @@
 
 ## POST /perplexity/ask
 
-Creates a new thread with one turn, searches the web for context, and generates an AI answer.
+Creates a new thread with one turn, or appends a follow-up turn to an existing
+thread, searches the web for context, and generates an AI answer.
 
 Request:
 
 ```json
 {
   "question": "What changed in Next.js 15?",
-  // "threadId": "optional-existing-thread-uuid",
+  "threadId": "optional-existing-thread-uuid",
   // "mode": "web"
 }
 ```
@@ -65,9 +66,9 @@ Response:
 }
 ```
 
-Note: D5 persists citation rows only for citation markers that appear in the
-generated answer and match saved sources. Follow-up context and streaming are
-intentionally deferred to later chunks.
+Note: `threadId` is optional. When present, ask appends a new turn to that
+thread and uses the last 5 completed prior turns as AI context. Streaming is
+intentionally deferred to a later chunk.
 
 ## GET /perplexity/recents
 

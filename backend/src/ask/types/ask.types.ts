@@ -2,6 +2,7 @@ import type { ThreadSummaryItem, TurnItem } from '../../threads/types/thread.typ
 
 export type AskInput = {
   question: string;
+  threadId?: string;
 };
 
 export type AskResponse = {

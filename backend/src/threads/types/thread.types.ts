@@ -22,6 +22,12 @@ export type CreateThreadWithPendingTurnInput = {
   searchQuery: string;
 };
 
+export type AppendPendingTurnToThreadInput = {
+  threadId: string;
+  question: string;
+  searchQuery: string;
+};
+
 export type CompleteTurnInput = {
   threadId: string;
   turnId: string;
