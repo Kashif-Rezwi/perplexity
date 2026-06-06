@@ -36,6 +36,11 @@ Response:
     "question": "What changed in Next.js 15?",
     "searchQuery": "What changed in Next.js 15?",
     "answerMarkdown": "Answer text with a citation. [1]",
+    "suggestedFollowUpQuestions": [
+      "How does Next.js 15 affect app router projects?",
+      "What should I migrate first in Next.js 15?",
+      "Which Next.js 15 changes affect caching?"
+    ],
     "status": "completed",
     "errorMessage": null,
     "sourceCount": 1,
@@ -63,7 +68,8 @@ thread and uses the last 5 completed prior turns as AI context. Streaming is
 intentionally deferred to a later chunk. The ask response includes lightweight
 citation previews for markers in `answerMarkdown`, but it does not include the
 full source list. Load all sources for the returned turn with
-`GET /perplexity/recents?turnId=<turnId>`.
+`GET /perplexity/recents?turnId=<turnId>`. Suggested follow-up questions are
+best-effort; if generation fails, the API returns an empty array.
 
 ## GET /perplexity/recents
 
@@ -127,6 +133,11 @@ Response:
       "question": "What changed in Next.js 15?",
       "searchQuery": "What changed in Next.js 15?",
       "answerMarkdown": "Answer text with citations...",
+      "suggestedFollowUpQuestions": [
+        "How does Next.js 15 affect app router projects?",
+        "What should I migrate first in Next.js 15?",
+        "Which Next.js 15 changes affect caching?"
+      ],
       "status": "completed",
       "errorMessage": null,
       "sources": [

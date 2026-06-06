@@ -12,7 +12,7 @@ import { threadDetailInclude } from '../types/thread.types';
 
 @Injectable()
 export class ThreadsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   createThreadWithPendingTurn(
     input: CreateThreadWithPendingTurnInput,
@@ -79,12 +79,12 @@ export class ThreadsRepository {
 
         return sourceId
           ? [
-              {
-                turnId: input.turnId,
-                sourceId,
-                citationNumber,
-              },
-            ]
+            {
+              turnId: input.turnId,
+              sourceId,
+              citationNumber,
+            },
+          ]
           : [];
       });
 
@@ -96,6 +96,7 @@ export class ThreadsRepository {
         where: { id: input.turnId },
         data: {
           answerMarkdown: input.answerMarkdown,
+          suggestedFollowUpQuestions: input.suggestedFollowUpQuestions,
           status: TurnStatus.COMPLETED,
           errorMessage: null,
           completedAt: new Date(),

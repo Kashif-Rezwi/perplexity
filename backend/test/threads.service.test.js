@@ -29,6 +29,11 @@ function createThreadDetailRecord() {
         question: 'What changed in Next.js 15?',
         searchQuery: 'Next.js 15 changes',
         answerMarkdown: 'Next.js 15 changed several APIs. [1]',
+        suggestedFollowUpQuestions: [
+          'How does Next.js 15 affect app router projects?',
+          'What should I migrate first in Next.js 15?',
+          'Which Next.js 15 changes affect caching?',
+        ],
         status: TurnStatus.COMPLETED,
         errorMessage: null,
         createdAt,
@@ -67,6 +72,11 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   assert.equal(detail.sourceCount, 1);
   assert.equal(detail.turnCount, 1);
   assert.equal(detail.turns[0].turnId, turnId);
+  assert.deepEqual(detail.turns[0].suggestedFollowUpQuestions, [
+    'How does Next.js 15 affect app router projects?',
+    'What should I migrate first in Next.js 15?',
+    'Which Next.js 15 changes affect caching?',
+  ]);
   assert.equal(detail.turns[0].sources[0].sourceId, sourceId);
   assert.equal(detail.turns[0].citations[0].citationId, citationId);
 });

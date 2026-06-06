@@ -24,6 +24,7 @@ export type AskTurnSummary = {
   question: string;
   searchQuery: string;
   answerMarkdown: string | null;
+  suggestedFollowUpQuestions: string[];
   status: ApiTurnStatus;
   errorMessage: string | null;
   sourceCount: number;

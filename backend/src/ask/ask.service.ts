@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
-import type { PriorTurn } from '../ai/types/ai.types';
+import type {
+  GenerateSuggestedFollowUpQuestionsInput,
+  PriorTurn,
+} from '../ai/types/ai.types';
 import {
   extractCitationNumbers,
   normalizeCitationMarkers,
@@ -70,6 +73,13 @@ export class AskService {
         answerMarkdown,
         validCitationNumbers,
       );
+      const suggestedFollowUpQuestions =
+        await this.generateSuggestedFollowUpQuestions({
+          question: input.question,
+          answerMarkdown,
+          priorTurns,
+          sources,
+        });
       await this.threadsRepository.completeTurn({
         threadId: thread.id,
         turnId: turn.id,
@@ -77,6 +87,7 @@ export class AskService {
         answerPreview: createAnswerPreview(answerMarkdown),
         sources,
         citationNumbers,
+        suggestedFollowUpQuestions,
       });
     } catch (error) {
       await this.threadsRepository.failTurn({
@@ -117,6 +128,16 @@ export class AskService {
     }
 
     return thread;
+  }
+
+  private async generateSuggestedFollowUpQuestions(
+    input: GenerateSuggestedFollowUpQuestionsInput,
+  ): Promise<string[]> {
+    try {
+      return await this.aiService.generateSuggestedFollowUpQuestions(input);
+    } catch {
+      return [];
+    }
   }
 
   private async loadExistingThreadOrThrow(threadId: string) {

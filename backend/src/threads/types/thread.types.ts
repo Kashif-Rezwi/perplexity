@@ -35,6 +35,7 @@ export type CompleteTurnInput = {
   answerPreview: string;
   sources: CreateTurnSourceInput[];
   citationNumbers: number[];
+  suggestedFollowUpQuestions: string[];
 };
 
 export type FailTurnInput = {
@@ -96,6 +97,7 @@ export type TurnItem = {
   question: string;
   searchQuery: string;
   answerMarkdown: string | null;
+  suggestedFollowUpQuestions: string[];
   status: ApiTurnStatus;
   errorMessage: string | null;
   sources: SourceItem[];

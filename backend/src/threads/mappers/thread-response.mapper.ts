@@ -18,6 +18,7 @@ export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailRespons
       question: turn.question,
       searchQuery: turn.searchQuery,
       answerMarkdown: turn.answerMarkdown,
+      suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
       status: TURN_STATUS[turn.status],
       errorMessage: turn.errorMessage,
       sources: turn.sources.map((s) => ({

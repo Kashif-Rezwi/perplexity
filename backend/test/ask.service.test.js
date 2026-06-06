@@ -67,6 +67,7 @@ function createTurnRecord(overrides = {}) {
     searchQuery: overrides.searchQuery ?? 'Explain Prisma relations',
     answerMarkdown:
       overrides.answerMarkdown ?? 'Prisma relations connect rows.',
+    suggestedFollowUpQuestions: overrides.suggestedFollowUpQuestions ?? [],
     status: overrides.turnStatus ?? TurnStatus.COMPLETED,
     errorMessage: overrides.errorMessage ?? null,
     createdAt: overrides.createdAt ?? createdAt,
@@ -112,6 +113,7 @@ test('mapAskTurnSummary returns only cited source previews', () => {
     question: 'Explain Prisma relations',
     searchQuery: 'Explain Prisma relations',
     answerMarkdown: 'Only the second source is cited. [2]',
+    suggestedFollowUpQuestions: ['What should I read next?'],
     status: 'completed',
     errorMessage: null,
     sourceCount: 2,
@@ -162,6 +164,9 @@ test('mapAskTurnSummary returns only cited source previews', () => {
 
   assert.equal(summary.sourceCount, 2);
   assert.equal(summary.citationCount, 2);
+  assert.deepEqual(summary.suggestedFollowUpQuestions, [
+    'What should I read next?',
+  ]);
   assert.equal('sources' in summary, false);
   assert.deepEqual(summary.citations, [
     {
@@ -179,6 +184,11 @@ test('mapAskTurnSummary returns only cited source previews', () => {
 
 test('AskService creates a thread, completes its turn, and returns persisted data', async () => {
   const answerMarkdown = 'Prisma relations connect rows across tables. [1]';
+  const suggestedFollowUpQuestions = [
+    'How do Prisma relation fields work?',
+    'How do I create related records in Prisma?',
+    'How do Prisma foreign keys map to database columns?',
+  ];
   const searchResults = [
     {
       title: 'Prisma relations',
@@ -207,6 +217,10 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
       },
+      async generateSuggestedFollowUpQuestions(input) {
+        calls.push(['generateSuggestedFollowUpQuestions', input]);
+        return suggestedFollowUpQuestions;
+      },
     },
     {
       async search(input) {
@@ -231,6 +245,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({
           answerMarkdown,
+          suggestedFollowUpQuestions,
           sources: [createSourceRecord()],
           citations: [createCitationRecord()],
         });
@@ -245,6 +260,10 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   assert.equal(response.thread.sourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(
+    response.turn.suggestedFollowUpQuestions,
+    suggestedFollowUpQuestions,
+  );
   assert.equal(response.turn.sourceCount, 1);
   assert.equal(response.turn.citationCount, 1);
   assert.equal('sources' in response.turn, false);
@@ -279,6 +298,15 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
       },
     ],
     [
+      'generateSuggestedFollowUpQuestions',
+      {
+        question: 'Explain Prisma relations',
+        answerMarkdown,
+        priorTurns: [],
+        sources: sourceInputs,
+      },
+    ],
+    [
       'completeTurn',
       {
         threadId,
@@ -287,6 +315,94 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
+        suggestedFollowUpQuestions,
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService completes with empty suggestions when suggestion generation fails', async () => {
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const error = new ServiceUnavailableException('Suggestion generation failed');
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+      async generateSuggestedFollowUpQuestions(input) {
+        calls.push(['generateSuggestedFollowUpQuestions', input]);
+        throw error;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({ answerMarkdown });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+
+  assert.deepEqual(response.turn.suggestedFollowUpQuestions, []);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'generateSuggestedFollowUpQuestions',
+      {
+        question: 'Explain Prisma relations',
+        answerMarkdown,
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
+        citationNumbers: [],
+        suggestedFollowUpQuestions: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -375,6 +491,7 @@ test('AskService normalizes citation ranges before persistence', async () => {
   );
   assert.equal(completeTurnCall[1].answerMarkdown, normalizedAnswerMarkdown);
   assert.deepEqual(completeTurnCall[1].citationNumbers, [1, 2, 3]);
+  assert.deepEqual(completeTurnCall[1].suggestedFollowUpQuestions, []);
 });
 
 test('AskService returns its completed turn when another turn is newer', async () => {
@@ -463,6 +580,7 @@ test('AskService returns its completed turn when another turn is newer', async (
         answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
+        suggestedFollowUpQuestions: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -539,6 +657,7 @@ test('AskService completes successfully when search returns no sources', async (
         answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
+        suggestedFollowUpQuestions: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -639,6 +758,7 @@ test('AskService completes with sources and no citations when answer has no mark
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [],
+        suggestedFollowUpQuestions: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -786,6 +906,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
+        suggestedFollowUpQuestions: [],
       },
     ],
     ['findThreadDetailById', threadId],
@@ -1099,6 +1220,7 @@ test('AskService marks the pending turn failed when completion fails', async () 
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
+        suggestedFollowUpQuestions: [],
       },
     ],
     [
@@ -1121,6 +1243,25 @@ test('AiService fails clearly when OPENAI_API_KEY is missing', async () => {
 
   await assert.rejects(
     () => service.generateAnswer({ question: 'Explain Prisma relations' }),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message === 'OPENAI_API_KEY is not configured',
+  );
+});
+
+test('AiService suggestion generation fails clearly when OPENAI_API_KEY is missing', async () => {
+  const service = new AiService({
+    get() {
+      return undefined;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.generateSuggestedFollowUpQuestions({
+        question: 'Explain Prisma relations',
+        answerMarkdown: 'Prisma relations connect rows.',
+      }),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'OPENAI_API_KEY is not configured',

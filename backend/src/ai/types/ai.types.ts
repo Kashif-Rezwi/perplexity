@@ -16,3 +16,10 @@ export type GenerateAnswerInput = {
   priorTurns?: PriorTurn[];
   sources?: AnswerSource[];
 };
+
+export type GenerateSuggestedFollowUpQuestionsInput = {
+  question: string;
+  answerMarkdown: string;
+  priorTurns?: PriorTurn[];
+  sources?: AnswerSource[];
+};

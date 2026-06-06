@@ -45,6 +45,7 @@ model Turn {
   question       String     @db.Text
   searchQuery    String     @db.Text
   answerMarkdown String?    @db.Text
+  suggestedFollowUpQuestions String[] @default([])
 
   status         TurnStatus @default(PENDING)
   errorMessage   String?    @db.Text

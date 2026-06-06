@@ -10,6 +10,7 @@ export function mapAskTurnSummary(turn: TurnItem): AskTurnSummary {
     question: turn.question,
     searchQuery: turn.searchQuery,
     answerMarkdown: turn.answerMarkdown,
+    suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
     status: turn.status,
     errorMessage: turn.errorMessage,
     sourceCount: turn.sources.length,

@@ -101,6 +101,11 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
       },
     ],
     citationNumbers: [2, 1, 99],
+    suggestedFollowUpQuestions: [
+      'How do Prisma relation fields work?',
+      'How do I create related records in Prisma?',
+      'How do Prisma foreign keys map to database columns?',
+    ],
   });
 
   assert.equal(operations[0][0], 'source.create');
@@ -120,6 +125,11 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
       where: { id: turnId },
       data: {
         answerMarkdown: 'Answer [2] then [1].',
+        suggestedFollowUpQuestions: [
+          'How do Prisma relation fields work?',
+          'How do I create related records in Prisma?',
+          'How do Prisma foreign keys map to database columns?',
+        ],
         status: TurnStatus.COMPLETED,
         errorMessage: null,
         completedAt: operations[3][1].data.completedAt,
