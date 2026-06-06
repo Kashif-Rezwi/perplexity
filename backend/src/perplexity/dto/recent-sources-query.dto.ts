@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 
 export class RecentSourcesQueryDto {
   @IsOptional()
@@ -8,4 +8,8 @@ export class RecentSourcesQueryDto {
   @Min(1)
   @Max(50)
   limit?: number;
+
+  @IsOptional()
+  @IsUUID()
+  turnId?: string;
 }

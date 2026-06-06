@@ -21,7 +21,10 @@ export class PerplexityController {
 
   @Get('recents')
   listRecentSources(@Query() query: RecentSourcesQueryDto) {
-    return this.sourcesService.listRecentSources({ limit: query.limit });
+    return this.sourcesService.listRecentSources({
+      limit: query.limit,
+      turnId: query.turnId,
+    });
   }
 
   @Get('threads/:threadId')

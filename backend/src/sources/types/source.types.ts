@@ -7,6 +7,7 @@ export type RecentSourceRecord = Prisma.SourceGetPayload<{
 
 export type ListRecentSourcesOptions = {
   limit?: number;
+  turnId?: string;
 };
 
 export type RecentSourceItem = {

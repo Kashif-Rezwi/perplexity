@@ -56,17 +56,17 @@ test('mapRecentSource returns the recent sources API contract', () => {
 });
 
 test('SourcesService lists recent sources through the repository', async () => {
-  let receivedLimit;
+  let receivedOptions;
   const service = new SourcesService({
-    async findRecentSources(limit) {
-      receivedLimit = limit;
+    async findRecentSources(options) {
+      receivedOptions = options;
       return [createRecentSourceRecord()];
     },
   });
 
-  const response = await service.listRecentSources({ limit: 7 });
+  const response = await service.listRecentSources({ limit: 7, turnId });
 
-  assert.equal(receivedLimit, 7);
+  assert.deepEqual(receivedOptions, { limit: 7, turnId });
   assert.equal(response.items.length, 1);
   assert.equal(response.items[0].sourceId, sourceId);
   assert.equal(response.nextCursor, null);
