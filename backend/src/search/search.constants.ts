@@ -1,0 +1,8 @@
+import type { SearchDepth } from './types/search.types';
+
+export const TAVILY_API_KEY_CONFIG_KEY = 'TAVILY_API_KEY';
+export const TAVILY_MAX_RESULTS_CONFIG_KEY = 'TAVILY_MAX_RESULTS';
+export const TAVILY_SEARCH_DEPTH_CONFIG_KEY = 'TAVILY_SEARCH_DEPTH';
+
+export const DEFAULT_TAVILY_MAX_RESULTS = 5;
+export const DEFAULT_TAVILY_SEARCH_DEPTH: SearchDepth = 'basic';

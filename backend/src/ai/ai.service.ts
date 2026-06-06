@@ -11,12 +11,15 @@ import {
   OPENAI_API_KEY_CONFIG_KEY,
   OPENAI_MODEL_CONFIG_KEY,
 } from './ai.constants';
+import type { GenerateAnswerInput } from './types/ai.types';
+
+const SEARCH_RESULT_CONTENT_MAX_LENGTH = 1200;
 
 @Injectable()
 export class AiService {
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
-  async generateAnswer(question: string): Promise<string> {
+  async generateAnswer(input: GenerateAnswerInput): Promise<string> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getModel();
     const openaiClient = createOpenAI({ apiKey });
@@ -26,8 +29,9 @@ export class AiService {
         model: openaiClient(model),
         system:
           'You are a concise research assistant. Answer in clear Markdown. ' +
-          'Do not invent citations or sources.',
-        prompt: question,
+          'Use the provided web search results when they are relevant. ' +
+          'Do not invent citation markers, citations, URLs, or source claims.',
+        prompt: createAnswerPrompt(input),
       });
 
       const answerMarkdown = text.trim();
@@ -66,4 +70,35 @@ export class AiService {
       DEFAULT_OPENAI_MODEL
     );
   }
+}
+
+function createAnswerPrompt(input: GenerateAnswerInput): string {
+  return [
+    `Question:\n${input.question}`,
+    `Web search results:\n${formatSearchResults(input.searchResults ?? [])}`,
+    'Write the answer in Markdown.',
+  ].join('\n\n');
+}
+
+function formatSearchResults(searchResults: GenerateAnswerInput['searchResults']): string {
+  if (!searchResults?.length) {
+    return 'No web search results were returned. Answer from general knowledge only when useful, and do not claim web sources were found.';
+  }
+
+  return searchResults
+    .map((result, index) =>
+      [
+        `Result ${index + 1}`,
+        `Title: ${result.title}`,
+        `URL: ${result.url}`,
+        `Content: ${truncateSearchContent(result.content)}`,
+      ].join('\n'),
+    )
+    .join('\n\n');
+}
+
+function truncateSearchContent(content: string): string {
+  return content.length > SEARCH_RESULT_CONTENT_MAX_LENGTH
+    ? `${content.slice(0, SEARCH_RESULT_CONTENT_MAX_LENGTH)}...`
+    : content;
 }

@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { TavilySearchService } from '../search/tavily-search.service';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
 import { ThreadsRepository } from '../threads/repositories/threads.repository';
 import type { AskInput, AskResponse } from './types/ask.types';
@@ -10,21 +11,30 @@ const ANSWER_PREVIEW_MAX_LENGTH = 300;
 export class AskService {
   constructor(
     private readonly aiService: AiService,
+    private readonly tavilySearchService: TavilySearchService,
     private readonly threadsRepository: ThreadsRepository,
-  ) {}
+  ) { }
 
   async ask(input: AskInput): Promise<AskResponse> {
+    const searchQuery = input.question;
     const thread = await this.threadsRepository.createThreadWithPendingTurn({
       title: createThreadTitle(input.question),
       question: input.question,
-      searchQuery: input.question,
+      searchQuery,
     });
     const turn = getLatestTurn(thread);
 
     let answerMarkdown: string;
 
     try {
-      answerMarkdown = await this.aiService.generateAnswer(input.question);
+      const searchResults = await this.tavilySearchService.search({
+        query: searchQuery,
+      });
+      // console.log(JSON.stringify(searchResults, null, 2));
+      answerMarkdown = await this.aiService.generateAnswer({
+        question: input.question,
+        searchResults,
+      });
       await this.threadsRepository.completeTurn({
         threadId: thread.id,
         turnId: turn.id,

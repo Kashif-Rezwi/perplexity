@@ -2,7 +2,7 @@
 
 ## POST /perplexity/ask
 
-Creates a new thread with one turn and generates an AI answer.
+Creates a new thread with one turn, searches the web for context, and generates an AI answer.
 
 Request:
 
@@ -45,8 +45,7 @@ Response:
 }
 ```
 
-Note: web search, source persistence, citations, follow-up context, and
-streaming are intentionally deferred to later chunks.
+Note: D3 uses Tavily search results as internal AI context. Source persistence, citations, follow-up context, and streaming are intentionally deferred to later chunks, so `sources` and `citations` remain empty in the ask response for now.
 
 ## GET /perplexity/recents
 
