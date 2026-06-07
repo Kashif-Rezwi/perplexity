@@ -48,6 +48,33 @@ function delay(ms, value) {
   });
 }
 
+// Provides the three timeout getters that AiService exposes. Spread into every
+// aiService mock so direct calls (e.g. this.aiService.getAnswerTimeoutMs())
+// resolve to the production defaults rather than throwing. Tests that need a
+// shorter timeout override the specific getter after spreading.
+const DEFAULT_AI_TIMEOUTS = {
+  getAnswerTimeoutMs() { return DEFAULT_OPENAI_ANSWER_TIMEOUT_MS; },
+  getQueryRewriteTimeoutMs() { return DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS; },
+  getSuggestionTimeoutMs() { return DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS; },
+};
+
+// Simulates a slow async operation that respects an AbortSignal, mirroring what
+// the Vercel AI SDK does when the signal fires during a fetch. Used in timeout
+// tests so the AbortController-based cancellation in AskService can be tested
+// without relying on a race between two Promises.
+function delayWithAbort(ms, value, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      return reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
+    }
+    const timer = setTimeout(() => resolve(value), ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
+    }, { once: true });
+  });
+}
+
 function createSourceRecord(overrides = {}) {
   return {
     id: overrides.id ?? sourceId,
@@ -230,6 +257,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery() {
         assert.fail('new asks must not rewrite search queries');
       },
@@ -348,6 +376,7 @@ test('AskService completes with empty suggestions when suggestion generation fai
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -454,6 +483,7 @@ test('AskService normalizes citation ranges before persistence', async () => {
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return rawAnswerMarkdown;
@@ -527,6 +557,7 @@ test('AskService returns its completed turn when another turn is newer', async (
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -612,6 +643,7 @@ test('AskService completes successfully when search returns no sources', async (
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -710,6 +742,7 @@ test('AskService completes with sources and no citations when answer has no mark
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -847,6 +880,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
         calls.push(['generateStandaloneSearchQuery', input]);
         return standaloneSearchQuery;
@@ -976,6 +1010,7 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
         calls.push(['generateStandaloneSearchQuery', input]);
         throw new ServiceUnavailableException(
@@ -1098,12 +1133,13 @@ test('AskService falls back to the raw follow-up question when rewrite times out
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       getQueryRewriteTimeoutMs() {
         return 1;
       },
-      async generateStandaloneSearchQuery(input) {
+      async generateStandaloneSearchQuery(input, abortSignal) {
         calls.push(['generateStandaloneSearchQuery', input]);
-        return delay(25, 'Prisma pricing current plans');
+        return delayWithAbort(25, 'Prisma pricing current plans', abortSignal);
       },
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
@@ -1213,6 +1249,7 @@ test('AskService marks the appended follow-up turn failed when search fails', as
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
         calls.push(['generateStandaloneSearchQuery', input]);
         return standaloneSearchQuery;
@@ -1396,6 +1433,7 @@ test('AskService marks the pending turn failed when AI generation fails', async 
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         throw error;
@@ -1460,12 +1498,13 @@ test('AskService marks the pending turn failed when answer generation times out'
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       getAnswerTimeoutMs() {
         return 1;
       },
-      async generateAnswer(input) {
+      async generateAnswer(input, abortSignal) {
         calls.push(['generateAnswer', input]);
-        return delay(25, 'Prisma relations connect rows.');
+        return delayWithAbort(25, 'Prisma relations connect rows.', abortSignal);
       },
     },
     {
@@ -1530,6 +1569,7 @@ test('AskService completes with empty suggestions when suggestion generation tim
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       getSuggestionTimeoutMs() {
         return 1;
       },
@@ -1537,9 +1577,9 @@ test('AskService completes with empty suggestions when suggestion generation tim
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
       },
-      async generateSuggestedFollowUpQuestions(input) {
+      async generateSuggestedFollowUpQuestions(input, abortSignal) {
         calls.push(['generateSuggestedFollowUpQuestions', input]);
-        return delay(25, ['What should I read next?']);
+        return delayWithAbort(25, ['What should I read next?'], abortSignal);
       },
     },
     {
@@ -1641,6 +1681,7 @@ test('AskService marks the pending turn failed when completion fails', async () 
   const calls = [];
   const service = new AskService(
     {
+      ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;

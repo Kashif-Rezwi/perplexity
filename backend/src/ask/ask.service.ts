@@ -6,11 +6,6 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
-import {
-  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-} from '../ai/ai.constants';
 import { AiService } from '../ai/ai.service';
 import type {
   GenerateSuggestedFollowUpQuestionsInput,
@@ -20,7 +15,6 @@ import {
   extractCitationNumbers,
   normalizeCitationMarkers,
 } from '../citations/citation-marker.parser';
-import { withTimeout } from '../common/with-timeout';
 import { TavilySearchService } from '../search/tavily-search.service';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
 import { ThreadsService } from '../threads/threads.service';
@@ -74,19 +68,33 @@ export class AskService {
         query: searchQuery,
       });
       const sources = mapSearchResultsToSourceInputs(searchResults);
-      answerMarkdown = await withTimeout(
-        this.aiService.generateAnswer({
-          question: input.question,
-          priorTurns,
-          sources,
-        }),
+      const answerController = new AbortController();
+      const answerTimeout = setTimeout(
+        () => answerController.abort(),
         this.getAnswerGenerationTimeoutMs(),
-        () =>
-          new ServiceUnavailableException(
-            'OpenAI answer generation timed out',
-          ),
       );
+      try {
+        answerMarkdown = await this.aiService.generateAnswer(
+          {
+            question: input.question,
+            priorTurns,
+            sources,
+          },
+          answerController.signal,
+        );
+      } catch (error) {
+        if (answerController.signal.aborted) {
+          throw new ServiceUnavailableException('OpenAI answer generation timed out');
+        }
+        throw error;
+      } finally {
+        clearTimeout(answerTimeout);
+      }
       const validCitationNumbers = sources.map((source) => source.citationNumber);
+      // Normalize before persistence so the stored answerMarkdown contains
+      // explicit individual markers (e.g. [1][2][3] rather than [1-3]).
+      // extractCitationNumbers also normalizes internally, which is idempotent
+      // on already-normalized text.
       answerMarkdown = normalizeCitationMarkers(
         answerMarkdown,
         validCitationNumbers,
@@ -162,14 +170,15 @@ export class AskService {
   private async generateSuggestedFollowUpQuestions(
     input: GenerateSuggestedFollowUpQuestionsInput,
   ): Promise<string[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.getSuggestionTimeoutMs(),
+    );
     try {
-      return await withTimeout(
-        this.aiService.generateSuggestedFollowUpQuestions(input),
-        this.getSuggestionTimeoutMs(),
-        () =>
-          new ServiceUnavailableException(
-            'OpenAI follow-up suggestion generation timed out',
-          ),
+      return await this.aiService.generateSuggestedFollowUpQuestions(
+        input,
+        controller.signal,
       );
     } catch (error) {
       this.logger.warn(
@@ -178,6 +187,8 @@ export class AskService {
         )}`,
       );
       return [];
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -190,18 +201,19 @@ export class AskService {
       return question;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.getQueryRewriteTimeoutMs(),
+    );
     try {
-      return await withTimeout(
-        this.aiService.generateStandaloneSearchQuery({
+      return await this.aiService.generateStandaloneSearchQuery(
+        {
           question,
           threadTitle,
           priorTurns: getQueryRewritePriorTurns(priorTurns),
-        }),
-        this.getQueryRewriteTimeoutMs(),
-        () =>
-          new ServiceUnavailableException(
-            'OpenAI search query generation timed out',
-          ),
+        },
+        controller.signal,
       );
     } catch (error) {
       this.logger.warn(
@@ -210,31 +222,21 @@ export class AskService {
         )}`,
       );
       return question;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
   private getAnswerGenerationTimeoutMs(): number {
-    return getAiServiceTimeoutMs(
-      this.aiService,
-      'getAnswerTimeoutMs',
-      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-    );
+    return this.aiService.getAnswerTimeoutMs();
   }
 
   private getQueryRewriteTimeoutMs(): number {
-    return getAiServiceTimeoutMs(
-      this.aiService,
-      'getQueryRewriteTimeoutMs',
-      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-    );
+    return this.aiService.getQueryRewriteTimeoutMs();
   }
 
   private getSuggestionTimeoutMs(): number {
-    return getAiServiceTimeoutMs(
-      this.aiService,
-      'getSuggestionTimeoutMs',
-      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-    );
+    return this.aiService.getSuggestionTimeoutMs();
   }
 
   private async loadExistingThreadOrThrow(threadId: string) {
@@ -310,17 +312,3 @@ function getErrorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
 
-function getAiServiceTimeoutMs(
-  aiService: AiService,
-  methodName:
-    | 'getAnswerTimeoutMs'
-    | 'getQueryRewriteTimeoutMs'
-    | 'getSuggestionTimeoutMs',
-  fallbackMs: number,
-): number {
-  const method = (aiService as unknown as Record<string, unknown>)[methodName];
-
-  return typeof method === 'function'
-    ? (method.call(aiService) as number)
-    : fallbackMs;
-}

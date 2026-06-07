@@ -18,6 +18,16 @@ export function normalizeCitationMarkers(
   });
 }
 
+/**
+ * Extracts unique citation numbers from `answerMarkdown` in first-seen order.
+ *
+ * Internally normalizes range markers (e.g. `[1-3]` → `[1][2][3]`) and
+ * comma-grouped markers (e.g. `[1, 3]`) before extraction. Callers that
+ * pre-normalize the input before passing it here get idempotent behavior —
+ * running normalization twice on already-normalized text has no effect.
+ *
+ * Only returns numbers that appear in `validCitationNumbers`.
+ */
 export function extractCitationNumbers(
   answerMarkdown: string,
   validCitationNumbers: readonly number[],

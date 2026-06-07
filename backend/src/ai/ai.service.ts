@@ -38,7 +38,10 @@ export class AiService {
 
   constructor(private readonly configService: ConfigService) { }
 
-  async generateAnswer(input: GenerateAnswerInput): Promise<string> {
+  async generateAnswer(
+    input: GenerateAnswerInput,
+    abortSignal?: AbortSignal,
+  ): Promise<string> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getModel();
     const openaiClient = createOpenAI({ apiKey });
@@ -46,6 +49,7 @@ export class AiService {
     try {
       const { text } = await generateText({
         model: openaiClient(model),
+        abortSignal,
         system:
           'You are a concise research assistant. Answer in clear Markdown. ' +
           'Use the provided numbered sources when they are relevant. ' +
@@ -80,6 +84,7 @@ export class AiService {
 
   async generateSuggestedFollowUpQuestions(
     input: GenerateSuggestedFollowUpQuestionsInput,
+    abortSignal?: AbortSignal,
   ): Promise<string[]> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getUtilityModel();
@@ -88,6 +93,7 @@ export class AiService {
     try {
       const { output } = await generateText({
         model: openaiClient(model),
+        abortSignal,
         system:
           'You suggest concise next questions for a research answer. ' +
           'Return exactly 3 useful follow-up questions. ' +
@@ -125,6 +131,7 @@ export class AiService {
 
   async generateStandaloneSearchQuery(
     input: GenerateStandaloneSearchQueryInput,
+    abortSignal?: AbortSignal,
   ): Promise<string> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getUtilityModel();
@@ -133,6 +140,7 @@ export class AiService {
     try {
       const { text } = await generateText({
         model: openaiClient(model),
+        abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
         system:
           'You rewrite contextual follow-up questions into standalone web search queries. ' +
