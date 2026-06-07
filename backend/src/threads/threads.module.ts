@@ -4,6 +4,6 @@ import { ThreadsService } from './threads.service';
 
 @Module({
   providers: [ThreadsRepository, ThreadsService],
-  exports: [ThreadsRepository, ThreadsService],
+  exports: [ThreadsService],
 })
 export class ThreadsModule {}

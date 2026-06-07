@@ -1,9 +1,13 @@
 import type { SearchResult } from '../../search/types/search.types';
-import type { CreateTurnSourceInput } from '../types/source-persistence.types';
+import type { CreateTurnSourceInput } from '../../sources/types/source-persistence.types';
 
 const SOURCE_PROVIDER = 'tavily';
 const UNKNOWN_DOMAIN = 'unknown';
 
+/**
+ * Converts Tavily search results into the source input format used for
+ * persistence. Deduplicates by URL and assigns sequential citation numbers.
+ */
 export function mapSearchResultsToSourceInputs(
   searchResults: SearchResult[],
 ): CreateTurnSourceInput[] {

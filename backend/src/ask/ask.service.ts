@@ -22,10 +22,10 @@ import {
 } from '../citations/citation-marker.parser';
 import { withTimeout } from '../common/with-timeout';
 import { TavilySearchService } from '../search/tavily-search.service';
-import { mapSearchResultsToSourceInputs } from '../sources/mappers/source-persistence.mapper';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
-import { ThreadsRepository } from '../threads/repositories/threads.repository';
+import { ThreadsService } from '../threads/threads.service';
 import type { ThreadDetailRecord } from '../threads/types/thread.types';
+import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
 import { mapAskTurnSummary } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
 
@@ -41,7 +41,7 @@ export class AskService {
   constructor(
     private readonly aiService: AiService,
     private readonly tavilySearchService: TavilySearchService,
-    private readonly threadsRepository: ThreadsRepository,
+    private readonly threadsService: ThreadsService,
   ) {}
 
   async ask(input: AskInput): Promise<AskResponse> {
@@ -55,12 +55,12 @@ export class AskService {
       existingThread?.title,
     );
     const thread = existingThread
-      ? await this.threadsRepository.appendPendingTurnToThread({
+      ? await this.threadsService.appendPendingTurnToThread({
           threadId: existingThread.id,
           question: input.question,
           searchQuery,
         })
-      : await this.threadsRepository.createThreadWithPendingTurn({
+      : await this.threadsService.createThreadWithPendingTurn({
           title: createThreadTitle(input.question),
           question: input.question,
           searchQuery,
@@ -102,7 +102,7 @@ export class AskService {
           priorTurns,
           sources,
         });
-      await this.threadsRepository.completeTurn({
+      await this.threadsService.completeTurn({
         threadId: thread.id,
         turnId: turn.id,
         answerMarkdown,
@@ -119,7 +119,7 @@ export class AskService {
         getErrorStack(error),
       );
 
-      await this.threadsRepository.failTurn({
+      await this.threadsService.failTurn({
         threadId: thread.id,
         turnId: turn.id,
         errorMessage: getErrorMessage(error),
@@ -148,7 +148,7 @@ export class AskService {
   }
 
   private async loadThreadOrThrow(threadId: string) {
-    const thread = await this.threadsRepository.findThreadDetailById(threadId);
+    const thread = await this.threadsService.findThreadDetailById(threadId);
 
     if (!thread) {
       throw new InternalServerErrorException(
@@ -238,7 +238,7 @@ export class AskService {
   }
 
   private async loadExistingThreadOrThrow(threadId: string) {
-    const thread = await this.threadsRepository.findThreadDetailById(threadId);
+    const thread = await this.threadsService.findThreadDetailById(threadId);
 
     if (!thread) {
       throw new NotFoundException(`Thread ${threadId} was not found`);

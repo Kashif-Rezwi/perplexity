@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const {
   mapSearchResultsToSourceInputs,
-} = require('../dist/src/sources/mappers/source-persistence.mapper.js');
+} = require('../dist/src/ask/mappers/search-to-source.mapper.js');
 const { mapRecentSource } = require('../dist/src/sources/mappers/source-response.mapper.js');
 const { SourcesService } = require('../dist/src/sources/sources.service.js');
 
