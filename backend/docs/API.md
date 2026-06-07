@@ -64,12 +64,27 @@ Response:
 ```
 
 Note: `threadId` is optional. When present, ask appends a new turn to that
-thread and uses the last 5 completed prior turns as AI context. Streaming is
-intentionally deferred to a later chunk. The ask response includes lightweight
-citation previews for markers in `answerMarkdown`, but it does not include the
-full source list. Load all sources for the returned turn with
+thread and uses the last 5 completed prior turns as AI context. For follow-ups,
+`searchQuery` may differ from `question` because the backend can rewrite a
+contextual question into a standalone web-search query before calling Tavily.
+Streaming is intentionally deferred to a later chunk. The ask response includes
+lightweight citation previews for markers in `answerMarkdown`, but it does not
+include the full source list. Load all sources for the returned turn with
 `GET /perplexity/recents?turnId=<turnId>`. Suggested follow-up questions are
-best-effort; if generation fails, the API returns an empty array.
+best-effort; if generation fails or times out, the API returns an empty array.
+
+AI runtime config:
+
+```text
+OPENAI_API_KEY required
+OPENAI_MODEL optional, used for answer generation, default gpt-5-mini
+OPENAI_UTILITY_MODEL optional, used for query rewriting and suggestions,
+default gpt-5-mini
+OPENAI_ANSWER_TIMEOUT_MS optional, default 16000
+OPENAI_QUERY_REWRITE_TIMEOUT_MS optional, default 6000
+OPENAI_SUGGESTION_TIMEOUT_MS optional, default 8000
+TAVILY_SEARCH_TIMEOUT_MS optional, default 6000
+```
 
 ## GET /perplexity/recents
 

@@ -1,9 +1,16 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
+import {
+  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
+  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+} from '../ai/ai.constants';
 import { AiService } from '../ai/ai.service';
 import type {
   GenerateSuggestedFollowUpQuestionsInput,
@@ -13,6 +20,7 @@ import {
   extractCitationNumbers,
   normalizeCitationMarkers,
 } from '../citations/citation-marker.parser';
+import { withTimeout } from '../common/with-timeout';
 import { TavilySearchService } from '../search/tavily-search.service';
 import { mapSearchResultsToSourceInputs } from '../sources/mappers/source-persistence.mapper';
 import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
@@ -23,9 +31,13 @@ import type { AskInput, AskResponse } from './types/ask.types';
 
 const ANSWER_PREVIEW_MAX_LENGTH = 300;
 const PRIOR_TURN_CONTEXT_LIMIT = 5;
+const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
+const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
 
 @Injectable()
 export class AskService {
+  private readonly logger = new Logger(AskService.name);
+
   constructor(
     private readonly aiService: AiService,
     private readonly tavilySearchService: TavilySearchService,
@@ -33,12 +45,15 @@ export class AskService {
   ) {}
 
   async ask(input: AskInput): Promise<AskResponse> {
-    // TODO: Rewrite follow-up questions into standalone search queries using prior thread context.
-    const searchQuery = input.question;
     const existingThread = input.threadId
       ? await this.loadExistingThreadOrThrow(input.threadId)
       : null;
     const priorTurns = existingThread ? getPriorTurns(existingThread) : [];
+    const searchQuery = await this.resolveSearchQuery(
+      input.question,
+      priorTurns,
+      existingThread?.title,
+    );
     const thread = existingThread
       ? await this.threadsRepository.appendPendingTurnToThread({
           threadId: existingThread.id,
@@ -59,11 +74,18 @@ export class AskService {
         query: searchQuery,
       });
       const sources = mapSearchResultsToSourceInputs(searchResults);
-      answerMarkdown = await this.aiService.generateAnswer({
-        question: input.question,
-        priorTurns,
-        sources,
-      });
+      answerMarkdown = await withTimeout(
+        this.aiService.generateAnswer({
+          question: input.question,
+          priorTurns,
+          sources,
+        }),
+        this.getAnswerGenerationTimeoutMs(),
+        () =>
+          new ServiceUnavailableException(
+            'OpenAI answer generation timed out',
+          ),
+      );
       const validCitationNumbers = sources.map((source) => source.citationNumber);
       answerMarkdown = normalizeCitationMarkers(
         answerMarkdown,
@@ -90,6 +112,13 @@ export class AskService {
         suggestedFollowUpQuestions,
       });
     } catch (error) {
+      this.logger.error(
+        `Ask failed for thread ${thread.id}, turn ${turn.id}: ${getErrorMessage(
+          error,
+        )}`,
+        getErrorStack(error),
+      );
+
       await this.threadsRepository.failTurn({
         threadId: thread.id,
         turnId: turn.id,
@@ -134,10 +163,78 @@ export class AskService {
     input: GenerateSuggestedFollowUpQuestionsInput,
   ): Promise<string[]> {
     try {
-      return await this.aiService.generateSuggestedFollowUpQuestions(input);
-    } catch {
+      return await withTimeout(
+        this.aiService.generateSuggestedFollowUpQuestions(input),
+        this.getSuggestionTimeoutMs(),
+        () =>
+          new ServiceUnavailableException(
+            'OpenAI follow-up suggestion generation timed out',
+          ),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Suggested follow-up generation failed; returning empty suggestions: ${getErrorMessage(
+          error,
+        )}`,
+      );
       return [];
     }
+  }
+
+  private async resolveSearchQuery(
+    question: string,
+    priorTurns: PriorTurn[],
+    threadTitle?: string,
+  ): Promise<string> {
+    if (priorTurns.length === 0) {
+      return question;
+    }
+
+    try {
+      return await withTimeout(
+        this.aiService.generateStandaloneSearchQuery({
+          question,
+          threadTitle,
+          priorTurns: getQueryRewritePriorTurns(priorTurns),
+        }),
+        this.getQueryRewriteTimeoutMs(),
+        () =>
+          new ServiceUnavailableException(
+            'OpenAI search query generation timed out',
+          ),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Search query rewrite failed; falling back to raw question: ${getErrorMessage(
+          error,
+        )}`,
+      );
+      return question;
+    }
+  }
+
+  private getAnswerGenerationTimeoutMs(): number {
+    return getAiServiceTimeoutMs(
+      this.aiService,
+      'getAnswerTimeoutMs',
+      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
+    );
+  }
+
+  private getQueryRewriteTimeoutMs(): number {
+    return getAiServiceTimeoutMs(
+      this.aiService,
+      'getQueryRewriteTimeoutMs',
+      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+    );
+  }
+
+  private getSuggestionTimeoutMs(): number {
+    return getAiServiceTimeoutMs(
+      this.aiService,
+      'getSuggestionTimeoutMs',
+      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+    );
   }
 
   private async loadExistingThreadOrThrow(threadId: string) {
@@ -184,10 +281,46 @@ function getPriorTurns(thread: ThreadDetailRecord): PriorTurn[] {
     }));
 }
 
+function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
+  return priorTurns
+    .slice(-QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT)
+    .map((turn) => ({
+      question: turn.question,
+      answerMarkdown: truncateForQueryRewrite(turn.answerMarkdown),
+    }));
+}
+
+function truncateForQueryRewrite(value: string): string {
+  const normalizedValue = value.replace(/\s+/g, ' ').trim();
+
+  return normalizedValue.length > QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH
+    ? `${normalizedValue.slice(0, QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH)}...`
+    : normalizedValue;
+}
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
 
   return 'Ask failed';
+}
+
+function getErrorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined;
+}
+
+function getAiServiceTimeoutMs(
+  aiService: AiService,
+  methodName:
+    | 'getAnswerTimeoutMs'
+    | 'getQueryRewriteTimeoutMs'
+    | 'getSuggestionTimeoutMs',
+  fallbackMs: number,
+): number {
+  const method = (aiService as unknown as Record<string, unknown>)[methodName];
+
+  return typeof method === 'function'
+    ? (method.call(aiService) as number)
+    : fallbackMs;
 }

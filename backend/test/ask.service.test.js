@@ -11,14 +11,25 @@ const {
   mapAskTurnSummary,
 } = require('../dist/src/ask/mappers/ask-response.mapper.js');
 const {
+  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+  DEFAULT_OPENAI_UTILITY_MODEL,
   OPENAI_API_KEY_CONFIG_KEY,
+  OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
   OPENAI_MODEL_CONFIG_KEY,
+  OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+  OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+  OPENAI_UTILITY_MODEL_CONFIG_KEY,
 } = require('../dist/src/ai/ai.constants.js');
+const { withTimeout } = require('../dist/src/common/with-timeout.js');
 const {
   DEFAULT_TAVILY_MAX_RESULTS,
   DEFAULT_TAVILY_SEARCH_DEPTH,
+  DEFAULT_TAVILY_SEARCH_TIMEOUT_MS,
   TAVILY_API_KEY_CONFIG_KEY,
+  TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY,
 } = require('../dist/src/search/search.constants.js');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
@@ -30,6 +41,12 @@ const createdAt = new Date('2026-06-04T00:00:00.000Z');
 const updatedAt = new Date('2026-06-04T00:05:00.000Z');
 const completedAt = new Date('2026-06-04T00:04:00.000Z');
 const publishedAt = new Date('2026-06-03T00:00:00.000Z');
+
+function delay(ms, value) {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(value), ms);
+  });
+}
 
 function createSourceRecord(overrides = {}) {
   return {
@@ -213,6 +230,9 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   const calls = [];
   const service = new AskService(
     {
+      async generateStandaloneSearchQuery() {
+        assert.fail('new asks must not rewrite search queries');
+      },
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -767,9 +787,14 @@ test('AskService completes with sources and no citations when answer has no mark
 
 test('AskService appends a follow-up turn with prior thread context', async () => {
   const question = 'What about Prisma pricing?';
+  const standaloneSearchQuery = 'Prisma pricing current plans';
   const answerMarkdown = 'Prisma pricing depends on the plan. [1]';
   const priorTurns = createPriorCompletedTurns(6);
   const expectedPriorTurns = priorTurns.slice(-5).map((turn) => ({
+    question: turn.question,
+    answerMarkdown: turn.answerMarkdown,
+  }));
+  const expectedRewritePriorTurns = priorTurns.slice(-3).map((turn) => ({
     question: turn.question,
     answerMarkdown: turn.answerMarkdown,
   }));
@@ -797,7 +822,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   const pendingFollowUpTurn = createTurnRecord({
     id: followUpTurnId,
     question,
-    searchQuery: question,
+    searchQuery: standaloneSearchQuery,
     answerMarkdown: null,
     turnStatus: TurnStatus.PENDING,
     completedAt: null,
@@ -805,7 +830,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   const completedFollowUpTurn = createTurnRecord({
     id: followUpTurnId,
     question,
-    searchQuery: question,
+    searchQuery: standaloneSearchQuery,
     answerMarkdown,
     sources: [
       createSourceRecord({
@@ -822,6 +847,10 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   const calls = [];
   const service = new AskService(
     {
+      async generateStandaloneSearchQuery(input) {
+        calls.push(['generateStandaloneSearchQuery', input]);
+        return standaloneSearchQuery;
+      },
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
         return answerMarkdown;
@@ -861,7 +890,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   assert.equal(response.thread.threadId, threadId);
   assert.equal(response.thread.turnCount, 7);
   assert.equal(response.turn.turnId, followUpTurnId);
-  assert.equal(response.turn.searchQuery, question);
+  assert.equal(response.turn.searchQuery, standaloneSearchQuery);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
   assert.equal(response.turn.sourceCount, 1);
   assert.equal(response.turn.citationCount, 1);
@@ -881,14 +910,22 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [
+      'generateStandaloneSearchQuery',
+      {
+        question,
+        threadTitle: 'Explain Prisma relations',
+        priorTurns: expectedRewritePriorTurns,
+      },
+    ],
+    [
       'appendPendingTurnToThread',
       {
         threadId,
         question,
-        searchQuery: question,
+        searchQuery: standaloneSearchQuery,
       },
     ],
-    ['search', { query: question }],
+    ['search', { query: standaloneSearchQuery }],
     [
       'generateAnswer',
       {
@@ -913,10 +950,225 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   ]);
 });
 
+test('AskService falls back to the raw follow-up question when rewrite fails', async () => {
+  const question = 'What about pricing?';
+  const answerMarkdown = 'Prisma pricing depends on the plan.';
+  const priorTurns = createPriorCompletedTurns(1);
+  const expectedPriorTurns = priorTurns.map((turn) => ({
+    question: turn.question,
+    answerMarkdown: turn.answerMarkdown,
+  }));
+  const pendingFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown: null,
+    turnStatus: TurnStatus.PENDING,
+    completedAt: null,
+  });
+  const completedFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown,
+  });
+  let findCalls = 0;
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateStandaloneSearchQuery(input) {
+        calls.push(['generateStandaloneSearchQuery', input]);
+        throw new ServiceUnavailableException(
+          'OpenAI search query generation failed',
+        );
+      },
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+      async generateSuggestedFollowUpQuestions(input) {
+        calls.push(['generateSuggestedFollowUpQuestions', input]);
+        return [];
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        findCalls += 1;
+
+        return findCalls === 1
+          ? createThreadRecord({ turns: priorTurns })
+          : createThreadRecord({
+              turns: [...priorTurns, completedFollowUpTurn],
+            });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          turns: [...priorTurns, pendingFollowUpTurn],
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+    },
+  );
+
+  const response = await service.ask({ question, threadId });
+
+  assert.equal(response.turn.turnId, followUpTurnId);
+  assert.equal(response.turn.searchQuery, question);
+  assert.deepEqual(calls, [
+    ['findThreadDetailById', threadId],
+    [
+      'generateStandaloneSearchQuery',
+      {
+        question,
+        threadTitle: 'Explain Prisma relations',
+        priorTurns: expectedPriorTurns,
+      },
+    ],
+    [
+      'appendPendingTurnToThread',
+      {
+        threadId,
+        question,
+        searchQuery: question,
+      },
+    ],
+    ['search', { query: question }],
+    [
+      'generateAnswer',
+      {
+        question,
+        priorTurns: expectedPriorTurns,
+        sources: [],
+      },
+    ],
+    [
+      'generateSuggestedFollowUpQuestions',
+      {
+        question,
+        answerMarkdown,
+        priorTurns: expectedPriorTurns,
+        sources: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId: followUpTurnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
+        citationNumbers: [],
+        suggestedFollowUpQuestions: [],
+      },
+    ],
+    ['findThreadDetailById', threadId],
+  ]);
+});
+
+test('AskService falls back to the raw follow-up question when rewrite times out', async () => {
+  const question = 'What about pricing?';
+  const answerMarkdown = 'Prisma pricing depends on the plan.';
+  const priorTurns = createPriorCompletedTurns(1);
+  const pendingFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown: null,
+    turnStatus: TurnStatus.PENDING,
+    completedAt: null,
+  });
+  const completedFollowUpTurn = createTurnRecord({
+    id: followUpTurnId,
+    question,
+    searchQuery: question,
+    answerMarkdown,
+  });
+  let findCalls = 0;
+  const calls = [];
+  const service = new AskService(
+    {
+      getQueryRewriteTimeoutMs() {
+        return 1;
+      },
+      async generateStandaloneSearchQuery(input) {
+        calls.push(['generateStandaloneSearchQuery', input]);
+        return delay(25, 'Prisma pricing current plans');
+      },
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+      async generateSuggestedFollowUpQuestions(input) {
+        calls.push(['generateSuggestedFollowUpQuestions', input]);
+        return [];
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        findCalls += 1;
+
+        return findCalls === 1
+          ? createThreadRecord({ turns: priorTurns })
+          : createThreadRecord({
+              turns: [...priorTurns, completedFollowUpTurn],
+            });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          turns: [...priorTurns, pendingFollowUpTurn],
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+    },
+  );
+
+  const response = await service.ask({ question, threadId });
+
+  assert.equal(response.turn.searchQuery, question);
+  assert.deepEqual(
+    calls.map(([name]) => name),
+    [
+      'findThreadDetailById',
+      'generateStandaloneSearchQuery',
+      'appendPendingTurnToThread',
+      'search',
+      'generateAnswer',
+      'generateSuggestedFollowUpQuestions',
+      'completeTurn',
+      'findThreadDetailById',
+    ],
+  );
+  assert.deepEqual(calls[3], ['search', { query: question }]);
+});
+
 test('AskService rejects follow-up for a missing thread before search', async () => {
   const calls = [];
   const service = new AskService(
     {
+      async generateStandaloneSearchQuery() {
+        calls.push(['generateStandaloneSearchQuery']);
+      },
       async generateAnswer() {
         calls.push(['generateAnswer']);
       },
@@ -943,12 +1195,17 @@ test('AskService rejects follow-up for a missing thread before search', async ()
 
 test('AskService marks the appended follow-up turn failed when search fails', async () => {
   const question = 'What about pricing?';
+  const standaloneSearchQuery = 'Prisma pricing current plans';
   const error = new ServiceUnavailableException('Tavily search failed');
   const priorTurns = createPriorCompletedTurns(1);
+  const expectedPriorTurns = priorTurns.map((turn) => ({
+    question: turn.question,
+    answerMarkdown: turn.answerMarkdown,
+  }));
   const pendingFollowUpTurn = createTurnRecord({
     id: followUpTurnId,
     question,
-    searchQuery: question,
+    searchQuery: standaloneSearchQuery,
     answerMarkdown: null,
     turnStatus: TurnStatus.PENDING,
     completedAt: null,
@@ -956,6 +1213,10 @@ test('AskService marks the appended follow-up turn failed when search fails', as
   const calls = [];
   const service = new AskService(
     {
+      async generateStandaloneSearchQuery(input) {
+        calls.push(['generateStandaloneSearchQuery', input]);
+        return standaloneSearchQuery;
+      },
       async generateAnswer() {
         calls.push(['generateAnswer']);
       },
@@ -990,14 +1251,22 @@ test('AskService marks the appended follow-up turn failed when search fails', as
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [
+      'generateStandaloneSearchQuery',
+      {
+        question,
+        threadTitle: 'Explain Prisma relations',
+        priorTurns: expectedPriorTurns,
+      },
+    ],
+    [
       'appendPendingTurnToThread',
       {
         threadId,
         question,
-        searchQuery: question,
+        searchQuery: standaloneSearchQuery,
       },
     ],
-    ['search', { query: question }],
+    ['search', { query: standaloneSearchQuery }],
     [
       'failTurn',
       {
@@ -1060,6 +1329,62 @@ test('AskService marks the pending turn failed when search fails', async () => {
         threadId,
         turnId,
         errorMessage: 'Tavily search failed',
+      },
+    ],
+  ]);
+});
+
+test('AskService marks the pending turn failed when search times out', async () => {
+  const error = new ServiceUnavailableException('Tavily search timed out');
+  const calls = [];
+  const service = new AskService(
+    {
+      async generateAnswer() {
+        calls.push(['generateAnswer']);
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        throw error;
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => service.ask({ question: 'Explain Prisma relations' }),
+    (receivedError) => receivedError === error,
+  );
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId,
+        errorMessage: 'Tavily search timed out',
       },
     ],
   ]);
@@ -1128,6 +1453,164 @@ test('AskService marks the pending turn failed when AI generation fails', async 
         errorMessage: 'OpenAI answer generation failed',
       },
     ],
+  ]);
+});
+
+test('AskService marks the pending turn failed when answer generation times out', async () => {
+  const calls = [];
+  const service = new AskService(
+    {
+      getAnswerTimeoutMs() {
+        return 1;
+      },
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return delay(25, 'Prisma relations connect rows.');
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  await assert.rejects(
+    () => service.ask({ question: 'Explain Prisma relations' }),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message === 'OpenAI answer generation timed out',
+  );
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId,
+        errorMessage: 'OpenAI answer generation timed out',
+      },
+    ],
+  ]);
+});
+
+test('AskService completes with empty suggestions when suggestion generation times out', async () => {
+  const answerMarkdown = 'Prisma relations connect rows across tables.';
+  const calls = [];
+  const service = new AskService(
+    {
+      getSuggestionTimeoutMs() {
+        return 1;
+      },
+      async generateAnswer(input) {
+        calls.push(['generateAnswer', input]);
+        return answerMarkdown;
+      },
+      async generateSuggestedFollowUpQuestions(input) {
+        calls.push(['generateSuggestedFollowUpQuestions', input]);
+        return delay(25, ['What should I read next?']);
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({ answerMarkdown });
+      },
+    },
+  );
+
+  const response = await service.ask({ question: 'Explain Prisma relations' });
+
+  assert.deepEqual(response.turn.suggestedFollowUpQuestions, []);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'generateAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'generateSuggestedFollowUpQuestions',
+      {
+        question: 'Explain Prisma relations',
+        answerMarkdown,
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
+        citationNumbers: [],
+        suggestedFollowUpQuestions: [],
+      },
+    ],
+    ['findThreadDetailById', threadId],
   ]);
 });
 
@@ -1301,6 +1784,99 @@ test('AiService uses configured OPENAI_MODEL when present', () => {
   assert.equal(service.getModel(), model);
 });
 
+test('AiService uses the default utility model when OPENAI_UTILITY_MODEL is missing', () => {
+  const model = 'gpt-answer-model';
+  const service = new AiService({
+    get(key) {
+      if (key === OPENAI_MODEL_CONFIG_KEY) {
+        return model;
+      }
+
+      return undefined;
+    },
+  });
+
+  assert.equal(service.getUtilityModel(), DEFAULT_OPENAI_UTILITY_MODEL);
+});
+
+test('AiService uses configured OPENAI_UTILITY_MODEL when present', () => {
+  const utilityModel = 'gpt-utility-model';
+  const service = new AiService({
+    get(key) {
+      if (key === OPENAI_MODEL_CONFIG_KEY) {
+        return 'gpt-answer-model';
+      }
+
+      if (key === OPENAI_UTILITY_MODEL_CONFIG_KEY) {
+        return utilityModel;
+      }
+
+      return undefined;
+    },
+  });
+
+  assert.equal(service.getUtilityModel(), utilityModel);
+});
+
+test('AiService uses default timeout config when optional env vars are missing', () => {
+  const service = new AiService({
+    get() {
+      return undefined;
+    },
+  });
+
+  assert.equal(service.getAnswerTimeoutMs(), DEFAULT_OPENAI_ANSWER_TIMEOUT_MS);
+  assert.equal(
+    service.getQueryRewriteTimeoutMs(),
+    DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+  );
+  assert.equal(
+    service.getSuggestionTimeoutMs(),
+    DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+  );
+});
+
+test('AiService fails clearly when timeout config is invalid', () => {
+  const service = new AiService({
+    get(key) {
+      if (key === OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY) {
+        return '0';
+      }
+
+      if (key === OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY) {
+        return 'not-a-number';
+      }
+
+      if (key === OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY) {
+        return '-10';
+      }
+
+      return undefined;
+    },
+  });
+
+  assert.throws(
+    () => service.getAnswerTimeoutMs(),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message === 'OPENAI_ANSWER_TIMEOUT_MS must be a positive integer',
+  );
+  assert.throws(
+    () => service.getQueryRewriteTimeoutMs(),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message ===
+        'OPENAI_QUERY_REWRITE_TIMEOUT_MS must be a positive integer',
+  );
+  assert.throws(
+    () => service.getSuggestionTimeoutMs(),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message ===
+        'OPENAI_SUGGESTION_TIMEOUT_MS must be a positive integer',
+  );
+});
+
 test('TavilySearchService fails clearly when TAVILY_API_KEY is missing', async () => {
   const service = new TavilySearchService({
     get() {
@@ -1329,4 +1905,64 @@ test('TavilySearchService uses default search config when optional env vars are 
 
   assert.equal(service.getMaxResults(), DEFAULT_TAVILY_MAX_RESULTS);
   assert.equal(service.getSearchDepth(), DEFAULT_TAVILY_SEARCH_DEPTH);
+  assert.equal(service.getSearchTimeoutMs(), DEFAULT_TAVILY_SEARCH_TIMEOUT_MS);
+});
+
+test('TavilySearchService fails clearly when timeout config is invalid', () => {
+  const service = new TavilySearchService({
+    get(key) {
+      if (key === TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY) {
+        return '0';
+      }
+
+      return undefined;
+    },
+  });
+
+  assert.throws(
+    () => service.getSearchTimeoutMs(),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message === 'TAVILY_SEARCH_TIMEOUT_MS must be a positive integer',
+  );
+});
+
+test('withTimeout resolves when the operation finishes in time', async () => {
+  await assert.doesNotReject(async () => {
+    const result = await withTimeout(
+      Promise.resolve('done'),
+      50,
+      () => new Error('timed out'),
+    );
+
+    assert.equal(result, 'done');
+  });
+});
+
+test('withTimeout rejects with the original error when the operation fails', async () => {
+  const originalError = new Error('provider failed');
+
+  await assert.rejects(
+    () =>
+      withTimeout(
+        Promise.reject(originalError),
+        50,
+        () => new Error('timed out'),
+      ),
+    (error) => error === originalError,
+  );
+});
+
+test('withTimeout rejects with the timeout error when the operation is slow', async () => {
+  await assert.rejects(
+    () =>
+      withTimeout(
+        delay(25, 'late'),
+        1,
+        () => new ServiceUnavailableException('provider timed out'),
+      ),
+    (error) =>
+      error instanceof ServiceUnavailableException &&
+      error.message === 'provider timed out',
+  );
 });

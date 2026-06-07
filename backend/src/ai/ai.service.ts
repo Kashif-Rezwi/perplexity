@@ -1,28 +1,42 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, jsonSchema, Output } from 'ai';
 import {
+  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+  DEFAULT_OPENAI_UTILITY_MODEL,
+  OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
   OPENAI_API_KEY_CONFIG_KEY,
   OPENAI_MODEL_CONFIG_KEY,
+  OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+  OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+  OPENAI_UTILITY_MODEL_CONFIG_KEY,
 } from './ai.constants';
 import type {
   GenerateAnswerInput,
+  GenerateStandaloneSearchQueryInput,
   GenerateSuggestedFollowUpQuestionsInput,
 } from './types/ai.types';
 
 const SOURCE_SNIPPET_MAX_LENGTH = 1200;
 const SUGGESTED_FOLLOW_UP_QUESTION_COUNT = 3;
 const SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH = 160;
+const STANDALONE_SEARCH_QUERY_MAX_LENGTH = 300;
+const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 
 @Injectable()
 export class AiService {
-  constructor(private readonly configService: ConfigService) {}
+  private readonly logger = new Logger(AiService.name);
+
+  constructor(private readonly configService: ConfigService) { }
 
   async generateAnswer(input: GenerateAnswerInput): Promise<string> {
     const apiKey = this.getRequiredApiKey();
@@ -55,6 +69,11 @@ export class AiService {
         throw error;
       }
 
+      this.logger.error(
+        `OpenAI answer generation failed: ${getErrorMessage(error)}`,
+        getErrorStack(error),
+      );
+
       throw new ServiceUnavailableException('OpenAI answer generation failed');
     }
   }
@@ -63,7 +82,7 @@ export class AiService {
     input: GenerateSuggestedFollowUpQuestionsInput,
   ): Promise<string[]> {
     const apiKey = this.getRequiredApiKey();
-    const model = this.getModel();
+    const model = this.getUtilityModel();
     const openaiClient = createOpenAI({ apiKey });
 
     try {
@@ -92,8 +111,57 @@ export class AiService {
         throw error;
       }
 
+      this.logger.warn(
+        `OpenAI follow-up suggestion generation failed: ${getErrorMessage(
+          error,
+        )}`,
+      );
+
       throw new ServiceUnavailableException(
         'OpenAI follow-up suggestion generation failed',
+      );
+    }
+  }
+
+  async generateStandaloneSearchQuery(
+    input: GenerateStandaloneSearchQueryInput,
+  ): Promise<string> {
+    const apiKey = this.getRequiredApiKey();
+    const model = this.getUtilityModel();
+    const openaiClient = createOpenAI({ apiKey });
+
+    try {
+      const { text } = await generateText({
+        model: openaiClient(model),
+        maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
+        system:
+          'You rewrite contextual follow-up questions into standalone web search queries. ' +
+          'Use prior thread context only to resolve references, omitted subjects, places, dates, and entities. ' +
+          'Return exactly one concise search query as plain text. ' +
+          'Do not include explanations, bullets, quotation marks, or citations. ' +
+          'If the current question is already standalone, return it unchanged.',
+        prompt: createStandaloneSearchQueryPrompt(input),
+      });
+      const searchQuery = sanitizeStandaloneSearchQuery(text);
+
+      if (!searchQuery) {
+        throw new InternalServerErrorException(
+          'OpenAI returned an empty search query',
+        );
+      }
+
+      return searchQuery;
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `OpenAI search query generation failed: ${getErrorMessage(error)}`,
+      );
+
+      throw new ServiceUnavailableException(
+        'OpenAI search query generation failed',
       );
     }
   }
@@ -118,6 +186,52 @@ export class AiService {
       DEFAULT_OPENAI_MODEL
     );
   }
+
+  getUtilityModel(): string {
+    return (
+      this.configService.get<string>(OPENAI_UTILITY_MODEL_CONFIG_KEY)?.trim() ||
+      DEFAULT_OPENAI_UTILITY_MODEL
+    );
+  }
+
+  getAnswerTimeoutMs(): number {
+    return this.getPositiveIntegerConfig(
+      OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
+    );
+  }
+
+  getQueryRewriteTimeoutMs(): number {
+    return this.getPositiveIntegerConfig(
+      OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+    );
+  }
+
+  getSuggestionTimeoutMs(): number {
+    return this.getPositiveIntegerConfig(
+      OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+    );
+  }
+
+  private getPositiveIntegerConfig(key: string, defaultValue: number): number {
+    const rawValue = this.configService.get<string | number>(key);
+
+    if (rawValue === undefined || rawValue === null || rawValue === '') {
+      return defaultValue;
+    }
+
+    const value = Number(rawValue);
+
+    if (!Number.isInteger(value) || value < 1) {
+      throw new ServiceUnavailableException(
+        `${key} must be a positive integer`,
+      );
+    }
+
+    return value;
+  }
 }
 
 function createAnswerPrompt(input: GenerateAnswerInput): string {
@@ -138,6 +252,17 @@ function createSuggestedFollowUpQuestionsPrompt(
     `Current answer:\n${input.answerMarkdown}`,
     `Sources:\n${formatSources(input.sources ?? [])}`,
     'Generate exactly 3 suggested follow-up questions.',
+  ].join('\n\n');
+}
+
+function createStandaloneSearchQueryPrompt(
+  input: GenerateStandaloneSearchQueryInput,
+): string {
+  return [
+    `Thread title:\n${input.threadTitle?.trim() || 'Unknown thread title.'}`,
+    `Recent compact thread context:\n${formatPriorTurns(input.priorTurns)}`,
+    `Current follow-up question:\n${input.question}`,
+    'Rewrite the current follow-up question into one standalone web search query.',
   ].join('\n\n');
 }
 
@@ -221,4 +346,28 @@ function normalizeSuggestedFollowUpQuestion(rawQuestion: string): string {
       : question;
 
   return clippedQuestion.endsWith('?') ? clippedQuestion : `${clippedQuestion}?`;
+}
+
+function sanitizeStandaloneSearchQuery(rawSearchQuery: string): string {
+  const searchQuery = rawSearchQuery
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .trim();
+
+  return searchQuery.length > STANDALONE_SEARCH_QUERY_MAX_LENGTH
+    ? searchQuery.slice(0, STANDALONE_SEARCH_QUERY_MAX_LENGTH).trim()
+    : searchQuery;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+function getErrorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined;
 }

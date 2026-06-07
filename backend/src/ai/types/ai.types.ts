@@ -23,3 +23,9 @@ export type GenerateSuggestedFollowUpQuestionsInput = {
   priorTurns?: PriorTurn[];
   sources?: AnswerSource[];
 };
+
+export type GenerateStandaloneSearchQueryInput = {
+  question: string;
+  threadTitle?: string;
+  priorTurns: PriorTurn[];
+};
