@@ -10,9 +10,9 @@ import type {
 } from '../types/thread.types';
 
 export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailResponse {
-  const sourceCount = thread.turns.reduce((n, t) => n + t.sources.length, 0);
+  const totalSourceCount = thread.turns.reduce((n, t) => n + t.sources.length, 0);
   return {
-    ...mapHeader(thread, sourceCount),
+    ...mapHeader(thread, totalSourceCount),
     turns: thread.turns.map((turn) => ({
       turnId: turn.id,
       question: turn.question,
@@ -45,7 +45,7 @@ export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailRespons
   };
 }
 
-function mapHeader(thread: ThreadHeaderRecord, sourceCount: number): ThreadSummaryItem {
+function mapHeader(thread: ThreadHeaderRecord, totalSourceCount: number): ThreadSummaryItem {
   return {
     threadId: thread.id,
     title: thread.title,
@@ -53,7 +53,7 @@ function mapHeader(thread: ThreadHeaderRecord, sourceCount: number): ThreadSumma
     status: THREAD_STATUS[thread.status],
     mode: THREAD_MODE[thread.mode],
     answerPreview: thread.answerPreview,
-    sourceCount,
+    totalSourceCount,
     turnCount: thread._count.turns,
     createdAt: thread.createdAt.toISOString(),
     updatedAt: thread.updatedAt.toISOString(),

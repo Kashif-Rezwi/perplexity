@@ -25,7 +25,7 @@ Response:
     "status": "completed",
     "mode": "web",
     "answerPreview": "Short answer preview...",
-    "sourceCount": 1,
+    "totalSourceCount": 1,
     "turnCount": 1,
     "createdAt": "2026-06-04T00:00:00.000Z",
     "updatedAt": "2026-06-04T00:00:00.000Z"
@@ -69,9 +69,12 @@ questions into standalone web-search queries before calling Tavily.
 Streaming is intentionally deferred to a later chunk. The `citations` array
 contains lightweight previews only for citation markers (`[n]`) that actually
 appear in `answerMarkdown`; sources without a matching marker are not included.
+`citationCount` always equals `citations.length` — both reflect the filtered set.
 Load the full source list for the returned turn with
 `GET /perplexity/recents?turnId=<turnId>`. Suggested follow-up questions are
 best-effort; if generation fails or times out, the API returns an empty array.
+`thread.totalSourceCount` is the sum of sources across all turns in the thread;
+`turn.sourceCount` is the source count for the current turn only.
 
 OpenAI config:
 
@@ -82,7 +85,7 @@ OPENAI_UTILITY_MODEL    optional, used for query rewriting and suggestions,
                         default gpt-5-mini
 OPENAI_ANSWER_TIMEOUT_MS         optional, default 16000
 OPENAI_QUERY_REWRITE_TIMEOUT_MS  optional, default 6000
-OPENAI_SUGGESTION_TIMEOUT_MS     optional, default 8000
+OPENAI_SUGGESTION_TIMEOUT_MS     optional, default 15000
 ```
 
 Tavily config:
@@ -144,7 +147,7 @@ Response:
   "status": "completed",
   "mode": "web",
   "answerPreview": "Short answer preview...",
-  "sourceCount": 3,
+  "totalSourceCount": 3,
   "turnCount": 1,
   "createdAt": "2026-06-04T00:00:00.000Z",
   "updatedAt": "2026-06-04T00:00:00.000Z",

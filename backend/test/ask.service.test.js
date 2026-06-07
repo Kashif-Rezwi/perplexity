@@ -207,7 +207,7 @@ test('mapAskTurnSummary returns only cited source previews', () => {
   });
 
   assert.equal(summary.sourceCount, 2);
-  assert.equal(summary.citationCount, 2);
+  assert.equal(summary.citationCount, 1);
   assert.deepEqual(summary.suggestedFollowUpQuestions, [
     'What should I read next?',
   ]);
@@ -305,7 +305,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
 
   assert.equal(response.thread.threadId, threadId);
   assert.equal(response.thread.status, 'completed');
-  assert.equal(response.thread.sourceCount, 1);
+  assert.equal(response.thread.totalSourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
   assert.deepEqual(
@@ -677,7 +677,7 @@ test('AskService completes successfully when search returns no sources', async (
 
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
-  assert.equal(response.thread.sourceCount, 0);
+  assert.equal(response.thread.totalSourceCount, 0);
   assert.equal(response.turn.sourceCount, 0);
   assert.equal(response.turn.citationCount, 0);
   assert.equal('sources' in response.turn, false);
@@ -779,7 +779,7 @@ test('AskService completes with sources and no citations when answer has no mark
 
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
-  assert.equal(response.thread.sourceCount, 1);
+  assert.equal(response.thread.totalSourceCount, 1);
   assert.equal(response.turn.sourceCount, 1);
   assert.equal(response.turn.citationCount, 0);
   assert.equal('sources' in response.turn, false);

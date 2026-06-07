@@ -5,6 +5,7 @@ import type {
 } from '../types/ask.types';
 
 export function mapAskTurnSummary(turn: TurnItem): AskTurnSummary {
+  const citations = mapAskCitationReferences(turn);
   return {
     turnId: turn.turnId,
     question: turn.question,
@@ -14,8 +15,8 @@ export function mapAskTurnSummary(turn: TurnItem): AskTurnSummary {
     status: turn.status,
     errorMessage: turn.errorMessage,
     sourceCount: turn.sources.length,
-    citationCount: turn.citations.length,
-    citations: mapAskCitationReferences(turn),
+    citationCount: citations.length,
+    citations,
     createdAt: turn.createdAt,
     completedAt: turn.completedAt,
   };

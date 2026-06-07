@@ -69,7 +69,7 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   const detail = mapThreadDetail(createThreadDetailRecord());
 
   assert.equal(detail.threadId, threadId);
-  assert.equal(detail.sourceCount, 1);
+  assert.equal(detail.totalSourceCount, 1);
   assert.equal(detail.turnCount, 1);
   assert.equal(detail.turns[0].turnId, turnId);
   assert.deepEqual(detail.turns[0].suggestedFollowUpQuestions, [

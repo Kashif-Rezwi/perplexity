@@ -66,7 +66,7 @@ export type ThreadSummaryItem = {
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
-  sourceCount: number;
+  totalSourceCount: number;
   turnCount: number;
   createdAt: string;
   updatedAt: string;
