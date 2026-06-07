@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { ServiceUnavailableException } = require('@nestjs/common');
-const { withTimeout } = require('../dist/src/common/with-timeout.js');
+const { withTimeout } = require('../src/common/utils/with-timeout.util.ts');
 
 function delay(ms, value) {
   return new Promise((resolve) => {

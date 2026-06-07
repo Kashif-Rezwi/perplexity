@@ -8,6 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateText, jsonSchema, Output } from 'ai';
 import {
+  getOptionalTrimmedConfig,
+  getPositiveIntegerConfig,
+  getRequiredTrimmedConfig,
+} from '../common/utils/config.util';
+import { getErrorMessage, getErrorStack } from '../common/utils/error.util';
+import {
   DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_MODEL,
   DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
@@ -168,81 +174,49 @@ export class OpenAiProviderService {
   }
 
   private getRequiredApiKey(): string {
-    const apiKey = this.configService
-      .get<string>(OPENAI_API_KEY_CONFIG_KEY)
-      ?.trim();
-
-    if (!apiKey) {
-      throw new ServiceUnavailableException(
-        `${OPENAI_API_KEY_CONFIG_KEY} is not configured`,
-      );
-    }
-
-    return apiKey;
+    return getRequiredTrimmedConfig(
+      this.configService,
+      OPENAI_API_KEY_CONFIG_KEY,
+    );
   }
 
   getModel(): string {
-    return (
-      this.configService.get<string>(OPENAI_MODEL_CONFIG_KEY)?.trim() ||
-      DEFAULT_OPENAI_MODEL
+    return getOptionalTrimmedConfig(
+      this.configService,
+      OPENAI_MODEL_CONFIG_KEY,
+      DEFAULT_OPENAI_MODEL,
     );
   }
 
   getUtilityModel(): string {
-    return (
-      this.configService.get<string>(OPENAI_UTILITY_MODEL_CONFIG_KEY)?.trim() ||
-      DEFAULT_OPENAI_UTILITY_MODEL
+    return getOptionalTrimmedConfig(
+      this.configService,
+      OPENAI_UTILITY_MODEL_CONFIG_KEY,
+      DEFAULT_OPENAI_UTILITY_MODEL,
     );
   }
 
   getAnswerTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
+    return getPositiveIntegerConfig(
+      this.configService,
       OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
       DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
     );
   }
 
   getQueryRewriteTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
+    return getPositiveIntegerConfig(
+      this.configService,
       OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
       DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
     );
   }
 
   getSuggestionTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
+    return getPositiveIntegerConfig(
+      this.configService,
       OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
       DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
     );
   }
-
-  private getPositiveIntegerConfig(key: string, defaultValue: number): number {
-    const rawValue = this.configService.get<string | number>(key);
-
-    if (rawValue === undefined || rawValue === null || rawValue === '') {
-      return defaultValue;
-    }
-
-    const value = Number(rawValue);
-
-    if (!Number.isInteger(value) || value < 1) {
-      throw new ServiceUnavailableException(
-        `${key} must be a positive integer`,
-      );
-    }
-
-    return value;
-  }
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-}
-
-function getErrorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined;
 }

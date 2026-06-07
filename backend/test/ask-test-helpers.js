@@ -1,11 +1,11 @@
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
-const { AskService } = require('../dist/src/ask/ask.service.js');
-const { AiService } = require('../dist/src/ai/ai.service.js');
+const { AskService } = require('../src/ask/ask.service.ts');
+const { AiService } = require('../src/ai/ai.service.ts');
 const {
   DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
   DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-} = require('../dist/src/ai/ai.constants.js');
+} = require('../src/ai/ai.constants.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';

@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const {
   extractCitationNumbers,
   normalizeCitationMarkers,
-} = require('../dist/src/common/parsers/citations/citation-marker.parser.js');
+} = require('../src/ask/parsers/citation-marker.parser.ts');
 
 test('extractCitationNumbers keeps valid markers in first-seen order', () => {
   assert.deepEqual(

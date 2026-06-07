@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const { ThreadStatus, TurnStatus } = require('@prisma/client');
 const {
   ThreadsRepository,
-} = require('../dist/src/threads/repositories/threads.repository.js');
+} = require('../src/threads/repositories/threads.repository.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';

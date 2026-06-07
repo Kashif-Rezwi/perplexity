@@ -2,18 +2,18 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { ServiceUnavailableException } = require('@nestjs/common');
 const {
-  WebSearchService,
-} = require('../dist/src/search/web-search.service.js');
+  TavilySearchService,
+} = require('../src/search/tavily-search.service.ts');
 const {
   DEFAULT_TAVILY_MAX_RESULTS,
   DEFAULT_TAVILY_SEARCH_DEPTH,
   DEFAULT_TAVILY_SEARCH_TIMEOUT_MS,
   TAVILY_API_KEY_CONFIG_KEY,
   TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY,
-} = require('../dist/src/search/search.constants.js');
+} = require('../src/search/search.constants.ts');
 
-test('WebSearchService fails clearly when TAVILY_API_KEY is missing', async () => {
-  const service = new WebSearchService({
+test('TavilySearchService fails clearly when TAVILY_API_KEY is missing', async () => {
+  const service = new TavilySearchService({
     get() {
       return undefined;
     },
@@ -27,8 +27,8 @@ test('WebSearchService fails clearly when TAVILY_API_KEY is missing', async () =
   );
 });
 
-test('WebSearchService uses default search config when optional env vars are missing', () => {
-  const service = new WebSearchService({
+test('TavilySearchService uses default search config when optional env vars are missing', () => {
+  const service = new TavilySearchService({
     get(key) {
       if (key === TAVILY_API_KEY_CONFIG_KEY) {
         return 'test-tavily-key';
@@ -43,8 +43,8 @@ test('WebSearchService uses default search config when optional env vars are mis
   assert.equal(service.getSearchTimeoutMs(), DEFAULT_TAVILY_SEARCH_TIMEOUT_MS);
 });
 
-test('WebSearchService fails clearly when timeout config is invalid', () => {
-  const service = new WebSearchService({
+test('TavilySearchService fails clearly when timeout config is invalid', () => {
+  const service = new TavilySearchService({
     get(key) {
       if (key === TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY) {
         return '0';

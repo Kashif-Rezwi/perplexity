@@ -2,8 +2,8 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { NotFoundException } = require('@nestjs/common');
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
-const { mapThreadDetail } = require('../dist/src/threads/mappers/thread-response.mapper.js');
-const { ThreadsService } = require('../dist/src/threads/threads.service.js');
+const { mapThreadDetail } = require('../src/threads/mappers/thread-response.mapper.ts');
+const { ThreadsService } = require('../src/threads/threads.service.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';

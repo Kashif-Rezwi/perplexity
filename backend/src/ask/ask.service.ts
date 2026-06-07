@@ -6,11 +6,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
-import {
-  createAnswerPreview,
-  createThreadTitle,
-} from '../common/utils/text.util';
-import { SearchService } from '../search/search.service';
+import { getErrorMessage, getErrorStack } from '../common/utils/error.util';
+import { TavilySearchService } from '../search/tavily-search.service';
 import { ThreadsService } from '../threads/threads.service';
 import {
   getLatestTurn,
@@ -20,6 +17,10 @@ import { prepareAnswerCitations } from './helpers/answer-citation.helper';
 import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
 import { mapAskResponse } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
+import {
+  createAnswerPreview,
+  createThreadTitle,
+} from './utils/ask-text.util';
 
 @Injectable()
 export class AskService {
@@ -27,7 +28,7 @@ export class AskService {
 
   constructor(
     private readonly aiService: AiService,
-    private readonly searchService: SearchService,
+    private readonly searchService: TavilySearchService,
     private readonly threadsService: ThreadsService,
   ) { }
 
@@ -80,7 +81,10 @@ export class AskService {
           );
       } catch (error) {
         this.logger.warn(
-          `Failed to generate follow-up questions for turn ${turn.id}: ${getErrorMessage(error)}`,
+          `Failed to generate follow-up questions for turn ${turn.id}: ${getErrorMessage(
+            error,
+            'Ask failed',
+          )}`,
         );
       }
       await this.threadsService.completeTurn({
@@ -96,6 +100,7 @@ export class AskService {
       this.logger.error(
         `Ask failed for thread ${thread.id}, turn ${turn.id}: ${getErrorMessage(
           error,
+          'Ask failed',
         )}`,
         getErrorStack(error),
       );
@@ -103,7 +108,7 @@ export class AskService {
       await this.threadsService.failTurn({
         threadId: thread.id,
         turnId: turn.id,
-        errorMessage: getErrorMessage(error),
+        errorMessage: getErrorMessage(error, 'Ask failed'),
       });
 
       throw error;
@@ -132,16 +137,4 @@ export class AskService {
 
     return thread;
   }
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return 'Ask failed';
-}
-
-function getErrorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined;
 }

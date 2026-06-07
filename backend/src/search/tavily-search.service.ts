@@ -1,7 +1,13 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { tavily } from '@tavily/core';
-import { withTimeout } from '../common/with-timeout';
+import {
+  getOptionalTrimmedConfig,
+  getPositiveIntegerConfig,
+  getRequiredTrimmedConfig,
+} from '../common/utils/config.util';
+import { getErrorStack } from '../common/utils/error.util';
+import { withTimeout } from '../common/utils/with-timeout.util';
 import {
   DEFAULT_TAVILY_MAX_RESULTS,
   DEFAULT_TAVILY_SEARCH_DEPTH,
@@ -20,11 +26,9 @@ const SEARCH_DEPTHS = new Set<SearchDepth>([
   'ultra-fast',
 ]);
 
-import { SearchService } from './search.service';
-
 @Injectable()
-export class WebSearchService implements SearchService {
-  private readonly logger = new Logger(WebSearchService.name);
+export class TavilySearchService {
+  private readonly logger = new Logger(TavilySearchService.name);
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -68,43 +72,25 @@ export class WebSearchService implements SearchService {
   }
 
   private getRequiredApiKey(): string {
-    const apiKey = this.configService
-      .get<string>(TAVILY_API_KEY_CONFIG_KEY)
-      ?.trim();
-
-    if (!apiKey) {
-      throw new ServiceUnavailableException(
-        `${TAVILY_API_KEY_CONFIG_KEY} is not configured`,
-      );
-    }
-
-    return apiKey;
+    return getRequiredTrimmedConfig(
+      this.configService,
+      TAVILY_API_KEY_CONFIG_KEY,
+    );
   }
 
   getMaxResults(): number {
-    const rawValue = this.configService.get<string | number>(
+    return getPositiveIntegerConfig(
+      this.configService,
       TAVILY_MAX_RESULTS_CONFIG_KEY,
+      DEFAULT_TAVILY_MAX_RESULTS,
     );
-
-    if (rawValue === undefined || rawValue === null || rawValue === '') {
-      return DEFAULT_TAVILY_MAX_RESULTS;
-    }
-
-    const maxResults = Number(rawValue);
-
-    if (!Number.isInteger(maxResults) || maxResults < 1) {
-      throw new ServiceUnavailableException(
-        `${TAVILY_MAX_RESULTS_CONFIG_KEY} must be a positive integer`,
-      );
-    }
-
-    return maxResults;
   }
 
   getSearchDepth(): SearchDepth {
-    const searchDepth = this.configService
-      .get<string>(TAVILY_SEARCH_DEPTH_CONFIG_KEY)
-      ?.trim();
+    const searchDepth = getOptionalTrimmedConfig(
+      this.configService,
+      TAVILY_SEARCH_DEPTH_CONFIG_KEY,
+    );
 
     if (!searchDepth) {
       return DEFAULT_TAVILY_SEARCH_DEPTH;
@@ -122,23 +108,11 @@ export class WebSearchService implements SearchService {
   }
 
   getSearchTimeoutMs(): number {
-    const rawValue = this.configService.get<string | number>(
+    return getPositiveIntegerConfig(
+      this.configService,
       TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_TAVILY_SEARCH_TIMEOUT_MS,
     );
-
-    if (rawValue === undefined || rawValue === null || rawValue === '') {
-      return DEFAULT_TAVILY_SEARCH_TIMEOUT_MS;
-    }
-
-    const timeoutMs = Number(rawValue);
-
-    if (!Number.isInteger(timeoutMs) || timeoutMs < 1) {
-      throw new ServiceUnavailableException(
-        `${TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY} must be a positive integer`,
-      );
-    }
-
-    return timeoutMs;
   }
 }
 
@@ -148,8 +122,4 @@ function formatSearchQueryForLog(query: string): string {
   return normalizedQuery.length > 160
     ? `${normalizedQuery.slice(0, 160)}...`
     : normalizedQuery;
-}
-
-function getErrorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined;
 }

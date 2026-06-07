@@ -7,7 +7,7 @@
     "prebuild": "npm run prisma:generate",
     "build": "nest build",
     "start": "node dist/src/main.js",
-    "test": "npm run build && node --test test/*.test.js",
+    "test": "npm run build && node --require ts-node/register --test test/*.test.js",
     "predev": "npm run prisma:generate",
     "dev": "nest start --watch",
     "prestart:dev": "npm run prisma:generate",

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const {
   mapAskTurnSummary,
-} = require('../dist/src/ask/mappers/ask-response.mapper.js');
+} = require('../src/ask/mappers/ask-response.mapper.ts');
 const {
   createCitationRecord,
   createSourceRecord,

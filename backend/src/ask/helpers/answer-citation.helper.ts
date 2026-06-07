@@ -1,7 +1,7 @@
 import {
   extractCitationNumbers,
   normalizeCitationMarkers,
-} from '../../common/parsers/citations/citation-marker.parser';
+} from '../parsers/citation-marker.parser';
 import type { CreateTurnSourceInput } from '../../sources/types/source-persistence.types';
 
 export type PreparedAnswerCitations = {

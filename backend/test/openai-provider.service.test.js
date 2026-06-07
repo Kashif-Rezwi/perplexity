@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const { ServiceUnavailableException } = require('@nestjs/common');
 const {
   OpenAiProviderService,
-} = require('../dist/src/ai/openai-provider.service.js');
+} = require('../src/ai/openai-provider.service.ts');
 const {
   DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_MODEL,
@@ -16,7 +16,7 @@ const {
   OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
   OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
   OPENAI_UTILITY_MODEL_CONFIG_KEY,
-} = require('../dist/src/ai/ai.constants.js');
+} = require('../src/ai/ai.constants.ts');
 
 test('OpenAiProviderService fails clearly when OPENAI_API_KEY is missing', async () => {
   const service = new OpenAiProviderService({

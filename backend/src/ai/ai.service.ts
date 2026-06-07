@@ -1,4 +1,5 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { getErrorMessage } from '../common/utils/error.util';
 import { OpenAiProviderService } from './openai-provider.service';
 import type { PriorTurn } from './types/ai.types';
 import type { CreateTurnSourceInput } from '../sources/types/source-persistence.types';
@@ -21,13 +22,6 @@ function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
       question: turn.question,
       answerMarkdown: truncateForQueryRewrite(turn.answerMarkdown),
     }));
-}
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Generation failed';
 }
 
 @Injectable()
@@ -90,6 +84,7 @@ export class AiService {
       this.logger.warn(
         `Search query rewrite failed; falling back to raw question: ${getErrorMessage(
           error,
+          'Generation failed',
         )}`,
       );
       return question;
@@ -119,6 +114,7 @@ export class AiService {
       this.logger.warn(
         `Suggested follow-up generation failed; returning empty suggestions: ${getErrorMessage(
           error,
+          'Generation failed',
         )}`,
       );
       return [];
