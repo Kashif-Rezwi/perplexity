@@ -1,26 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { mapRecentSource } from './mappers/source-response.mapper';
+import { mapSource } from './mappers/source-response.mapper';
 import { SourcesRepository } from './repositories/sources.repository';
 import type {
-  ListRecentSourcesOptions,
-  ListRecentSourcesResponse,
+  ListSourcesOptions,
+  ListSourcesResponse,
 } from './types/source.types';
 
 @Injectable()
 export class SourcesService {
   constructor(private readonly sourcesRepository: SourcesRepository) {}
 
-  async listRecentSources(
-    options: ListRecentSourcesOptions = {},
-  ): Promise<ListRecentSourcesResponse> {
+  async listSources(
+    options: ListSourcesOptions = {},
+  ): Promise<ListSourcesResponse> {
     const limit = options.limit ?? 20;
-    const sources = await this.sourcesRepository.findRecentSources({
+    const sources = await this.sourcesRepository.findSources({
       limit,
       turnId: options.turnId,
     });
 
     return {
-      items: sources.map(mapRecentSource),
+      items: sources.map(mapSource),
       nextCursor: null,
     };
   }

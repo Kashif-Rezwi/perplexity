@@ -71,10 +71,15 @@ contains lightweight previews only for citation markers (`[n]`) that actually
 appear in `answerMarkdown`; sources without a matching marker are not included.
 `citationCount` always equals `citations.length` — both reflect the filtered set.
 Load the full source list for the returned turn with
-`GET /perplexity/recents?turnId=<turnId>`. Suggested follow-up questions are
+`GET /perplexity/sources?turnId=<turnId>`. Suggested follow-up questions are
 best-effort; if generation fails or times out, the API returns an empty array.
 `thread.totalSourceCount` is the sum of sources across all turns in the thread;
 `turn.sourceCount` is the source count for the current turn only.
+
+### AI Output Formatting Strategy
+- **Markdown Format**: `answerMarkdown` strictly uses GitHub Flavored Markdown (GFM). The frontend must use a compatible parser to render it.
+- **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
+- **Streaming Context**: While the API currently returns a full JSON object synchronously, it is designed with an event-streaming transition in mind. The frontend data models should be robust to future NDJSON or Server-Sent Events (SSE) updates.
 
 OpenAI config:
 
@@ -95,7 +100,7 @@ TAVILY_API_KEY           required
 TAVILY_SEARCH_TIMEOUT_MS optional, default 6000
 ```
 
-## GET /perplexity/recents
+## GET /perplexity/sources
 
 Lists recent sources ordered by `createdAt` descending.
 
@@ -117,14 +122,11 @@ Response:
       "threadId": "uuid",
       "threadTitle": "What changed in Next.js 15?",
       "question": "What changed in Next.js 15?",
-      "link": "/search/uuid",
       "citationNumber": 1,
       "title": "Source title",
       "url": "https://example.com",
       "domain": "example.com",
       "snippet": "Relevant source snippet...",
-      "provider": "tavily",
-      "providerScore": 0.95,
       "publishedAt": null,
       "createdAt": "2026-06-04T00:00:00.000Z"
     }

@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { RecentSourceRecord } from '../types/source.types';
+import type { SourceRecord } from '../types/source.types';
 
-type FindRecentSourcesOptions = {
+type FindSourcesOptions = {
   limit: number;
   turnId?: string;
 };
 
-export const recentSourceInclude = {
+export const sourceInclude = {
   turn: {
     select: {
       id: true,
@@ -27,14 +27,14 @@ export const recentSourceInclude = {
 export class SourcesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findRecentSources(
-    options: FindRecentSourcesOptions,
-  ): Promise<RecentSourceRecord[]> {
+  findSources(
+    options: FindSourcesOptions,
+  ): Promise<SourceRecord[]> {
     return this.prisma.source.findMany({
       take: options.limit,
       where: options.turnId ? { turnId: options.turnId } : undefined,
       orderBy: { createdAt: 'desc' },
-      include: recentSourceInclude,
+      include: sourceInclude,
     });
   }
 }

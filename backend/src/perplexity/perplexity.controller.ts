@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { AskService } from '../ask/ask.service';
 import { AskRequestDto } from './dto/ask-request.dto';
-import { RecentSourcesQueryDto } from './dto/recent-sources-query.dto';
+import { SourcesQueryDto } from './dto/sources-query.dto';
 import { ThreadParamsDto } from './dto/thread-params.dto';
 import { SourcesService } from '../sources/sources.service';
 import { ThreadsService } from '../threads/threads.service';
@@ -22,9 +22,9 @@ export class PerplexityController {
     });
   }
 
-  @Get('recents')
-  listRecentSources(@Query() query: RecentSourcesQueryDto) {
-    return this.sourcesService.listRecentSources({
+  @Get('sources')
+  listSources(@Query() query: SourcesQueryDto) {
+    return this.sourcesService.listSources({
       limit: query.limit,
       turnId: query.turnId,
     });
