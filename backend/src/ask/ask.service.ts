@@ -16,7 +16,10 @@ import {
   normalizeCitationMarkers,
 } from '../citations/citation-marker.parser';
 import { TavilySearchService } from '../search/tavily-search.service';
-import { mapThreadDetail } from '../threads/mappers/thread-response.mapper';
+import {
+  mapHeader,
+  mapTurnDetail,
+} from '../threads/mappers/thread-response.mapper';
 import { ThreadsService } from '../threads/threads.service';
 import type { ThreadDetailRecord } from '../threads/types/thread.types';
 import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
@@ -136,35 +139,21 @@ export class AskService {
       throw error;
     }
 
-    const completedThread = await this.loadThreadOrThrow(thread.id);
-    const response = mapThreadDetail(completedThread);
-    const { turns, ...threadSummary } = response;
-    const completedTurn = turns.find(
-      (candidateTurn) => candidateTurn.turnId === turn.id,
+    const data = await this.threadsService.findThreadWithSingleTurn(
+      thread.id,
+      turn.id,
     );
 
-    if (!completedTurn) {
+    if (!data) {
       throw new InternalServerErrorException(
-        `Turn ${turn.id} was not found after ask completion`,
+        `Thread ${thread.id} or Turn ${turn.id} was not found after ask completion`,
       );
     }
 
     return {
-      thread: threadSummary,
-      turn: mapAskTurnSummary(completedTurn),
+      thread: mapHeader(data.thread, data.totalSourceCount),
+      turn: mapAskTurnSummary(mapTurnDetail(data.turn)),
     };
-  }
-
-  private async loadThreadOrThrow(threadId: string) {
-    const thread = await this.threadsService.findThreadDetailById(threadId);
-
-    if (!thread) {
-      throw new InternalServerErrorException(
-        `Thread ${threadId} was not found after ask completion`,
-      );
-    }
-
-    return thread;
   }
 
   private async generateSuggestedFollowUpQuestions(

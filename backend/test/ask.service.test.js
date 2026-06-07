@@ -298,6 +298,14 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
           citations: [createCitationRecord()],
         });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions, sources: [createSourceRecord()], citations: [createCitationRecord()] }),
+          totalSourceCount: 1,
+        };
+      },
     },
   );
 
@@ -366,7 +374,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         suggestedFollowUpQuestions,
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 
@@ -408,6 +416,14 @@ test('AskService completes with empty suggestions when suggestion generation fai
       async findThreadDetailById(id) {
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({ answerMarkdown });
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
+          totalSourceCount: 0,
+        };
       },
     },
   );
@@ -454,7 +470,7 @@ test('AskService completes with empty suggestions when suggestion generation fai
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 
@@ -527,6 +543,18 @@ test('AskService normalizes citation ranges before persistence', async () => {
           ),
         });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({
+          answerMarkdown: normalizedAnswerMarkdown,
+          sources: sourceInputs.map((s, i) => createSourceRecord({ id: savedSourceIds[i], ...s })),
+          citations: sourceInputs.map((s, i) => createCitationRecord({ id: "citation-" + s.citationNumber, sourceId: savedSourceIds[i], citationNumber: s.citationNumber })),
+        }),
+          totalSourceCount: 2,
+        };
+      },
     },
   );
 
@@ -595,6 +623,14 @@ test('AskService returns its completed turn when another turn is newer', async (
           ],
         });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 2 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [], sources: [], citations: [] }),
+          totalSourceCount: 0,
+        };
+      },
     },
   );
 
@@ -634,7 +670,7 @@ test('AskService returns its completed turn when another turn is newer', async (
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 
@@ -671,6 +707,14 @@ test('AskService completes successfully when search returns no sources', async (
       async findThreadDetailById(id) {
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({ answerMarkdown });
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
+          totalSourceCount: 0,
+        };
       },
     },
   );
@@ -712,7 +756,7 @@ test('AskService completes successfully when search returns no sources', async (
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 
@@ -774,6 +818,14 @@ test('AskService completes with sources and no citations when answer has no mark
           sources: [createSourceRecord({ publishedAt: null })],
         });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [], sources: [createSourceRecord()] }),
+          totalSourceCount: 1,
+        };
+      },
     },
   );
 
@@ -814,7 +866,7 @@ test('AskService completes with sources and no citations when answer has no mark
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 
@@ -907,6 +959,14 @@ test('AskService appends a follow-up turn with prior thread context', async () =
               turns: [...priorTurns, completedFollowUpTurn],
             });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          turn: completedFollowUpTurn,
+          totalSourceCount: 1,
+        };
+      },
       async appendPendingTurnToThread(input) {
         calls.push(['appendPendingTurnToThread', input]);
         return createThreadRecord({
@@ -980,7 +1040,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, followUpTurnId]
   ]);
 });
 
@@ -1042,6 +1102,14 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
           : createThreadRecord({
               turns: [...priorTurns, completedFollowUpTurn],
             });
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          turn: completedFollowUpTurn,
+          totalSourceCount: 1,
+        };
       },
       async appendPendingTurnToThread(input) {
         calls.push(['appendPendingTurnToThread', input]);
@@ -1107,7 +1175,7 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, followUpTurnId]
   ]);
 });
 
@@ -1167,6 +1235,14 @@ test('AskService falls back to the raw follow-up question when rewrite times out
               turns: [...priorTurns, completedFollowUpTurn],
             });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          turn: completedFollowUpTurn,
+          totalSourceCount: 1,
+        };
+      },
       async appendPendingTurnToThread(input) {
         calls.push(['appendPendingTurnToThread', input]);
         return createThreadRecord({
@@ -1192,7 +1268,7 @@ test('AskService falls back to the raw follow-up question when rewrite times out
       'generateAnswer',
       'generateSuggestedFollowUpQuestions',
       'completeTurn',
-      'findThreadDetailById',
+      'findThreadWithSingleTurn',
     ],
   );
   assert.deepEqual(calls[3], ['search', { query: question }]);
@@ -1218,6 +1294,14 @@ test('AskService rejects follow-up for a missing thread before search', async ()
       async findThreadDetailById(id) {
         calls.push(['findThreadDetailById', id]);
         return null;
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord(),
+          totalSourceCount: 0,
+        };
       },
     },
   );
@@ -1268,6 +1352,14 @@ test('AskService marks the appended follow-up turn failed when search fails', as
       async findThreadDetailById(id) {
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({ turns: priorTurns });
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord(),
+          totalSourceCount: 0,
+        };
       },
       async appendPendingTurnToThread(input) {
         calls.push(['appendPendingTurnToThread', input]);
@@ -1605,6 +1697,14 @@ test('AskService completes with empty suggestions when suggestion generation tim
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({ answerMarkdown });
       },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
+          totalSourceCount: 0,
+        };
+      },
     },
   );
 
@@ -1650,7 +1750,7 @@ test('AskService completes with empty suggestions when suggestion generation tim
         suggestedFollowUpQuestions: [],
       },
     ],
-    ['findThreadDetailById', threadId],
+    ['findThreadWithSingleTurn', threadId, turnId]
   ]);
 });
 

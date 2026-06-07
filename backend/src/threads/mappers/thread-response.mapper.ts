@@ -7,45 +7,51 @@ import type {
   ThreadDetailResponse,
   ThreadHeaderRecord,
   ThreadSummaryItem,
+  TurnDetailRecord,
+  TurnItem,
 } from '../types/thread.types';
 
 export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailResponse {
   const totalSourceCount = thread.turns.reduce((n, t) => n + t.sources.length, 0);
   return {
     ...mapHeader(thread, totalSourceCount),
-    turns: thread.turns.map((turn) => ({
-      turnId: turn.id,
-      question: turn.question,
-      searchQuery: turn.searchQuery,
-      answerMarkdown: turn.answerMarkdown,
-      suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
-      status: TURN_STATUS[turn.status],
-      errorMessage: turn.errorMessage,
-      sources: turn.sources.map((s) => ({
-        sourceId: s.id,
-        citationNumber: s.citationNumber,
-        title: s.title,
-        url: s.url,
-        domain: s.domain,
-        snippet: s.snippet,
-        provider: s.provider,
-        providerScore: s.providerScore,
-        publishedAt: s.publishedAt?.toISOString() ?? null,
-        createdAt: s.createdAt.toISOString(),
-      })),
-      citations: turn.citations.map((c) => ({
-        citationId: c.id,
-        sourceId: c.sourceId,
-        citationNumber: c.citationNumber,
-        createdAt: c.createdAt.toISOString(),
-      })),
-      createdAt: turn.createdAt.toISOString(),
-      completedAt: turn.completedAt?.toISOString() ?? null,
-    })),
+    turns: thread.turns.map(mapTurnDetail),
   };
 }
 
-function mapHeader(thread: ThreadHeaderRecord, totalSourceCount: number): ThreadSummaryItem {
+export function mapTurnDetail(turn: TurnDetailRecord): TurnItem {
+  return {
+    turnId: turn.id,
+    question: turn.question,
+    searchQuery: turn.searchQuery,
+    answerMarkdown: turn.answerMarkdown,
+    suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
+    status: TURN_STATUS[turn.status],
+    errorMessage: turn.errorMessage,
+    sources: turn.sources.map((s) => ({
+      sourceId: s.id,
+      citationNumber: s.citationNumber,
+      title: s.title,
+      url: s.url,
+      domain: s.domain,
+      snippet: s.snippet,
+      provider: s.provider,
+      providerScore: s.providerScore,
+      publishedAt: s.publishedAt?.toISOString() ?? null,
+      createdAt: s.createdAt.toISOString(),
+    })),
+    citations: turn.citations.map((c) => ({
+      citationId: c.id,
+      sourceId: c.sourceId,
+      citationNumber: c.citationNumber,
+      createdAt: c.createdAt.toISOString(),
+    })),
+    createdAt: turn.createdAt.toISOString(),
+    completedAt: turn.completedAt?.toISOString() ?? null,
+  };
+}
+
+export function mapHeader(thread: ThreadHeaderRecord, totalSourceCount: number): ThreadSummaryItem {
   return {
     threadId: thread.id,
     title: thread.title,

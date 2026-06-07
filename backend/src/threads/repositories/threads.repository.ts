@@ -7,8 +7,9 @@ import type {
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
   ThreadDetailRecord,
+  TurnDetailRecord,
 } from '../types/thread.types';
-import { threadDetailInclude } from '../types/thread.types';
+import { threadDetailInclude, turnDetailInclude } from '../types/thread.types';
 
 @Injectable()
 export class ThreadsRepository {
@@ -137,5 +138,34 @@ export class ThreadsRepository {
       where: { id: threadId },
       include: threadDetailInclude,
     });
+  }
+
+  async findThreadWithSingleTurn(
+    threadId: string,
+    turnId: string,
+  ): Promise<{
+    thread: Omit<ThreadDetailRecord, 'turns'>;
+    turn: TurnDetailRecord;
+    totalSourceCount: number;
+  } | null> {
+    const [thread, turn, totalSourceCount] = await this.prisma.$transaction([
+      this.prisma.thread.findUnique({
+        where: { id: threadId },
+        include: { _count: { select: { turns: true } } },
+      }),
+      this.prisma.turn.findUnique({
+        where: { id: turnId },
+        include: turnDetailInclude,
+      }),
+      this.prisma.source.count({
+        where: { turn: { threadId } },
+      }),
+    ]);
+
+    if (!thread || !turn) {
+      return null;
+    }
+
+    return { thread, turn, totalSourceCount };
   }
 }

@@ -1,14 +1,20 @@
 import type { Prisma, ThreadMode, ThreadStatus } from '@prisma/client';
 import type { CreateTurnSourceInput } from '../../sources/types/source-persistence.types';
 
+export const turnDetailInclude = {
+  sources: { orderBy: { citationNumber: 'asc' as const } },
+  citations: { orderBy: { citationNumber: 'asc' as const } },
+} satisfies Prisma.TurnInclude;
+
+export type TurnDetailRecord = Prisma.TurnGetPayload<{
+  include: typeof turnDetailInclude;
+}>;
+
 export const threadDetailInclude = {
   _count: { select: { turns: true } },
   turns: {
     orderBy: { createdAt: 'asc' as const },
-    include: {
-      sources: { orderBy: { citationNumber: 'asc' as const } },
-      citations: { orderBy: { citationNumber: 'asc' as const } },
-    },
+    include: turnDetailInclude,
   },
 } satisfies Prisma.ThreadInclude;
 
