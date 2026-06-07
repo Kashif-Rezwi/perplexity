@@ -20,9 +20,11 @@ const SEARCH_DEPTHS = new Set<SearchDepth>([
   'ultra-fast',
 ]);
 
+import { SearchService } from './search.service';
+
 @Injectable()
-export class TavilySearchService {
-  private readonly logger = new Logger(TavilySearchService.name);
+export class WebSearchService implements SearchService {
+  private readonly logger = new Logger(WebSearchService.name);
 
   constructor(private readonly configService: ConfigService) {}
 

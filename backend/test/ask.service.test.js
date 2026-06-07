@@ -4,12 +4,16 @@ const { NotFoundException, ServiceUnavailableException } = require('@nestjs/comm
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const { AskService } = require('../dist/src/ask/ask.service.js');
 const { AiService } = require('../dist/src/ai/ai.service.js');
+const { LlmService } = require('../dist/src/ai/llm.service.js');
 const {
-  TavilySearchService,
-} = require('../dist/src/search/tavily-search.service.js');
+  WebSearchService,
+} = require('../dist/src/search/web-search.service.js');
 const {
   mapAskTurnSummary,
 } = require('../dist/src/ask/mappers/ask-response.mapper.js');
+const {
+  mapSearchResultsToSourceInputs,
+} = require('../dist/src/ask/mappers/search-to-source.mapper.js');
 const {
   DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
   DEFAULT_OPENAI_MODEL,
@@ -34,6 +38,11 @@ const {
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
+
+function createTestAskService(aiMock, searchMock, threadsMock) {
+  const aiService = new AiService(aiMock);
+  return new AskService(aiService, searchMock, threadsMock);
+}
 const followUpTurnId = '55555555-5555-4555-8555-555555555555';
 const sourceId = '33333333-3333-4333-8333-333333333333';
 const citationId = '44444444-4444-4444-8444-444444444444';
@@ -48,8 +57,8 @@ function delay(ms, value) {
   });
 }
 
-// Provides the three timeout getters that AiService exposes. Spread into every
-// aiService mock so direct calls (e.g. this.aiService.getAnswerTimeoutMs())
+// Provides the three timeout getters that LlmService exposes. Spread into every
+// openLlmService mock so direct calls (e.g. this.openLlmService.getAnswerTimeoutMs())
 // resolve to the production defaults rather than throwing. Tests that need a
 // shorter timeout override the specific getter after spreading.
 const DEFAULT_AI_TIMEOUTS = {
@@ -255,7 +264,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
     },
   ];
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery() {
@@ -382,7 +391,7 @@ test('AskService completes with empty suggestions when suggestion generation fai
   const answerMarkdown = 'Prisma relations connect rows across tables.';
   const error = new ServiceUnavailableException('Suggestion generation failed');
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -497,7 +506,7 @@ test('AskService normalizes citation ranges before persistence', async () => {
   }));
   const savedSourceIds = ['source-1', 'source-2', 'source-3'];
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -583,7 +592,7 @@ test('AskService returns its completed turn when another turn is newer', async (
     completedAt: new Date('2026-06-04T00:07:00.000Z'),
   });
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -677,7 +686,7 @@ test('AskService returns its completed turn when another turn is newer', async (
 test('AskService completes successfully when search returns no sources', async () => {
   const answerMarkdown = 'Prisma relations connect rows across tables.';
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -784,7 +793,7 @@ test('AskService completes with sources and no citations when answer has no mark
     },
   ];
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -930,7 +939,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   });
   let findCalls = 0;
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
@@ -1068,7 +1077,7 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
   });
   let findCalls = 0;
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
@@ -1199,7 +1208,7 @@ test('AskService falls back to the raw follow-up question when rewrite times out
   });
   let findCalls = 0;
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       getQueryRewriteTimeoutMs() {
@@ -1276,7 +1285,7 @@ test('AskService falls back to the raw follow-up question when rewrite times out
 
 test('AskService rejects follow-up for a missing thread before search', async () => {
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       async generateStandaloneSearchQuery() {
         calls.push(['generateStandaloneSearchQuery']);
@@ -1331,7 +1340,7 @@ test('AskService marks the appended follow-up turn failed when search fails', as
     completedAt: null,
   });
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateStandaloneSearchQuery(input) {
@@ -1410,7 +1419,7 @@ test('AskService marks the appended follow-up turn failed when search fails', as
 test('AskService marks the pending turn failed when search fails', async () => {
   const error = new ServiceUnavailableException('Tavily search failed');
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       async generateAnswer() {
         calls.push(['generateAnswer']);
@@ -1466,7 +1475,7 @@ test('AskService marks the pending turn failed when search fails', async () => {
 test('AskService marks the pending turn failed when search times out', async () => {
   const error = new ServiceUnavailableException('Tavily search timed out');
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       async generateAnswer() {
         calls.push(['generateAnswer']);
@@ -1523,7 +1532,7 @@ test('AskService marks the pending turn failed when AI generation fails', async 
   const error = new ServiceUnavailableException('OpenAI answer generation failed');
   const searchResults = [];
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -1588,7 +1597,7 @@ test('AskService marks the pending turn failed when AI generation fails', async 
 
 test('AskService marks the pending turn failed when answer generation times out', async () => {
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       getAnswerTimeoutMs() {
@@ -1659,7 +1668,7 @@ test('AskService marks the pending turn failed when answer generation times out'
 test('AskService completes with empty suggestions when suggestion generation times out', async () => {
   const answerMarkdown = 'Prisma relations connect rows across tables.';
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       getSuggestionTimeoutMs() {
@@ -1779,7 +1788,7 @@ test('AskService marks the pending turn failed when completion fails', async () 
     },
   ];
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer(input) {
@@ -1858,8 +1867,8 @@ test('AskService marks the pending turn failed when completion fails', async () 
   ]);
 });
 
-test('AiService fails clearly when OPENAI_API_KEY is missing', async () => {
-  const service = new AiService({
+test('LlmService fails clearly when OPENAI_API_KEY is missing', async () => {
+  const service = new LlmService({
     get() {
       return undefined;
     },
@@ -1873,8 +1882,8 @@ test('AiService fails clearly when OPENAI_API_KEY is missing', async () => {
   );
 });
 
-test('AiService suggestion generation fails clearly when OPENAI_API_KEY is missing', async () => {
-  const service = new AiService({
+test('LlmService suggestion generation fails clearly when OPENAI_API_KEY is missing', async () => {
+  const service = new LlmService({
     get() {
       return undefined;
     },
@@ -1892,8 +1901,8 @@ test('AiService suggestion generation fails clearly when OPENAI_API_KEY is missi
   );
 });
 
-test('AiService uses the default model when OPENAI_MODEL is missing', () => {
-  const service = new AiService({
+test('LlmService uses the default model when OPENAI_MODEL is missing', () => {
+  const service = new LlmService({
     get(key) {
       if (key === OPENAI_API_KEY_CONFIG_KEY) {
         return 'test-api-key';
@@ -1906,9 +1915,9 @@ test('AiService uses the default model when OPENAI_MODEL is missing', () => {
   assert.equal(service.getModel(), DEFAULT_OPENAI_MODEL);
 });
 
-test('AiService uses configured OPENAI_MODEL when present', () => {
+test('LlmService uses configured OPENAI_MODEL when present', () => {
   const model = 'gpt-test-model';
-  const service = new AiService({
+  const service = new LlmService({
     get(key) {
       if (key === OPENAI_API_KEY_CONFIG_KEY) {
         return 'test-api-key';
@@ -1925,9 +1934,9 @@ test('AiService uses configured OPENAI_MODEL when present', () => {
   assert.equal(service.getModel(), model);
 });
 
-test('AiService uses the default utility model when OPENAI_UTILITY_MODEL is missing', () => {
+test('LlmService uses the default utility model when OPENAI_UTILITY_MODEL is missing', () => {
   const model = 'gpt-answer-model';
-  const service = new AiService({
+  const service = new LlmService({
     get(key) {
       if (key === OPENAI_MODEL_CONFIG_KEY) {
         return model;
@@ -1940,9 +1949,9 @@ test('AiService uses the default utility model when OPENAI_UTILITY_MODEL is miss
   assert.equal(service.getUtilityModel(), DEFAULT_OPENAI_UTILITY_MODEL);
 });
 
-test('AiService uses configured OPENAI_UTILITY_MODEL when present', () => {
+test('LlmService uses configured OPENAI_UTILITY_MODEL when present', () => {
   const utilityModel = 'gpt-utility-model';
-  const service = new AiService({
+  const service = new LlmService({
     get(key) {
       if (key === OPENAI_MODEL_CONFIG_KEY) {
         return 'gpt-answer-model';
@@ -1959,8 +1968,8 @@ test('AiService uses configured OPENAI_UTILITY_MODEL when present', () => {
   assert.equal(service.getUtilityModel(), utilityModel);
 });
 
-test('AiService uses default timeout config when optional env vars are missing', () => {
-  const service = new AiService({
+test('LlmService uses default timeout config when optional env vars are missing', () => {
+  const service = new LlmService({
     get() {
       return undefined;
     },
@@ -1977,8 +1986,8 @@ test('AiService uses default timeout config when optional env vars are missing',
   );
 });
 
-test('AiService fails clearly when timeout config is invalid', () => {
-  const service = new AiService({
+test('LlmService fails clearly when timeout config is invalid', () => {
+  const service = new LlmService({
     get(key) {
       if (key === OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY) {
         return '0';
@@ -2018,8 +2027,8 @@ test('AiService fails clearly when timeout config is invalid', () => {
   );
 });
 
-test('TavilySearchService fails clearly when TAVILY_API_KEY is missing', async () => {
-  const service = new TavilySearchService({
+test('WebSearchService fails clearly when TAVILY_API_KEY is missing', async () => {
+  const service = new WebSearchService({
     get() {
       return undefined;
     },
@@ -2033,8 +2042,8 @@ test('TavilySearchService fails clearly when TAVILY_API_KEY is missing', async (
   );
 });
 
-test('TavilySearchService uses default search config when optional env vars are missing', () => {
-  const service = new TavilySearchService({
+test('WebSearchService uses default search config when optional env vars are missing', () => {
+  const service = new WebSearchService({
     get(key) {
       if (key === TAVILY_API_KEY_CONFIG_KEY) {
         return 'test-tavily-key';
@@ -2049,8 +2058,8 @@ test('TavilySearchService uses default search config when optional env vars are 
   assert.equal(service.getSearchTimeoutMs(), DEFAULT_TAVILY_SEARCH_TIMEOUT_MS);
 });
 
-test('TavilySearchService fails clearly when timeout config is invalid', () => {
-  const service = new TavilySearchService({
+test('WebSearchService fails clearly when timeout config is invalid', () => {
+  const service = new WebSearchService({
     get(key) {
       if (key === TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY) {
         return '0';
@@ -2113,7 +2122,7 @@ test('AskService strips markdown from answerPreview before truncation', async ()
   const strippedPreview = 'Here is bold and italic and a link with some code and newlines.';
   
   const calls = [];
-  const service = new AskService(
+  const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
       async generateAnswer() { return answerMarkdown; }

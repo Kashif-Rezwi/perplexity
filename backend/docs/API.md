@@ -65,7 +65,7 @@ Response:
 Note: `threadId` is optional. When present, ask appends a new turn to that
 thread and uses the last 5 completed prior turns as AI context. For follow-ups,
 `searchQuery` may differ from `question` because the backend rewrites contextual
-questions into standalone web-search queries before calling Tavily.
+questions into standalone web-search queries before calling the web search provider.
 Streaming is intentionally deferred to a later chunk. The `citations` array
 contains lightweight previews only for citation markers (`[n]`) that actually
 appear in `answerMarkdown`; sources without a matching marker are not included.
@@ -81,7 +81,7 @@ best-effort; if generation fails or times out, the API returns an empty array.
 - **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
 - **Streaming Context**: While the API currently returns a full JSON object synchronously, it is designed with an event-streaming transition in mind. The frontend data models should be robust to future NDJSON or Server-Sent Events (SSE) updates.
 
-OpenAI config:
+LLM Provider config (currently OpenAI):
 
 ```text
 OPENAI_API_KEY          required
@@ -93,7 +93,7 @@ OPENAI_QUERY_REWRITE_TIMEOUT_MS  optional, default 6000
 OPENAI_SUGGESTION_TIMEOUT_MS     optional, default 15000
 ```
 
-Tavily config:
+Web Search config (currently Tavily):
 
 ```text
 TAVILY_API_KEY           required

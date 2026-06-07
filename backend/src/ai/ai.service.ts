@@ -1,381 +1,129 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, jsonSchema, Output } from 'ai';
-import {
-  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-  DEFAULT_OPENAI_MODEL,
-  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-  DEFAULT_OPENAI_UTILITY_MODEL,
-  OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_API_KEY_CONFIG_KEY,
-  OPENAI_MODEL_CONFIG_KEY,
-  OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_UTILITY_MODEL_CONFIG_KEY,
-} from './ai.constants';
-import type {
-  GenerateAnswerInput,
-  GenerateStandaloneSearchQueryInput,
-  GenerateSuggestedFollowUpQuestionsInput,
-} from './types/ai.types';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { LlmService } from './llm.service';
+import type { PriorTurn } from './types/ai.types';
+import type { CreateTurnSourceInput } from '../sources/types/source-persistence.types';
 
-const SOURCE_SNIPPET_MAX_LENGTH = 1200;
-const SUGGESTED_FOLLOW_UP_QUESTION_COUNT = 3;
-const SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH = 160;
-const STANDALONE_SEARCH_QUERY_MAX_LENGTH = 300;
-const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
+const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
+const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
 
-@Injectable()
-export class AiService {
-  private readonly logger = new Logger(AiService.name);
+function truncateForQueryRewrite(value: string): string {
+  const normalizedValue = value.replace(/\s+/g, ' ').trim();
 
-  constructor(private readonly configService: ConfigService) { }
-
-  async generateAnswer(
-    input: GenerateAnswerInput,
-    abortSignal?: AbortSignal,
-  ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getModel();
-    const openaiClient = createOpenAI({ apiKey });
-
-    try {
-      const { text } = await generateText({
-        model: openaiClient(model),
-        abortSignal,
-        system:
-          'You are a concise research assistant. Answer in clear Markdown. ' +
-          'Use the provided numbered sources when they are relevant. ' +
-          'Cite source-supported claims with [n] markers. ' +
-          'Use only citation markers from the provided sources. ' +
-          'Use individual citation markers only, like [1][2], never ranges like [1-5] or grouped markers like [1,2]. ' +
-          'When sources are provided, do not say you can fetch, check, look up, or obtain more information later. ' +
-          'If the provided sources are not fresh or conclusive enough, state that uncertainty clearly.',
-        prompt: createAnswerPrompt(input),
-      });
-
-      const answerMarkdown = text.trim();
-
-      if (!answerMarkdown) {
-        throw new InternalServerErrorException('OpenAI returned an empty answer');
-      }
-
-      return answerMarkdown;
-    } catch (error) {
-      if (error instanceof InternalServerErrorException) {
-        throw error;
-      }
-
-      this.logger.error(
-        `OpenAI answer generation failed: ${getErrorMessage(error)}`,
-        getErrorStack(error),
-      );
-
-      throw new ServiceUnavailableException('OpenAI answer generation failed');
-    }
-  }
-
-  async generateSuggestedFollowUpQuestions(
-    input: GenerateSuggestedFollowUpQuestionsInput,
-    abortSignal?: AbortSignal,
-  ): Promise<string[]> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
-
-    try {
-      const { output } = await generateText({
-        model: openaiClient(model),
-        abortSignal,
-        system:
-          'You suggest concise next questions for a research answer. ' +
-          'Return exactly 3 useful follow-up questions. ' +
-          'Each question must be self-contained, natural, and specific to the current thread. ' +
-          'Do not include citations, numbering, bullets, explanations, or duplicate questions.',
-        prompt: createSuggestedFollowUpQuestionsPrompt(input),
-        output: Output.array({
-          element: jsonSchema<string>({
-            type: 'string',
-            minLength: 1,
-            maxLength: SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH,
-          }),
-          name: 'suggestedFollowUpQuestions',
-          description: 'Three concise follow-up questions for the user to ask next.',
-        }),
-      });
-
-      return sanitizeSuggestedFollowUpQuestions(output);
-    } catch (error) {
-      if (error instanceof ServiceUnavailableException) {
-        throw error;
-      }
-
-      this.logger.warn(
-        `OpenAI follow-up suggestion generation failed: ${getErrorMessage(
-          error,
-        )}`,
-      );
-
-      throw new ServiceUnavailableException(
-        'OpenAI follow-up suggestion generation failed',
-      );
-    }
-  }
-
-  async generateStandaloneSearchQuery(
-    input: GenerateStandaloneSearchQueryInput,
-    abortSignal?: AbortSignal,
-  ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
-
-    try {
-      const { text } = await generateText({
-        model: openaiClient(model),
-        abortSignal,
-        maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
-        system:
-          'You rewrite contextual follow-up questions into standalone web search queries. ' +
-          'Use prior thread context only to resolve references, omitted subjects, places, dates, and entities. ' +
-          'Return exactly one concise search query as plain text. ' +
-          'Do not include explanations, bullets, quotation marks, or citations. ' +
-          'If the current question is already standalone, return it unchanged.',
-        prompt: createStandaloneSearchQueryPrompt(input),
-      });
-      const searchQuery = sanitizeStandaloneSearchQuery(text);
-
-      if (!searchQuery) {
-        throw new InternalServerErrorException(
-          'OpenAI returned an empty search query',
-        );
-      }
-
-      return searchQuery;
-    } catch (error) {
-      if (error instanceof InternalServerErrorException) {
-        throw error;
-      }
-
-      this.logger.warn(
-        `OpenAI search query generation failed: ${getErrorMessage(error)}`,
-      );
-
-      throw new ServiceUnavailableException(
-        'OpenAI search query generation failed',
-      );
-    }
-  }
-
-  private getRequiredApiKey(): string {
-    const apiKey = this.configService
-      .get<string>(OPENAI_API_KEY_CONFIG_KEY)
-      ?.trim();
-
-    if (!apiKey) {
-      throw new ServiceUnavailableException(
-        `${OPENAI_API_KEY_CONFIG_KEY} is not configured`,
-      );
-    }
-
-    return apiKey;
-  }
-
-  getModel(): string {
-    return (
-      this.configService.get<string>(OPENAI_MODEL_CONFIG_KEY)?.trim() ||
-      DEFAULT_OPENAI_MODEL
-    );
-  }
-
-  getUtilityModel(): string {
-    return (
-      this.configService.get<string>(OPENAI_UTILITY_MODEL_CONFIG_KEY)?.trim() ||
-      DEFAULT_OPENAI_UTILITY_MODEL
-    );
-  }
-
-  getAnswerTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
-      OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-    );
-  }
-
-  getQueryRewriteTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
-      OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-    );
-  }
-
-  getSuggestionTimeoutMs(): number {
-    return this.getPositiveIntegerConfig(
-      OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-    );
-  }
-
-  private getPositiveIntegerConfig(key: string, defaultValue: number): number {
-    const rawValue = this.configService.get<string | number>(key);
-
-    if (rawValue === undefined || rawValue === null || rawValue === '') {
-      return defaultValue;
-    }
-
-    const value = Number(rawValue);
-
-    if (!Number.isInteger(value) || value < 1) {
-      throw new ServiceUnavailableException(
-        `${key} must be a positive integer`,
-      );
-    }
-
-    return value;
-  }
+  return normalizedValue.length > QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH
+    ? `${normalizedValue.slice(0, QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH)}...`
+    : normalizedValue;
 }
 
-function createAnswerPrompt(input: GenerateAnswerInput): string {
-  return [
-    `Prior thread context:\n${formatPriorTurns(input.priorTurns ?? [])}`,
-    `Question:\n${input.question}`,
-    `Sources:\n${formatSources(input.sources ?? [])}`,
-    'Write the answer in Markdown.',
-  ].join('\n\n');
-}
-
-function createSuggestedFollowUpQuestionsPrompt(
-  input: GenerateSuggestedFollowUpQuestionsInput,
-): string {
-  return [
-    `Prior thread context:\n${formatPriorTurns(input.priorTurns ?? [])}`,
-    `Current question:\n${input.question}`,
-    `Current answer:\n${input.answerMarkdown}`,
-    `Sources:\n${formatSources(input.sources ?? [])}`,
-    'Generate exactly 3 suggested follow-up questions.',
-  ].join('\n\n');
-}
-
-function createStandaloneSearchQueryPrompt(
-  input: GenerateStandaloneSearchQueryInput,
-): string {
-  return [
-    `Thread title:\n${input.threadTitle?.trim() || 'Unknown thread title.'}`,
-    `Recent compact thread context:\n${formatPriorTurns(input.priorTurns)}`,
-    `Current follow-up question:\n${input.question}`,
-    'Rewrite the current follow-up question into one standalone web search query.',
-  ].join('\n\n');
-}
-
-function formatPriorTurns(priorTurns: GenerateAnswerInput['priorTurns']): string {
-  if (!priorTurns?.length) {
-    return 'No prior turns.';
-  }
-
+function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
   return priorTurns
-    .map((turn, index) =>
-      [
-        `Turn ${index + 1}`,
-        `Question: ${turn.question}`,
-        `Answer: ${turn.answerMarkdown}`,
-      ].join('\n'),
-    )
-    .join('\n\n');
-}
-
-function formatSources(sources: GenerateAnswerInput['sources']): string {
-  if (!sources?.length) {
-    return 'No sources were returned. Answer from general knowledge only when useful, and do not include citation markers.';
-  }
-
-  return sources
-    .map((source) =>
-      [
-        `Source [${source.citationNumber}]`,
-        `Title: ${source.title}`,
-        `Domain: ${source.domain}`,
-        `URL: ${source.url}`,
-        `Snippet: ${truncateSourceSnippet(source.snippet)}`,
-      ].join('\n'),
-    )
-    .join('\n\n');
-}
-
-function truncateSourceSnippet(snippet: string): string {
-  return snippet.length > SOURCE_SNIPPET_MAX_LENGTH
-    ? `${snippet.slice(0, SOURCE_SNIPPET_MAX_LENGTH)}...`
-    : snippet;
-}
-
-function sanitizeSuggestedFollowUpQuestions(questions: string[]): string[] {
-  const seenQuestions = new Set<string>();
-  const sanitizedQuestions: string[] = [];
-
-  for (const rawQuestion of questions) {
-    const question = normalizeSuggestedFollowUpQuestion(rawQuestion);
-    const questionKey = question.toLowerCase();
-
-    if (!question || seenQuestions.has(questionKey)) {
-      continue;
-    }
-
-    seenQuestions.add(questionKey);
-    sanitizedQuestions.push(question);
-
-    if (
-      sanitizedQuestions.length === SUGGESTED_FOLLOW_UP_QUESTION_COUNT
-    ) {
-      break;
-    }
-  }
-
-  return sanitizedQuestions.length === SUGGESTED_FOLLOW_UP_QUESTION_COUNT
-    ? sanitizedQuestions
-    : [];
-}
-
-function normalizeSuggestedFollowUpQuestion(rawQuestion: string): string {
-  const question = rawQuestion.replace(/\s+/g, ' ').trim();
-
-  if (!question) {
-    return '';
-  }
-
-  const clippedQuestion =
-    question.length > SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH
-      ? question.slice(0, SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH).trim()
-      : question;
-
-  return clippedQuestion.endsWith('?') ? clippedQuestion : `${clippedQuestion}?`;
-}
-
-function sanitizeStandaloneSearchQuery(rawSearchQuery: string): string {
-  const searchQuery = rawSearchQuery
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^["'`]+|["'`]+$/g, '')
-    .trim();
-
-  return searchQuery.length > STANDALONE_SEARCH_QUERY_MAX_LENGTH
-    ? searchQuery.slice(0, STANDALONE_SEARCH_QUERY_MAX_LENGTH).trim()
-    : searchQuery;
+    .slice(-QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT)
+    .map((turn) => ({
+      question: turn.question,
+      answerMarkdown: truncateForQueryRewrite(turn.answerMarkdown),
+    }));
 }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-
-  return String(error);
+  return 'Generation failed';
 }
 
-function getErrorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined;
+@Injectable()
+export class AiService {
+  private readonly logger = new Logger(AiService.name);
+
+  constructor(private readonly llmService: LlmService) {}
+
+  async generateAnswer(
+    question: string,
+    priorTurns: PriorTurn[],
+    sources: CreateTurnSourceInput[],
+  ): Promise<string> {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.llmService.getAnswerTimeoutMs(),
+    );
+
+    try {
+      return await this.llmService.generateAnswer(
+        { question, priorTurns, sources },
+        controller.signal,
+      );
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new ServiceUnavailableException('OpenAI answer generation timed out');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async resolveSearchQuery(
+    question: string,
+    priorTurns: PriorTurn[],
+    threadTitle?: string,
+  ): Promise<string> {
+    if (priorTurns.length === 0) {
+      return question;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.llmService.getQueryRewriteTimeoutMs(),
+    );
+
+    try {
+      return await this.llmService.generateStandaloneSearchQuery(
+        {
+          question,
+          threadTitle,
+          priorTurns: getQueryRewritePriorTurns(priorTurns),
+        },
+        controller.signal,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Search query rewrite failed; falling back to raw question: ${getErrorMessage(
+          error,
+        )}`,
+      );
+      return question;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async generateSuggestedFollowUpQuestions(
+    question: string,
+    answerMarkdown: string,
+    priorTurns: PriorTurn[],
+    sources: CreateTurnSourceInput[],
+  ): Promise<string[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.llmService.getSuggestionTimeoutMs(),
+    );
+
+    try {
+      return await this.llmService.generateSuggestedFollowUpQuestions(
+        { question, answerMarkdown, priorTurns, sources },
+        controller.signal,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Suggested follow-up generation failed; returning empty suggestions: ${getErrorMessage(
+          error,
+        )}`,
+      );
+      return [];
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 }

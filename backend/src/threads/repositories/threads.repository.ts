@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ThreadStatus, TurnStatus } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import type {
   AppendPendingTurnToThreadInput,
   CompleteTurnInput,
@@ -13,12 +13,12 @@ import { threadDetailInclude, turnDetailInclude } from '../types/thread.types';
 
 @Injectable()
 export class ThreadsRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly database: DatabaseService) { }
 
   createThreadWithPendingTurn(
     input: CreateThreadWithPendingTurnInput,
   ): Promise<ThreadDetailRecord> {
-    return this.prisma.thread.create({
+    return this.database.thread.create({
       data: {
         title: input.title,
         status: ThreadStatus.RUNNING,
@@ -37,7 +37,7 @@ export class ThreadsRepository {
   appendPendingTurnToThread(
     input: AppendPendingTurnToThreadInput,
   ): Promise<ThreadDetailRecord> {
-    return this.prisma.thread.update({
+    return this.database.thread.update({
       where: { id: input.threadId },
       data: {
         status: ThreadStatus.RUNNING,
@@ -54,7 +54,7 @@ export class ThreadsRepository {
   }
 
   async completeTurn(input: CompleteTurnInput): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.database.$transaction(async (tx) => {
       const sourceIdsByCitationNumber = new Map<number, string>();
 
       for (const source of input.sources) {
@@ -115,8 +115,8 @@ export class ThreadsRepository {
   }
 
   async failTurn(input: FailTurnInput): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.turn.update({
+    await this.database.$transaction([
+      this.database.turn.update({
         where: { id: input.turnId },
         data: {
           status: TurnStatus.FAILED,
@@ -124,7 +124,7 @@ export class ThreadsRepository {
           completedAt: new Date(),
         },
       }),
-      this.prisma.thread.update({
+      this.database.thread.update({
         where: { id: input.threadId },
         data: {
           status: ThreadStatus.FAILED,
@@ -134,7 +134,7 @@ export class ThreadsRepository {
   }
 
   findThreadDetailById(threadId: string): Promise<ThreadDetailRecord | null> {
-    return this.prisma.thread.findUnique({
+    return this.database.thread.findUnique({
       where: { id: threadId },
       include: threadDetailInclude,
     });
@@ -148,16 +148,16 @@ export class ThreadsRepository {
     turn: TurnDetailRecord;
     totalSourceCount: number;
   } | null> {
-    const [thread, turn, totalSourceCount] = await this.prisma.$transaction([
-      this.prisma.thread.findUnique({
+    const [thread, turn, totalSourceCount] = await this.database.$transaction([
+      this.database.thread.findUnique({
         where: { id: threadId },
         include: { _count: { select: { turns: true } } },
       }),
-      this.prisma.turn.findUnique({
+      this.database.turn.findUnique({
         where: { id: turnId },
         include: turnDetailInclude,
       }),
-      this.prisma.source.count({
+      this.database.source.count({
         where: { turn: { threadId } },
       }),
     ]);

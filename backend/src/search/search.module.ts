@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common';
-import { TavilySearchService } from './tavily-search.service';
+import { WebSearchService } from './web-search.service';
+
+import { SearchService } from './search.service';
 
 @Module({
-  providers: [TavilySearchService],
-  exports: [TavilySearchService],
+  providers: [
+    {
+      provide: SearchService,
+      useClass: WebSearchService,
+    },
+  ],
+  exports: [SearchService],
 })
 export class SearchModule { }

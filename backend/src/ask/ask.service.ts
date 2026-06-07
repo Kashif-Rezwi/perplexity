@@ -6,16 +6,17 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
+import type { PriorTurn } from '../ai/types/ai.types';
 import { AiService } from '../ai/ai.service';
-import type {
-  GenerateSuggestedFollowUpQuestionsInput,
-  PriorTurn,
-} from '../ai/types/ai.types';
+import {
+  createAnswerPreview,
+  createThreadTitle,
+} from '../common/utils/text.util';
 import {
   extractCitationNumbers,
   normalizeCitationMarkers,
-} from '../citations/citation-marker.parser';
-import { TavilySearchService } from '../search/tavily-search.service';
+} from '../common/parsers/citations/citation-marker.parser';
+import { SearchService } from '../search/search.service';
 import {
   mapHeader,
   mapTurnDetail,
@@ -26,10 +27,7 @@ import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mappe
 import { mapAskTurnSummary } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
 
-const ANSWER_PREVIEW_MAX_LENGTH = 300;
 const PRIOR_TURN_CONTEXT_LIMIT = 5;
-const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
-const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
 
 @Injectable()
 export class AskService {
@@ -37,62 +35,45 @@ export class AskService {
 
   constructor(
     private readonly aiService: AiService,
-    private readonly tavilySearchService: TavilySearchService,
+    private readonly searchService: SearchService,
     private readonly threadsService: ThreadsService,
-  ) {}
+  ) { }
 
   async ask(input: AskInput): Promise<AskResponse> {
     const existingThread = input.threadId
       ? await this.loadExistingThreadOrThrow(input.threadId)
       : null;
     const priorTurns = existingThread ? getPriorTurns(existingThread) : [];
-    const searchQuery = await this.resolveSearchQuery(
+    const searchQuery = await this.aiService.resolveSearchQuery(
       input.question,
       priorTurns,
       existingThread?.title,
     );
     const thread = existingThread
       ? await this.threadsService.appendPendingTurnToThread({
-          threadId: existingThread.id,
-          question: input.question,
-          searchQuery,
-        })
+        threadId: existingThread.id,
+        question: input.question,
+        searchQuery,
+      })
       : await this.threadsService.createThreadWithPendingTurn({
-          title: createThreadTitle(input.question),
-          question: input.question,
-          searchQuery,
-        });
+        title: createThreadTitle(input.question),
+        question: input.question,
+        searchQuery,
+      });
     const turn = getLatestTurn(thread);
 
     let answerMarkdown: string;
 
     try {
-      const searchResults = await this.tavilySearchService.search({
+      const searchResults = await this.searchService.search({
         query: searchQuery,
       });
       const sources = mapSearchResultsToSourceInputs(searchResults);
-      const answerController = new AbortController();
-      const answerTimeout = setTimeout(
-        () => answerController.abort(),
-        this.getAnswerGenerationTimeoutMs(),
+      answerMarkdown = await this.aiService.generateAnswer(
+        input.question,
+        priorTurns,
+        sources,
       );
-      try {
-        answerMarkdown = await this.aiService.generateAnswer(
-          {
-            question: input.question,
-            priorTurns,
-            sources,
-          },
-          answerController.signal,
-        );
-      } catch (error) {
-        if (answerController.signal.aborted) {
-          throw new ServiceUnavailableException('OpenAI answer generation timed out');
-        }
-        throw error;
-      } finally {
-        clearTimeout(answerTimeout);
-      }
       const validCitationNumbers = sources.map((source) => source.citationNumber);
       // Normalize before persistence so the stored answerMarkdown contains
       // explicit individual markers (e.g. [1][2][3] rather than [1-3]).
@@ -106,13 +87,21 @@ export class AskService {
         answerMarkdown,
         validCitationNumbers,
       );
-      const suggestedFollowUpQuestions =
-        await this.generateSuggestedFollowUpQuestions({
-          question: input.question,
-          answerMarkdown,
-          priorTurns,
-          sources,
-        });
+      // Attempt to generate follow-up questions but continue gracefully if it fails.
+      let suggestedFollowUpQuestions: string[] = [];
+      try {
+        suggestedFollowUpQuestions =
+          await this.aiService.generateSuggestedFollowUpQuestions(
+            input.question,
+            answerMarkdown,
+            priorTurns,
+            sources,
+          );
+      } catch (error) {
+        this.logger.warn(
+          `Failed to generate follow-up questions for turn ${turn.id}: ${getErrorMessage(error)}`,
+        );
+      }
       await this.threadsService.completeTurn({
         threadId: thread.id,
         turnId: turn.id,
@@ -156,78 +145,6 @@ export class AskService {
     };
   }
 
-  private async generateSuggestedFollowUpQuestions(
-    input: GenerateSuggestedFollowUpQuestionsInput,
-  ): Promise<string[]> {
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      this.getSuggestionTimeoutMs(),
-    );
-    try {
-      return await this.aiService.generateSuggestedFollowUpQuestions(
-        input,
-        controller.signal,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Suggested follow-up generation failed; returning empty suggestions: ${getErrorMessage(
-          error,
-        )}`,
-      );
-      return [];
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  private async resolveSearchQuery(
-    question: string,
-    priorTurns: PriorTurn[],
-    threadTitle?: string,
-  ): Promise<string> {
-    if (priorTurns.length === 0) {
-      return question;
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      this.getQueryRewriteTimeoutMs(),
-    );
-    try {
-      return await this.aiService.generateStandaloneSearchQuery(
-        {
-          question,
-          threadTitle,
-          priorTurns: getQueryRewritePriorTurns(priorTurns),
-        },
-        controller.signal,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `Search query rewrite failed; falling back to raw question: ${getErrorMessage(
-          error,
-        )}`,
-      );
-      return question;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  private getAnswerGenerationTimeoutMs(): number {
-    return this.aiService.getAnswerTimeoutMs();
-  }
-
-  private getQueryRewriteTimeoutMs(): number {
-    return this.aiService.getQueryRewriteTimeoutMs();
-  }
-
-  private getSuggestionTimeoutMs(): number {
-    return this.aiService.getSuggestionTimeoutMs();
-  }
-
   private async loadExistingThreadOrThrow(threadId: string) {
     const thread = await this.threadsService.findThreadDetailById(threadId);
 
@@ -237,33 +154,6 @@ export class AskService {
 
     return thread;
   }
-}
-
-function createThreadTitle(question: string): string {
-  return question.length > 80 ? `${question.slice(0, 77)}...` : question;
-}
-
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, '') // Remove code blocks entirely
-    .replace(/`([^`]+)`/g, '$1') // Remove inline code markers
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // Remove images
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links
-    .replace(/(\*\*|__)(.*?)\1/g, '$2') // Remove bold
-    .replace(/(\*|_)(.*?)\1/g, '$2') // Remove italic
-    .replace(/~~(.*?)~~/g, '$1') // Remove strikethrough
-    .replace(/^#{1,6}\s+/gm, '') // Remove headings
-    .replace(/^\s*>\s+/gm, '') // Remove blockquotes
-    .replace(/\n+/g, ' ') // Convert newlines to spaces
-    .replace(/\s{2,}/g, ' ') // Collapse multiple spaces
-    .trim();
-}
-
-function createAnswerPreview(answerMarkdown: string): string {
-  const plainText = stripMarkdown(answerMarkdown);
-  return plainText.length > ANSWER_PREVIEW_MAX_LENGTH
-    ? plainText.slice(0, ANSWER_PREVIEW_MAX_LENGTH)
-    : plainText;
 }
 
 function getLatestTurn(thread: { turns: { id: string }[] }): { id: string } {
@@ -287,23 +177,6 @@ function getPriorTurns(thread: ThreadDetailRecord): PriorTurn[] {
       question: turn.question,
       answerMarkdown: turn.answerMarkdown as string,
     }));
-}
-
-function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
-  return priorTurns
-    .slice(-QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT)
-    .map((turn) => ({
-      question: turn.question,
-      answerMarkdown: truncateForQueryRewrite(turn.answerMarkdown),
-    }));
-}
-
-function truncateForQueryRewrite(value: string): string {
-  const normalizedValue = value.replace(/\s+/g, ' ').trim();
-
-  return normalizedValue.length > QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH
-    ? `${normalizedValue.slice(0, QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH)}...`
-    : normalizedValue;
 }
 
 function getErrorMessage(error: unknown): string {

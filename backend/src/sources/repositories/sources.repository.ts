@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import type { SourceRecord } from '../types/source.types';
 
 type FindSourcesOptions = {
@@ -25,12 +25,12 @@ export const sourceInclude = {
 
 @Injectable()
 export class SourcesRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly database: DatabaseService) {}
 
   findSources(
     options: FindSourcesOptions,
   ): Promise<SourceRecord[]> {
-    return this.prisma.source.findMany({
+    return this.database.source.findMany({
       take: options.limit,
       where: options.turnId ? { turnId: options.turnId } : undefined,
       orderBy: { createdAt: 'desc' },

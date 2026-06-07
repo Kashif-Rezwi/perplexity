@@ -65,12 +65,12 @@ Core backend capabilities required to make the first complete product loop work.
 
 | Capability | Purpose |
 |---|---|
-| PostgreSQL persistence with Prisma | Store threads, turns, sources, and citations |
+| Database persistence | Store threads, turns, sources, and citations (currently via PostgreSQL/Prisma) |
 | Recent sources | Load recently used/retrieved sources for the recents view |
 | Thread details | Reload a full research session by `threadId` |
 | Non-streaming ask endpoint | Accept a question, run search + LLM, persist the result, and return the final answer |
-| Web search with Tavily | Retrieve external source material for answers |
-| OpenAI answer generation through Vercel AI SDK | Generate answer markdown from the question and search results |
+| Web search integration | Retrieve external source material for answers (currently via Tavily) |
+| LLM answer generation | Generate answer markdown from the question and search results (currently via OpenAI/Vercel AI SDK) |
 | Sources | Persist source metadata used to support answers |
 | Citations | Connect answer citations back to stored sources |
 | Follow-up thread support | Allow additional questions inside an existing thread |

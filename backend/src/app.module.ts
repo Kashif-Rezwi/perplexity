@@ -1,14 +1,21 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaModule } from './prisma/prisma.module';
-import { PerplexityModule } from './perplexity/perplexity.module';
+import { DatabaseModule } from './database/database.module';
+import { AskModule } from './ask/ask.module';
+import { SourcesModule } from './sources/sources.module';
+import { ThreadsModule } from './threads/threads.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, cache: true }),
-    PrismaModule,
-    PerplexityModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+    }),
+    DatabaseModule,
+    AskModule,
+    SourcesModule,
+    ThreadsModule,
   ],
   controllers: [HealthController],
 })
