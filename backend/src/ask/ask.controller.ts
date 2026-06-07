@@ -1,6 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AskService } from './ask.service';
-import { mapAskTurnSummary } from './mappers/ask-response.mapper';
 import { AskRequestDto } from './dto/ask-request.dto';
 
 @Controller('perplexity')

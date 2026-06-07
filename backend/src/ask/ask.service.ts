@@ -5,29 +5,21 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { TurnStatus } from '@prisma/client';
-import type { PriorTurn } from '../ai/types/ai.types';
 import { AiService } from '../ai/ai.service';
 import {
   createAnswerPreview,
   createThreadTitle,
 } from '../common/utils/text.util';
-import {
-  extractCitationNumbers,
-  normalizeCitationMarkers,
-} from '../common/parsers/citations/citation-marker.parser';
 import { SearchService } from '../search/search.service';
-import {
-  mapHeader,
-  mapTurnDetail,
-} from '../threads/mappers/thread-response.mapper';
 import { ThreadsService } from '../threads/threads.service';
-import type { ThreadDetailRecord } from '../threads/types/thread.types';
+import {
+  getLatestTurn,
+  getPriorTurns,
+} from './helpers/ask-thread-context.helper';
+import { prepareAnswerCitations } from './helpers/answer-citation.helper';
 import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
-import { mapAskTurnSummary } from './mappers/ask-response.mapper';
+import { mapAskResponse } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
-
-const PRIOR_TURN_CONTEXT_LIMIT = 5;
 
 @Injectable()
 export class AskService {
@@ -74,19 +66,8 @@ export class AskService {
         priorTurns,
         sources,
       );
-      const validCitationNumbers = sources.map((source) => source.citationNumber);
-      // Normalize before persistence so the stored answerMarkdown contains
-      // explicit individual markers (e.g. [1][2][3] rather than [1-3]).
-      // extractCitationNumbers also normalizes internally, which is idempotent
-      // on already-normalized text.
-      answerMarkdown = normalizeCitationMarkers(
-        answerMarkdown,
-        validCitationNumbers,
-      );
-      const citationNumbers = extractCitationNumbers(
-        answerMarkdown,
-        validCitationNumbers,
-      );
+      const answerCitations = prepareAnswerCitations(answerMarkdown, sources);
+      answerMarkdown = answerCitations.answerMarkdown;
       // Attempt to generate follow-up questions but continue gracefully if it fails.
       let suggestedFollowUpQuestions: string[] = [];
       try {
@@ -108,7 +89,7 @@ export class AskService {
         answerMarkdown,
         answerPreview: createAnswerPreview(answerMarkdown),
         sources,
-        citationNumbers,
+        citationNumbers: answerCitations.citationNumbers,
         suggestedFollowUpQuestions,
       });
     } catch (error) {
@@ -139,10 +120,7 @@ export class AskService {
       );
     }
 
-    return {
-      thread: mapHeader(data.thread, data.totalSourceCount),
-      turn: mapAskTurnSummary(mapTurnDetail(data.turn)),
-    };
+    return mapAskResponse(data);
   }
 
   private async loadExistingThreadOrThrow(threadId: string) {
@@ -156,29 +134,6 @@ export class AskService {
   }
 }
 
-function getLatestTurn(thread: { turns: { id: string }[] }): { id: string } {
-  const turn = thread.turns[thread.turns.length - 1];
-
-  if (!turn) {
-    throw new InternalServerErrorException('Thread was created without a turn');
-  }
-
-  return turn;
-}
-
-function getPriorTurns(thread: ThreadDetailRecord): PriorTurn[] {
-  return thread.turns
-    .filter(
-      (turn) =>
-        turn.status === TurnStatus.COMPLETED && turn.answerMarkdown !== null,
-    )
-    .slice(-PRIOR_TURN_CONTEXT_LIMIT)
-    .map((turn) => ({
-      question: turn.question,
-      answerMarkdown: turn.answerMarkdown as string,
-    }));
-}
-
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -190,4 +145,3 @@ function getErrorMessage(error: unknown): string {
 function getErrorStack(error: unknown): string | undefined {
   return error instanceof Error ? error.stack : undefined;
 }
-

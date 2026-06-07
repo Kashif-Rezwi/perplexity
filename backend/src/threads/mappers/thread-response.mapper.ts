@@ -1,15 +1,17 @@
 import { ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
 import type {
+  ThreadDetailRecord,
+  TurnDetailRecord,
+} from '../types/thread-record.types';
+import type {
   ApiThreadMode,
   ApiThreadStatus,
   ApiTurnStatus,
-  ThreadDetailRecord,
   ThreadDetailResponse,
   ThreadHeaderRecord,
   ThreadSummaryItem,
-  TurnDetailRecord,
   TurnItem,
-} from '../types/thread.types';
+} from '../types/thread-response.types';
 
 export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailResponse {
   const totalSourceCount = thread.turns.reduce((n, t) => n + t.sources.length, 0);

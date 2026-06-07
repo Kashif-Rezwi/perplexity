@@ -20,23 +20,32 @@ import {
   OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
   OPENAI_UTILITY_MODEL_CONFIG_KEY,
 } from './ai.constants';
+import {
+  ANSWER_SYSTEM_PROMPT,
+  createAnswerPrompt,
+  createStandaloneSearchQueryPrompt,
+  createSuggestedFollowUpQuestionsPrompt,
+  STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
+  SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
+} from './prompts/ai-prompts';
 import type {
   GenerateAnswerInput,
   GenerateStandaloneSearchQueryInput,
   GenerateSuggestedFollowUpQuestionsInput,
 } from './types/ai.types';
+import {
+  sanitizeStandaloneSearchQuery,
+  sanitizeSuggestedFollowUpQuestions,
+  SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH,
+} from './utils/ai-output.util';
 
-const SOURCE_SNIPPET_MAX_LENGTH = 1200;
-const SUGGESTED_FOLLOW_UP_QUESTION_COUNT = 3;
-const SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH = 160;
-const STANDALONE_SEARCH_QUERY_MAX_LENGTH = 300;
 const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 
 @Injectable()
-export class LlmService {
-  private readonly logger = new Logger(LlmService.name);
+export class OpenAiProviderService {
+  private readonly logger = new Logger(OpenAiProviderService.name);
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   async generateAnswer(
     input: GenerateAnswerInput,
@@ -50,14 +59,7 @@ export class LlmService {
       const { text } = await generateText({
         model: openaiClient(model),
         abortSignal,
-        system:
-          'You are a concise research assistant. Answer in clear Markdown. ' +
-          'Use the provided numbered sources when they are relevant. ' +
-          'Cite source-supported claims with [n] markers. ' +
-          'Use only citation markers from the provided sources. ' +
-          'Use individual citation markers only, like [1][2], never ranges like [1-5] or grouped markers like [1,2]. ' +
-          'When sources are provided, do not say you can fetch, check, look up, or obtain more information later. ' +
-          'If the provided sources are not fresh or conclusive enough, state that uncertainty clearly.',
+        system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
       });
 
@@ -94,11 +96,7 @@ export class LlmService {
       const { output } = await generateText({
         model: openaiClient(model),
         abortSignal,
-        system:
-          'You suggest concise next questions for a research answer. ' +
-          'Return exactly 3 useful follow-up questions. ' +
-          'Each question must be self-contained, natural, and specific to the current thread. ' +
-          'Do not include citations, numbering, bullets, explanations, or duplicate questions.',
+        system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
         prompt: createSuggestedFollowUpQuestionsPrompt(input),
         output: Output.array({
           element: jsonSchema<string>({
@@ -142,12 +140,7 @@ export class LlmService {
         model: openaiClient(model),
         abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
-        system:
-          'You rewrite contextual follow-up questions into standalone web search queries. ' +
-          'Use prior thread context only to resolve references, omitted subjects, places, dates, and entities. ' +
-          'Return exactly one concise search query as plain text. ' +
-          'Do not include explanations, bullets, quotation marks, or citations. ' +
-          'If the current question is already standalone, return it unchanged.',
+        system: STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
         prompt: createStandaloneSearchQueryPrompt(input),
       });
       const searchQuery = sanitizeStandaloneSearchQuery(text);
@@ -240,132 +233,6 @@ export class LlmService {
 
     return value;
   }
-}
-
-function createAnswerPrompt(input: GenerateAnswerInput): string {
-  return [
-    `Prior thread context:\n${formatPriorTurns(input.priorTurns ?? [])}`,
-    `Question:\n${input.question}`,
-    `Sources:\n${formatSources(input.sources ?? [])}`,
-    'Write the answer in Markdown.',
-  ].join('\n\n');
-}
-
-function createSuggestedFollowUpQuestionsPrompt(
-  input: GenerateSuggestedFollowUpQuestionsInput,
-): string {
-  return [
-    `Prior thread context:\n${formatPriorTurns(input.priorTurns ?? [])}`,
-    `Current question:\n${input.question}`,
-    `Current answer:\n${input.answerMarkdown}`,
-    `Sources:\n${formatSources(input.sources ?? [])}`,
-    'Generate exactly 3 suggested follow-up questions.',
-  ].join('\n\n');
-}
-
-function createStandaloneSearchQueryPrompt(
-  input: GenerateStandaloneSearchQueryInput,
-): string {
-  return [
-    `Thread title:\n${input.threadTitle?.trim() || 'Unknown thread title.'}`,
-    `Recent compact thread context:\n${formatPriorTurns(input.priorTurns)}`,
-    `Current follow-up question:\n${input.question}`,
-    'Rewrite the current follow-up question into one standalone web search query.',
-  ].join('\n\n');
-}
-
-function formatPriorTurns(priorTurns: GenerateAnswerInput['priorTurns']): string {
-  if (!priorTurns?.length) {
-    return 'No prior turns.';
-  }
-
-  return priorTurns
-    .map((turn, index) =>
-      [
-        `Turn ${index + 1}`,
-        `Question: ${turn.question}`,
-        `Answer: ${turn.answerMarkdown}`,
-      ].join('\n'),
-    )
-    .join('\n\n');
-}
-
-function formatSources(sources: GenerateAnswerInput['sources']): string {
-  if (!sources?.length) {
-    return 'No sources were returned. Answer from general knowledge only when useful, and do not include citation markers.';
-  }
-
-  return sources
-    .map((source) =>
-      [
-        `Source [${source.citationNumber}]`,
-        `Title: ${source.title}`,
-        `Domain: ${source.domain}`,
-        `URL: ${source.url}`,
-        `Snippet: ${truncateSourceSnippet(source.snippet)}`,
-      ].join('\n'),
-    )
-    .join('\n\n');
-}
-
-function truncateSourceSnippet(snippet: string): string {
-  return snippet.length > SOURCE_SNIPPET_MAX_LENGTH
-    ? `${snippet.slice(0, SOURCE_SNIPPET_MAX_LENGTH)}...`
-    : snippet;
-}
-
-function sanitizeSuggestedFollowUpQuestions(questions: string[]): string[] {
-  const seenQuestions = new Set<string>();
-  const sanitizedQuestions: string[] = [];
-
-  for (const rawQuestion of questions) {
-    const question = normalizeSuggestedFollowUpQuestion(rawQuestion);
-    const questionKey = question.toLowerCase();
-
-    if (!question || seenQuestions.has(questionKey)) {
-      continue;
-    }
-
-    seenQuestions.add(questionKey);
-    sanitizedQuestions.push(question);
-
-    if (
-      sanitizedQuestions.length === SUGGESTED_FOLLOW_UP_QUESTION_COUNT
-    ) {
-      break;
-    }
-  }
-
-  return sanitizedQuestions.length === SUGGESTED_FOLLOW_UP_QUESTION_COUNT
-    ? sanitizedQuestions
-    : [];
-}
-
-function normalizeSuggestedFollowUpQuestion(rawQuestion: string): string {
-  const question = rawQuestion.replace(/\s+/g, ' ').trim();
-
-  if (!question) {
-    return '';
-  }
-
-  const clippedQuestion =
-    question.length > SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH
-      ? question.slice(0, SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH).trim()
-      : question;
-
-  return clippedQuestion.endsWith('?') ? clippedQuestion : `${clippedQuestion}?`;
-}
-
-function sanitizeStandaloneSearchQuery(rawSearchQuery: string): string {
-  const searchQuery = rawSearchQuery
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^["'`]+|["'`]+$/g, '')
-    .trim();
-
-  return searchQuery.length > STANDALONE_SEARCH_QUERY_MAX_LENGTH
-    ? searchQuery.slice(0, STANDALONE_SEARCH_QUERY_MAX_LENGTH).trim()
-    : searchQuery;
 }
 
 function getErrorMessage(error: unknown): string {

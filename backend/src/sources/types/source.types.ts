@@ -1,10 +1,3 @@
-import type { Prisma } from '@prisma/client';
-import { sourceInclude } from '../repositories/sources.repository';
-
-export type SourceRecord = Prisma.SourceGetPayload<{
-  include: typeof sourceInclude;
-}>;
-
 export type ListSourcesOptions = {
   limit?: number;
   turnId?: string;

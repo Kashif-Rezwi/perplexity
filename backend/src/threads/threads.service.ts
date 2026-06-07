@@ -4,10 +4,14 @@ import type {
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
+} from './types/thread-command.types';
+import type {
   ThreadDetailRecord,
+  ThreadWithSingleTurnRecord,
+} from './types/thread-record.types';
+import type {
   ThreadDetailResponse,
-  TurnDetailRecord,
-} from './types/thread.types';
+} from './types/thread-response.types';
 import { mapThreadDetail } from './mappers/thread-response.mapper';
 import { ThreadsRepository } from './repositories/threads.repository';
 
@@ -34,11 +38,7 @@ export class ThreadsService {
   findThreadWithSingleTurn(
     threadId: string,
     turnId: string,
-  ): Promise<{
-    thread: Omit<ThreadDetailRecord, 'turns'>;
-    turn: TurnDetailRecord;
-    totalSourceCount: number;
-  } | null> {
+  ): Promise<ThreadWithSingleTurnRecord | null> {
     return this.threadsRepository.findThreadWithSingleTurn(threadId, turnId);
   }
 

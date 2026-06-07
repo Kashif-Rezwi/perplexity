@@ -1,7 +1,5 @@
-import type {
-  SourceItem,
-  SourceRecord,
-} from '../types/source.types';
+import type { SourceRecord } from '../repositories/source-record.types';
+import type { SourceItem } from '../types/source.types';
 
 export function mapSource(source: SourceRecord): SourceItem {
   return {

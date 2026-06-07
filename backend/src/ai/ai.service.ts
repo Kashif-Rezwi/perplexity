@@ -1,5 +1,5 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { LlmService } from './llm.service';
+import { OpenAiProviderService } from './openai-provider.service';
 import type { PriorTurn } from './types/ai.types';
 import type { CreateTurnSourceInput } from '../sources/types/source-persistence.types';
 
@@ -34,7 +34,7 @@ function getErrorMessage(error: unknown): string {
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
-  constructor(private readonly llmService: LlmService) {}
+  constructor(private readonly openAiProviderService: OpenAiProviderService) {}
 
   async generateAnswer(
     question: string,
@@ -44,11 +44,11 @@ export class AiService {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      this.llmService.getAnswerTimeoutMs(),
+      this.openAiProviderService.getAnswerTimeoutMs(),
     );
 
     try {
-      return await this.llmService.generateAnswer(
+      return await this.openAiProviderService.generateAnswer(
         { question, priorTurns, sources },
         controller.signal,
       );
@@ -74,11 +74,11 @@ export class AiService {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      this.llmService.getQueryRewriteTimeoutMs(),
+      this.openAiProviderService.getQueryRewriteTimeoutMs(),
     );
 
     try {
-      return await this.llmService.generateStandaloneSearchQuery(
+      return await this.openAiProviderService.generateStandaloneSearchQuery(
         {
           question,
           threadTitle,
@@ -107,11 +107,11 @@ export class AiService {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      this.llmService.getSuggestionTimeoutMs(),
+      this.openAiProviderService.getSuggestionTimeoutMs(),
     );
 
     try {
-      return await this.llmService.generateSuggestedFollowUpQuestions(
+      return await this.openAiProviderService.generateSuggestedFollowUpQuestions(
         { question, answerMarkdown, priorTurns, sources },
         controller.signal,
       );

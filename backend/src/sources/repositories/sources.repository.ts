@@ -1,27 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
-import type { SourceRecord } from '../types/source.types';
+import { sourceInclude, type SourceRecord } from './source-record.types';
 
 type FindSourcesOptions = {
   limit: number;
   turnId?: string;
 };
-
-export const sourceInclude = {
-  turn: {
-    select: {
-      id: true,
-      question: true,
-      thread: {
-        select: {
-          id: true,
-          title: true,
-        },
-      },
-    },
-  },
-} satisfies Prisma.SourceInclude;
 
 @Injectable()
 export class SourcesRepository {
