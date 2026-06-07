@@ -79,9 +79,6 @@ CREATE INDEX "Turn_createdAt_idx" ON "Turn"("createdAt");
 CREATE INDEX "Source_turnId_idx" ON "Source"("turnId");
 
 -- CreateIndex
-CREATE INDEX "Source_createdAt_idx" ON "Source"("createdAt");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Source_turnId_citationNumber_key" ON "Source"("turnId", "citationNumber");
 
 -- CreateIndex

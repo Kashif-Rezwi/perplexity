@@ -19,9 +19,9 @@ enum ThreadMode {
 
 model Thread {
   id            String   @id @default(uuid()) @db.Uuid
-  title         String
+  title         String   @db.VarChar(80)
   answerPreview String?  @db.VarChar(300)
-  status        ThreadStatus @default(COMPLETED)
+  status        ThreadStatus @default(RUNNING)
   mode          ThreadMode   @default(WEB)
 
   createdAt     DateTime @default(now()) @db.Timestamp(6)
@@ -82,7 +82,6 @@ model Source {
   citations      Citation[]
 
   @@index([turnId])
-  @@index([createdAt])
   @@unique([turnId, citationNumber])
 }
 
