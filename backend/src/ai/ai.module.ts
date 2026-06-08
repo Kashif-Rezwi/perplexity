@@ -6,4 +6,4 @@ import { OpenAiProviderService } from './openai-provider.service';
   providers: [OpenAiProviderService, AiService],
   exports: [OpenAiProviderService, AiService],
 })
-export class AiModule { }
+export class AiModule {}
