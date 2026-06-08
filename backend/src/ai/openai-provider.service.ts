@@ -111,7 +111,7 @@ export class OpenAiProviderService {
             maxLength: SUGGESTED_FOLLOW_UP_QUESTION_MAX_LENGTH,
           }),
           name: 'suggestedFollowUpQuestions',
-          description: 'Three concise follow-up questions for the user to ask next.',
+          description: 'Five questions the user is likely to ask next, each written from the user\'s perspective.',
         }),
       });
 
