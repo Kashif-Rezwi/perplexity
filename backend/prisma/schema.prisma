@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ThreadStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ThreadMode {
+  WEB
+}
+
+model Thread {
+  id            String   @id @default(uuid()) @db.Uuid
+  title         String   @db.VarChar(80)
+  answerPreview String?  @db.VarChar(300)
+  status        ThreadStatus @default(RUNNING)
+  mode          ThreadMode   @default(WEB)
+
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime @updatedAt @db.Timestamp(6)
+
+  turns          Turn[]
+
+  @@index([updatedAt])
+}
+
+enum TurnStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Turn {
+  id             String     @id @default(uuid()) @db.Uuid
+  threadId       String     @db.Uuid
+
+  question       String     @db.Text
+  searchQuery    String     @db.Text
+  answerMarkdown String?    @db.Text
+  suggestedFollowUpQuestions String[] @default([])
+
+  status         TurnStatus @default(PENDING)
+  errorMessage   String?    @db.Text
+
+  createdAt      DateTime   @default(now()) @db.Timestamp(6)
+  completedAt    DateTime?  @db.Timestamp(6)
+
+  thread         Thread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sources        Source[]
+  citations      Citation[]
+
+  @@index([threadId])
+  @@index([createdAt])
+}
+
+model Source {
+  id             String   @id @default(uuid()) @db.Uuid
+  turnId         String   @db.Uuid
+
+  citationNumber Int
+
+  title          String
+  url            String   @db.Text
+  domain         String
+  snippet        String   @db.Text
+
+  provider       String   @default("tavily")
+  providerScore  Float?
+  publishedAt    DateTime? @db.Timestamp(6)
+
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+
+  turn           Turn     @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  citations      Citation[]
+
+  @@index([turnId])
+  @@unique([turnId, citationNumber])
+}
+
+model Citation {
+  id             String   @id @default(uuid()) @db.Uuid
+  turnId         String   @db.Uuid
+  sourceId       String   @db.Uuid
+
+  citationNumber Int
+
+  createdAt      DateTime @default(now()) @db.Timestamp(6)
+
+  turn           Turn     @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  source         Source   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([turnId])
+  @@index([sourceId])
+  @@unique([turnId, citationNumber])
+}
