@@ -1,5 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { getErrorMessage } from '../common/utils/error.util';
+import { withTimeout } from '../common/utils/with-timeout.util';
 import { OpenAiProviderService } from './openai-provider.service';
 import type { PriorTurn } from './types/ai.types';
 import type { CreateTurnSourceInput } from '../sources/types/source-persistence.types';
@@ -65,20 +66,15 @@ export class AiService {
       return question;
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      this.openAiProviderService.getQueryRewriteTimeoutMs(),
-    );
-
     try {
-      return await this.openAiProviderService.generateStandaloneSearchQuery(
-        {
+      return await withTimeout(
+        this.openAiProviderService.generateStandaloneSearchQuery({
           question,
           threadTitle,
           priorTurns: getQueryRewritePriorTurns(priorTurns),
-        },
-        controller.signal,
+        }),
+        this.openAiProviderService.getQueryRewriteTimeoutMs(),
+        () => new ServiceUnavailableException('Search query rewrite timed out'),
       );
     } catch (error) {
       this.logger.warn(
@@ -88,8 +84,6 @@ export class AiService {
         )}`,
       );
       return question;
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
@@ -99,16 +93,16 @@ export class AiService {
     priorTurns: PriorTurn[],
     sources: CreateTurnSourceInput[],
   ): Promise<string[]> {
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      this.openAiProviderService.getSuggestionTimeoutMs(),
-    );
-
     try {
-      return await this.openAiProviderService.generateSuggestedFollowUpQuestions(
-        { question, answerMarkdown, priorTurns, sources },
-        controller.signal,
+      return await withTimeout(
+        this.openAiProviderService.generateSuggestedFollowUpQuestions({
+          question,
+          answerMarkdown,
+          priorTurns,
+          sources,
+        }),
+        this.openAiProviderService.getSuggestionTimeoutMs(),
+        () => new ServiceUnavailableException('Suggestion generation timed out'),
       );
     } catch (error) {
       this.logger.warn(
@@ -118,8 +112,6 @@ export class AiService {
         )}`,
       );
       return [];
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }

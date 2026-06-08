@@ -54,7 +54,7 @@ This document captures the finalized technology stack for the Perplexity V1 appl
 | Endpoint | Purpose |
 |---|---|
 | `POST /perplexity/ask` | Ask a question and generate an answer using search + LLM |
-| `GET /perplexity/recents` | List recent sources |
+| `GET /perplexity/sources` | List recent sources |
 | `GET /perplexity/threads/:threadId` | Load a full thread with turns, sources, and citations |
 
 ## Feature Scope
@@ -66,7 +66,7 @@ Core backend capabilities required to make the first complete product loop work.
 | Capability | Purpose |
 |---|---|
 | Database persistence | Store threads, turns, sources, and citations (currently via PostgreSQL/Prisma) |
-| Recent sources | Load recently used/retrieved sources for the recents view |
+| Recent sources | Load recently used/retrieved sources for the sources view |
 | Thread details | Reload a full research session by `threadId` |
 | Non-streaming ask endpoint | Accept a question, run search + LLM, persist the result, and return the final answer |
 | Web search integration | Retrieve external source material for answers (currently via Tavily) |

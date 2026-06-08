@@ -19,6 +19,10 @@ import { ThreadsRepository } from './repositories/threads.repository';
 export class ThreadsService {
   constructor(private readonly threadsRepository: ThreadsRepository) {}
 
+  // ---------------------------------------------------------------------------
+  // Query methods – used by ThreadsController and AskService for read access
+  // ---------------------------------------------------------------------------
+
   findThreadDetailById(
     threadId: string,
   ): Promise<ThreadDetailRecord | null> {
@@ -42,6 +46,10 @@ export class ThreadsService {
     return this.threadsRepository.findThreadWithSingleTurn(threadId, turnId);
   }
 
+  // ---------------------------------------------------------------------------
+  // Command methods – used exclusively by AskService for ask orchestration.
+  // Future streaming or pipeline steps should call these, not add new logic here.
+  // ---------------------------------------------------------------------------
   createThreadWithPendingTurn(
     input: CreateThreadWithPendingTurnInput,
   ): Promise<ThreadDetailRecord> {
