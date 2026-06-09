@@ -6,7 +6,7 @@ Extracted from Perplexity's actual UI across all reference screenshots (home, th
 
 ## Color Palette
 
-Defined as CSS custom properties in `globals.css`. Referenced via Tailwind's arbitrary value syntax `bg-[var(--color-...)]` or directly in component classes.
+Defined as CSS custom properties in `globals.css`. Referenced via Tailwind's arbitrary value syntax (e.g., `bg-[var(--color-bg)]`) or directly in component classes.
 
 ### Backgrounds
 | Token | Hex | Usage |

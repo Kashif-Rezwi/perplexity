@@ -1,10 +1,88 @@
 @import "tailwindcss";
+@source "../";
 
+/* ─── Font ─────────────────────────────────────────────────────────────────── */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+/* ─── Design tokens ─────────────────────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --color-bg:             #111111;
+  --color-sidebar:        #171717;
+  --color-surface:        #1f1f1f;
+  --color-surface-hover:  #272727;
+  --color-surface-active: #232323;
+
+  /* Borders */
+  --color-border:        #2a2a2a;
+  --color-border-subtle: #1e1e1e;
+
+  /* Text */
+  --color-text:       #ededed;
+  --color-text-muted: #9a9a9a;
+  --color-text-faint: #555555;
+  --color-text-link:  #20808d;
+
+  /* Accent */
+  --color-accent:       #20808d;
+  --color-accent-hover: #1a9099;
+  --color-accent-faint: rgba(32, 128, 141, 0.15);
+
+  /* Sidebar dimensions */
+  --sidebar-width-expanded:  220px;
+  --sidebar-width-collapsed: 56px;
+
+  /* Transitions */
+  --transition-sidebar: 200ms ease;
+  --transition-fade:    150ms ease;
+  --transition-hover:   100ms ease;
+}
+
+/* ─── Base reset ─────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background-color: #0a0a0a;
-  color: #ededed;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}
+
