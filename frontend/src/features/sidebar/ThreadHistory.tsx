@@ -16,6 +16,7 @@ export function ThreadHistory({ isOpen }: Props) {
 
   // Avoid SSR hydration mismatch with localStorage
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

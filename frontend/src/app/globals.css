@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "../";
+@plugin "@tailwindcss/typography";
 
 /* ─── Font ─────────────────────────────────────────────────────────────────── */
 @theme {
@@ -51,6 +52,9 @@
 html,
 body {
   height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
 }
 
 body {

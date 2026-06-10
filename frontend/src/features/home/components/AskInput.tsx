@@ -1,31 +1,61 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Search, ChevronDown, ArrowUp, Loader2 } from 'lucide-react';
 import { postAsk } from '@/lib/api/ask.api';
 import { useHistoryStore } from '@/store/historyStore';
 import { ApiError } from '@/lib/api/client';
 
-export function AskInput() {
-  const [question, setQuestion] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
-  const addThread = useHistoryStore((state) => state.addThread);
+export interface AskInputRef {
+  setQuestion: (q: string) => void;
+  submitQuestion: (q: string) => void;
+}
 
-  const { mutate: askQuestion, isPending, error } = useMutation({
-    mutationFn: (q: string) => postAsk(q),
-    onSuccess: (data) => {
-      // Add to sidebar history
-      addThread({
-        id: data.thread.threadId,
-        title: data.thread.title,
-      });
-      // Redirect to new thread
-      router.push(`/thread/${data.thread.threadId}`);
-    },
-  });
+interface AskInputProps {
+  threadId?: string;
+}
+
+export const AskInput = forwardRef<AskInputRef, AskInputProps>(
+  function AskInput({ threadId }, ref) {
+    const [question, setQuestion] = useState('');
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const router = useRouter();
+    const addThread = useHistoryStore((state) => state.addThread);
+
+    const queryClient = useQueryClient();
+
+    const { mutate: askQuestion, isPending, error } = useMutation({
+      mutationFn: (q: string) => postAsk(q, threadId),
+      onSuccess: (data) => {
+        setQuestion('');
+        
+        if (!threadId) {
+          // New thread: add to history and redirect
+          addThread({
+            id: data.thread.threadId,
+            title: data.thread.title,
+          });
+          router.push(`/thread/${data.thread.threadId}`);
+        } else {
+          // Existing thread: invalidate the query to refetch latest turn
+          queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+        }
+      },
+    });
+
+    useImperativeHandle(ref, () => ({
+      setQuestion: (q: string) => {
+        setQuestion(q);
+      },
+      submitQuestion: (q: string) => {
+        setQuestion(q);
+        if (q.trim() && !isPending) {
+          askQuestion(q.trim());
+        }
+      }
+    }));
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -49,7 +79,7 @@ export function AskInput() {
   }, [question]);
 
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col items-center px-4">
+    <div className="w-full max-w-3xl mx-auto flex flex-col items-center px-4 md:px-6">
       <form
         onSubmit={handleSubmit}
         className={[
@@ -119,12 +149,12 @@ export function AskInput() {
                 "flex items-center justify-center w-8 h-8 rounded-full",
                 "transition-all duration-[var(--transition-hover)]",
                 question.trim() && !isPending
-                  ? "bg-[#ededed] text-[#111111] hover:opacity-90 cursor-pointer"
+                  ? "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] cursor-pointer"
                   : "bg-[#272727] text-[#555555] cursor-not-allowed"
               ].join(' ')}
             >
               {isPending ? (
-                <Loader2 size={16} className="animate-spin text-[#111111]" />
+                <Loader2 size={16} className="animate-spin text-white" />
               ) : (
                 <ArrowUp size={18} strokeWidth={2.5} />
               )}
@@ -140,4 +170,4 @@ export function AskInput() {
       )}
     </div>
   );
-}
+});

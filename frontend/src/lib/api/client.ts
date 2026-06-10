@@ -19,7 +19,9 @@ export async function apiClient<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const url = `/api/perplexity${path}`;
+  const isServer = typeof window === 'undefined';
+  const baseUrl = isServer ? 'http://localhost:8080' : '/api/perplexity';
+  const url = `${baseUrl}${path}`;
 
   try {
     const response = await fetch(url, {
