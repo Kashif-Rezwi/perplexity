@@ -1,9 +1,10 @@
 import type { TurnItem } from '@/types/api.types';
 import { QuestionBlock } from './QuestionBlock';
 import { AnswerMarkdown } from './AnswerMarkdown';
+import { FollowUpSuggestions } from './FollowUpSuggestions';
 import {
   Loader2, Forward, Download, Copy, RotateCw,
-  ThumbsUp, ThumbsDown, CornerDownRight
+  ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 
 interface ThreadTurnProps {
@@ -21,6 +22,16 @@ export function ThreadTurn({
   onSelectFollowUp,
   onCitationClick
 }: ThreadTurnProps) {
+  console.log('ThreadTurn render:', {
+    turnId: turn.turnId,
+    question: turn.question.substring(0, 20),
+    isLast,
+    status: turn.status,
+    hasOnSelect: !!onSelectFollowUp,
+    questionsLength: turn.suggestedFollowUpQuestions?.length,
+    questions: turn.suggestedFollowUpQuestions
+  });
+
   return (
     <div className="flex flex-col gap-6 pb-6">
       <QuestionBlock question={turn.question} />
@@ -136,25 +147,11 @@ export function ThreadTurn({
           </div>
         ) : null}
 
-        {/* Suggested Follow-ups */}
-        {isLast && turn.status === 'completed' && turn.suggestedFollowUpQuestions && turn.suggestedFollowUpQuestions.length > 0 && (
-          <div className="flex flex-col gap-3 mt-4 border-t border-[var(--color-border-subtle)] pt-6">
-            <h3 className="text-[15px] font-semibold text-[var(--color-text)] mb-2 font-sans tracking-wide">
-              Follow-ups
-            </h3>
-            <div className="flex flex-col gap-2 font-sans">
-              {turn.suggestedFollowUpQuestions.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => onSelectFollowUp?.(q)}
-                  className="flex items-start gap-2 text-left text-[14px] text-[var(--color-text-muted)] hover:text-teal-400 transition-colors py-1 cursor-pointer group"
-                >
-                  <CornerDownRight size={14} className="text-teal-500 mt-1 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  <span>{q}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+        {isLast && turn.status === 'completed' && onSelectFollowUp && (
+          <FollowUpSuggestions
+            questions={turn.suggestedFollowUpQuestions ?? []}
+            onSelect={onSelectFollowUp}
+          />
         )}
       </div>
     </div>

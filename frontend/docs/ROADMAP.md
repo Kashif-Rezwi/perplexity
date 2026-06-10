@@ -40,7 +40,7 @@ Parse `[n]` markers in the answer markdown and render them as interactive citati
 Add an ask input at the bottom of the thread page. Submitting sends the question with `threadId`, appends a new turn, and updates the view.
 
 ### Phase 8 — Suggested follow-ups
-Render the suggested follow-up question chips below each answer and wire them up to pre-fill and submit the ask input.
+Render the suggested follow-up question chips below the last answer and wire them up to pre-fill and submit the ask input.
 
 ### Phase 9 — Loading, error & empty states
 Cover every waiting and failure state: ask in-flight skeleton, failed turn message, thread not found page, network error handling, and empty sidebar state.

@@ -10,6 +10,9 @@ import { LinksPanel } from './LinksPanel';
 import { AskInput, AskInputRef } from '@/features/home/components/AskInput';
 import { useHistoryStore } from '@/store/historyStore';
 
+/** Reserve space above the fixed AskInput so follow-ups are not hidden underneath it. */
+const ASK_INPUT_OVERLAY_HEIGHT_PX = 240;
+
 interface ThreadPageProps {
   threadId: string;
 }
@@ -17,16 +20,17 @@ interface ThreadPageProps {
 export function ThreadPage({ threadId }: ThreadPageProps) {
   const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
   const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const addThread = useHistoryStore((state) => state.addThread);
 
   const { data: thread, isPending, error } = useQuery({
     queryKey: ['thread', threadId],
     queryFn: () => getThread(threadId),
-    retry: 1, // Avoid excessive retries for 404s
+    retry: 1,
   });
 
-  // Sync loaded thread to history if visited directly via URL
   useEffect(() => {
     if (thread) {
       addThread({
@@ -35,6 +39,24 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
       });
     }
   }, [thread, addThread]);
+
+  const lastTurn = thread?.turns[thread.turns.length - 1];
+  const lastTurnHasFollowUps =
+    !pendingQuestion &&
+    lastTurn?.status === 'completed' &&
+    (lastTurn.suggestedFollowUpQuestions?.length ?? 0) > 0;
+
+  const contentBottomPadding = lastTurnHasFollowUps
+    ? ASK_INPUT_OVERLAY_HEIGHT_PX + 120 + lastTurn!.suggestedFollowUpQuestions.length * 52
+    : ASK_INPUT_OVERLAY_HEIGHT_PX + 48;
+
+  useEffect(() => {
+    if (!pendingQuestion && !thread?.turns.length) return;
+    const frame = requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pendingQuestion, thread?.turns.length, lastTurnHasFollowUps]);
 
   if (isPending) {
     return (
@@ -57,9 +79,10 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     );
   }
 
+  const hasCompletedAnswer = thread.turns.some((turn) => turn.status === 'completed');
+
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
-      {/* Global Tabs Row - Header (Stretches to the edges) */}
       <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border)] w-full">
         <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto font-sans">
           <div className="flex items-center gap-6">
@@ -106,7 +129,6 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             </button>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text)] bg-transparent border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors cursor-pointer">
               <Lock size={13} />
@@ -116,12 +138,13 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
         </div>
       </div>
 
-      {/* Scrollable Content Area - Spans full width, scrollbar is at the edge */}
       <div className="flex-1 overflow-y-auto w-full">
-        <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-6 pb-56">
+        <div
+          className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-6"
+          style={{ paddingBottom: contentBottomPadding }}
+        >
           {activeTab === 'answer' && (
             <>
-              {/* Thread Title */}
               <h1 className="text-[28px] font-bold text-[var(--color-text)] tracking-tight mb-8 font-sans leading-tight">
                 {thread.title}
               </h1>
@@ -131,15 +154,42 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                   <ThreadTurn
                     key={turn.turnId}
                     turn={turn}
-                    isLast={index === thread.turns.length - 1}
+                    isLast={index === thread.turns.length - 1 && !pendingQuestion}
                     onViewSources={() => setActiveTab('links')}
-                    onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q)}
+                    onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
                     onCitationClick={(num) => {
                       setActiveTab('links');
                       setHighlightedSourceNum(num);
                     }}
                   />
                 ))}
+
+                {pendingQuestion && (
+                  <ThreadTurn
+                    key="pending-turn"
+                    turn={{
+                      turnId: 'pending',
+                      question: pendingQuestion,
+                      searchQuery: '',
+                      answerMarkdown: null,
+                      suggestedFollowUpQuestions: [],
+                      status: 'pending',
+                      errorMessage: null,
+                      sources: [],
+                      citations: [],
+                      createdAt: new Date().toISOString(),
+                      completedAt: null,
+                    }}
+                    isLast={false}
+                  />
+                )}
+
+                <div
+                  ref={bottomRef}
+                  aria-hidden="true"
+                  className="h-px w-full"
+                  style={{ scrollMarginBottom: ASK_INPUT_OVERLAY_HEIGHT_PX }}
+                />
               </div>
             </>
           )}
@@ -163,10 +213,19 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
         </div>
       </div>
 
-      {/* Follow-up Input - Floating at the bottom (transparent box) */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/90 to-transparent pt-8 pb-6 z-10 w-full">
-        <AskInput ref={askInputRef} threadId={threadId} />
-      </div>
+      {hasCompletedAnswer && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/90 to-transparent pt-8 pb-6 z-10 w-full pointer-events-none">
+          <div className="pointer-events-auto">
+            <AskInput
+              ref={askInputRef}
+              threadId={threadId}
+              autoFocus={false}
+              onSubmitStart={(q) => setPendingQuestion(q)}
+              onSettled={() => setPendingQuestion(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
