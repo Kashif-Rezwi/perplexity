@@ -29,7 +29,8 @@ function PerplexityLogo({ size = 28 }: { size?: number }) {
   );
 }
 
-import { Plus, Clock } from 'lucide-react';
+import { Plus, Clock, User } from 'lucide-react';
+import { ThreadHistory } from './ThreadHistory';
 
 const NAV_ITEMS = [
   { icon: Plus, label: 'New', href: '/' },
@@ -111,12 +112,20 @@ export function Sidebar() {
       </nav>
 
       {/* ── Thread history ── */}
-      <div className="flex-1 overflow-y-auto py-2 min-h-0">
-        {isOpen && (
-          <p className="text-[12px] text-[var(--color-text-faint)] px-4 pt-4 leading-relaxed select-none">
-            No recent sessions
-          </p>
-        )}
+      <ThreadHistory isOpen={isOpen} />
+
+      {/* ── Footer / User profile dummy ── */}
+      <div className={['shrink-0 p-2 mt-auto', !isOpen && 'flex justify-center'].join(' ')}>
+        <button className={['flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear w-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]', isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center w-10 h-10'].join(' ')}>
+          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-surface-active)] shrink-0">
+            <User size={14} strokeWidth={2} />
+          </div>
+          {isOpen && (
+            <span className="text-[13px] font-normal leading-none truncate">
+              Sign in
+            </span>
+          )}
+        </button>
       </div>
     </aside>
   );
