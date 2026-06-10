@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeft, Search, Plus, User } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { SidebarNavItem } from './SidebarNavItem';
@@ -16,6 +16,11 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const { isOpen, toggle, setOpen } = useSidebarStore();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
@@ -37,7 +42,7 @@ export function Sidebar() {
   return (
     <>
       {/* Backdrop on Mobile when drawer is open */}
-      {isOpen && (
+      {isOpen && mounted && (
         <div 
           onClick={() => setOpen(false)}
           className="md:hidden fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150 cursor-pointer"
@@ -55,7 +60,7 @@ export function Sidebar() {
           'transition-all duration-200 ease-in-out',
           // Mobile responsive fixed drawer overrides
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
-          isOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',
+          isOpen && mounted ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',
         ].join(' ')}
       >
         {/* ── Header ── */}
@@ -128,7 +133,10 @@ export function Sidebar() {
 
         {/* ── Footer / User profile dummy ── */}
         <div className={['shrink-0 p-2 mt-auto', !isOpen && 'flex justify-center'].join(' ')}>
-          <button className={['flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear w-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]', isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center w-10 h-10 cursor-pointer'].join(' ')}>
+          <button 
+            aria-label="Sign in to your account"
+            className={['flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear w-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]', isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center w-10 h-10 cursor-pointer'].join(' ')}
+          >
             <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-surface-active)] shrink-0">
               <User size={14} strokeWidth={2} />
             </div>

@@ -1,6 +1,5 @@
 interface QuestionBlockProps {
   question: string;
-  isFirst?: boolean;
 }
 
 export function QuestionBlock({ question }: QuestionBlockProps) {

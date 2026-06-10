@@ -5,17 +5,107 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 import { Copy } from 'lucide-react';
+import type { SourceItem } from '@/types/api.types';
+import { CitationBadge } from './CitationBadge';
+import React from 'react';
 
 interface AnswerMarkdownProps {
   markdown: string;
+  sources?: SourceItem[];
+  turnId?: string;
+  onCitationClick?: (num: number) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 const cleanProps = ({ node, ...props }: any) => props;
 
-export function AnswerMarkdown({ markdown }: AnswerMarkdownProps) {
+function parseCitations(
+  text: string, 
+  sources: SourceItem[], 
+  turnId?: string,
+  onCitationClick?: (num: number) => void
+): React.ReactNode[] {
+  const regex = /\[(\d+)\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    const matchIndex = match.index;
+    const citationNumber = parseInt(match[1], 10);
+    
+    if (matchIndex > lastIndex) {
+      parts.push(text.substring(lastIndex, matchIndex));
+    }
+    
+    const source = sources.find(s => s.citationNumber === citationNumber);
+    
+    parts.push(
+      <CitationBadge
+        key={`citation-${citationNumber}-${matchIndex}`}
+        number={citationNumber}
+        source={source}
+        turnId={turnId}
+        onCitationClick={onCitationClick}
+      />
+    );
+    
+    lastIndex = regex.lastIndex;
+  }
+  
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : [text];
+}
+
+function processNode(
+  node: React.ReactNode, 
+  sources: SourceItem[], 
+  turnId?: string,
+  onCitationClick?: (num: number) => void
+): React.ReactNode {
+  if (node === null || node === undefined) return node;
+  
+  if (typeof node === 'string') {
+    return parseCitations(node, sources, turnId, onCitationClick);
+  }
+  
+  if (typeof node === 'number' || typeof node === 'boolean') {
+    return node;
+  }
+  
+  if (Array.isArray(node)) {
+    return node.map((child) => processNode(child, sources, turnId, onCitationClick));
+  }
+  
+  if (React.isValidElement(node)) {
+    const type = node.type;
+    
+    if (type === 'code' || type === 'pre' || type === 'a') {
+      return node;
+    }
+    
+    const props = node.props as { children?: React.ReactNode };
+    if (props && props.children) {
+      return React.cloneElement(node, {
+        ...props,
+        children: processNode(props.children, sources, turnId, onCitationClick),
+      } as any);
+    }
+  }
+  
+  return node;
+}
+
+export function AnswerMarkdown({ markdown, sources = [], turnId, onCitationClick }: AnswerMarkdownProps) {
   const components: Components = {
-    p: (props) => <p className="mb-4 last:mb-0 leading-[1.75]" {...cleanProps(props)} />,
+    p: (props) => (
+      <p className="mb-4 last:mb-0 leading-[1.75]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </p>
+    ),
     a: (props) => (
       <a
         target="_blank"
@@ -24,13 +114,48 @@ export function AnswerMarkdown({ markdown }: AnswerMarkdownProps) {
         {...cleanProps(props)}
       />
     ),
-    h1: (props) => <h1 className="text-xl font-semibold mt-8 mb-4 text-[var(--color-text)]" {...cleanProps(props)} />,
-    h2: (props) => <h2 className="text-lg font-semibold mt-8 mb-4 text-[var(--color-text)]" {...cleanProps(props)} />,
-    h3: (props) => <h3 className="text-base font-semibold mt-6 mb-3 text-[var(--color-text)]" {...cleanProps(props)} />,
+    h1: (props) => (
+      <h1 className="text-xl font-semibold mt-8 mb-4 text-[var(--color-text)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </h1>
+    ),
+    h2: (props) => (
+      <h2 className="text-lg font-semibold mt-8 mb-4 text-[var(--color-text)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </h2>
+    ),
+    h3: (props) => (
+      <h3 className="text-base font-semibold mt-6 mb-3 text-[var(--color-text)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </h3>
+    ),
     ul: (props) => <ul className="list-disc pl-5 mb-4 space-y-2" {...cleanProps(props)} />,
     ol: (props) => <ol className="list-decimal pl-5 mb-4 space-y-2" {...cleanProps(props)} />,
-    li: (props) => <li className="leading-[1.75]" {...cleanProps(props)} />,
-    strong: (props) => <strong className="font-semibold text-[var(--color-text)]" {...cleanProps(props)} />,
+    li: (props) => (
+      <li className="leading-[1.75]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </li>
+    ),
+    strong: (props) => (
+      <strong className="font-semibold text-[var(--color-text)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </strong>
+    ),
+    blockquote: (props) => (
+      <blockquote className="border-l-4 border-[var(--color-border)] pl-4 italic my-4 text-[var(--color-text-muted)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </blockquote>
+    ),
+    td: (props) => (
+      <td className="border border-[var(--color-border)] px-4 py-2" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </td>
+    ),
+    th: (props) => (
+      <th className="border border-[var(--color-border)] px-4 py-2 font-semibold bg-[var(--color-surface)]" {...cleanProps(props)}>
+        {processNode(props.children, sources, turnId, onCitationClick)}
+      </th>
+    ),
     
     // Code block and inline code
     code: (props) => {
@@ -40,7 +165,7 @@ export function AnswerMarkdown({ markdown }: AnswerMarkdownProps) {
       
       if (isInline) {
         return (
-          <code className="bg-[#252525] text-[var(--color-text)] px-1.5 py-0.5 rounded-[4px] text-[13px] font-mono" {...cleanProps(props)}>
+          <code className="bg-[var(--color-surface-hover)] text-[var(--color-text)] px-1.5 py-0.5 rounded-[4px] text-[13px] font-mono" {...cleanProps(props)}>
             {children}
           </code>
         );

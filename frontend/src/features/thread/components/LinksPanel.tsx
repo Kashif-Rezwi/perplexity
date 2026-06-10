@@ -1,13 +1,55 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { SourceItem } from '@/types/api.types';
 
 interface LinksPanelProps {
   sources: SourceItem[];
   searchQuery?: string;
+  highlightedNumber?: number | null;
+  onClearHighlight?: () => void;
 }
 
-export function LinksPanel({ sources, searchQuery }: LinksPanelProps) {
+export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHighlight }: LinksPanelProps) {
+  useEffect(() => {
+    if (highlightedNumber !== null && highlightedNumber !== undefined) {
+      const element = document.getElementById(`source-link-${highlightedNumber}`);
+      if (element) {
+        // Scroll the element into view smoothly after a tiny delay to allow tab render
+        const timer = setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Flash highlight styling
+          element.classList.add(
+            'ring-2', 
+            'ring-[var(--color-accent)]', 
+            'bg-[var(--color-accent-faint)]', 
+            'rounded-xl', 
+            'px-3', 
+            '-mx-3'
+          );
+          
+          // Clean up class after 2 seconds
+          const clearTimer = setTimeout(() => {
+            element.classList.remove(
+              'ring-2', 
+              'ring-[var(--color-accent)]', 
+              'bg-[var(--color-accent-faint)]', 
+              'rounded-xl', 
+              'px-3', 
+              '-mx-3'
+            );
+            onClearHighlight?.();
+          }, 2000);
+          
+          return () => clearTimeout(clearTimer);
+        }, 100);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [highlightedNumber, onClearHighlight]);
+
   if (!sources || sources.length === 0) {
     return (
       <div className="text-[var(--color-text-muted)] text-sm py-4">
@@ -38,14 +80,15 @@ export function LinksPanel({ sources, searchQuery }: LinksPanelProps) {
           return (
             <a
               key={source.sourceId || index}
+              id={`source-link-${source.citationNumber}`}
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col py-5 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-100 cursor-pointer"
+              className="flex flex-col py-5 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-300 cursor-pointer"
             >
               {/* Header: Favicon + Domain/URL info */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#1a1a1a] border border-[var(--color-border)] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                <div className="w-10 h-10 rounded-lg bg-[var(--color-sidebar)] border border-[var(--color-border)] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`https://www.google.com/s2/favicons?sz=128&domain=${domainName}`}

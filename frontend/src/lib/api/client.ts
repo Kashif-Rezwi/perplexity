@@ -20,7 +20,7 @@ export async function apiClient<T>(
   options?: RequestInit,
 ): Promise<T> {
   const isServer = typeof window === 'undefined';
-  const baseUrl = isServer ? 'http://localhost:8080' : '/api/perplexity';
+  const baseUrl = isServer ? 'http://localhost:8080/perplexity' : '/api/perplexity';
   const url = `${baseUrl}${path}`;
 
   try {

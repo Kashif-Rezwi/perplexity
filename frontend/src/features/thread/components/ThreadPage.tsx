@@ -16,6 +16,7 @@ interface ThreadPageProps {
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
   const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
+  const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
   const addThread = useHistoryStore((state) => state.addThread);
 
@@ -130,10 +131,13 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                   <ThreadTurn
                     key={turn.turnId}
                     turn={turn}
-                    isFirst={index === 0}
                     isLast={index === thread.turns.length - 1}
                     onViewSources={() => setActiveTab('links')}
                     onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q)}
+                    onCitationClick={(num) => {
+                      setActiveTab('links');
+                      setHighlightedSourceNum(num);
+                    }}
                   />
                 ))}
               </div>
@@ -145,6 +149,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               <LinksPanel
                 sources={thread.turns[thread.turns.length - 1]?.sources || []}
                 searchQuery={thread.turns[thread.turns.length - 1]?.searchQuery}
+                highlightedNumber={highlightedSourceNum}
+                onClearHighlight={() => setHighlightedSourceNum(null)}
               />
             </div>
           )}

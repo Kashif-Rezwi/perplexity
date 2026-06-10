@@ -8,22 +8,22 @@ import {
 
 interface ThreadTurnProps {
   turn: TurnItem;
-  isFirst?: boolean;
   isLast?: boolean;
   onViewSources?: () => void;
   onSelectFollowUp?: (q: string) => void;
+  onCitationClick?: (num: number) => void;
 }
 
 export function ThreadTurn({
   turn,
-  isFirst,
   isLast,
   onViewSources,
-  onSelectFollowUp
+  onSelectFollowUp,
+  onCitationClick
 }: ThreadTurnProps) {
   return (
     <div className="flex flex-col gap-6 pb-6">
-      <QuestionBlock question={turn.question} isFirst={isFirst} />
+      <QuestionBlock question={turn.question} />
 
       <div className="flex flex-col gap-6">
         {turn.status === 'pending' ? (
@@ -41,7 +41,12 @@ export function ThreadTurn({
 
 
         {turn.status === 'completed' && turn.answerMarkdown ? (
-          <AnswerMarkdown markdown={turn.answerMarkdown} />
+          <AnswerMarkdown 
+            markdown={turn.answerMarkdown} 
+            sources={turn.sources} 
+            turnId={turn.turnId} 
+            onCitationClick={onCitationClick}
+          />
         ) : null}
 
         {/* Turn Action Bar */}
@@ -51,18 +56,21 @@ export function ThreadTurn({
             <div className="flex items-center gap-4 text-[var(--color-text-muted)]">
               <button
                 title="Share"
+                aria-label="Share turn answer"
                 className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
               >
                 <Forward size={16} />
               </button>
               <button
                 title="Save"
+                aria-label="Save answer to collections"
                 className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
               >
                 <Download size={16} />
               </button>
               <button
                 title="Copy"
+                aria-label="Copy answer markdown"
                 onClick={() => {
                   if (turn.answerMarkdown) {
                     navigator.clipboard.writeText(turn.answerMarkdown);
@@ -74,6 +82,7 @@ export function ThreadTurn({
               </button>
               <button
                 title="Reload"
+                aria-label="Regenerate answer"
                 className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
               >
                 <RotateCw size={16} />
@@ -83,6 +92,7 @@ export function ThreadTurn({
               {turn.sources && turn.sources.length > 0 && (
                 <button
                   onClick={onViewSources}
+                  aria-label="View sources list"
                   className="flex items-center gap-2 group hover:opacity-95 transition-opacity cursor-pointer border border-[var(--color-border)] rounded-full px-2.5 py-1 bg-[var(--color-surface)]"
                 >
                   <div className="flex -space-x-1.5 overflow-hidden">
@@ -110,10 +120,16 @@ export function ThreadTurn({
 
             {/* Right Actions */}
             <div className="flex items-center gap-4 text-[var(--color-text-muted)] font-sans">
-              <button className="hover:text-[var(--color-text)] transition-colors cursor-pointer">
+              <button 
+                aria-label="Upvote this answer"
+                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+              >
                 <ThumbsUp size={16} />
               </button>
-              <button className="hover:text-[var(--color-text)] transition-colors cursor-pointer">
+              <button 
+                aria-label="Downvote this answer"
+                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+              >
                 <ThumbsDown size={16} />
               </button>
             </div>

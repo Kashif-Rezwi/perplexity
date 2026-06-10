@@ -83,23 +83,3 @@ export type TurnItem = {
 export type ThreadDetailResponse = ThreadSummaryItem & {
   turns: TurnItem[];
 };
-
-export type GlobalSourceItem = {
-  sourceId: string;
-  turnId: string;
-  threadId: string;
-  threadTitle: string;
-  question: string;
-  citationNumber: number;
-  title: string;
-  url: string;
-  domain: string;
-  snippet: string;
-  publishedAt: string | null;
-  createdAt: string;
-};
-
-export type ListSourcesResponse = {
-  items: GlobalSourceItem[];
-  nextCursor: null;
-};

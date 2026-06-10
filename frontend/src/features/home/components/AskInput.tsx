@@ -116,17 +116,19 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-full transition-colors"
+              title="Attach files (Coming soon)"
+              className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-full transition-colors cursor-not-allowed"
             >
-              <Plus size={20} strokeWidth={2} />
+              <Plus size={18} strokeWidth={1.5} />
             </button>
             <button
               type="button"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg)] hover:bg-[#1a1a1a] text-[var(--color-text)] text-[13px] font-medium border border-[var(--color-border-subtle)] transition-colors"
+              title="Focus search scope (Coming soon)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] text-[13px] font-medium border border-[var(--color-border-subtle)] transition-colors cursor-not-allowed"
             >
-              <Search size={14} strokeWidth={2} />
+              <Search size={14} strokeWidth={1.5} />
               <span>Search</span>
-              <ChevronDown size={14} className="text-[var(--color-text-muted)] ml-0.5" strokeWidth={2} />
+              <ChevronDown size={14} className="text-[var(--color-text-muted)] ml-0.5" strokeWidth={1.5} />
             </button>
 
           </div>
@@ -135,10 +137,11 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
+              title="Change model (Coming soon)"
+              className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-not-allowed"
             >
               <span>Model</span>
-              <ChevronDown size={14} strokeWidth={2} />
+              <ChevronDown size={14} strokeWidth={1.5} />
             </button>
 
             <button
@@ -150,13 +153,13 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
                 "transition-all duration-[var(--transition-hover)]",
                 question.trim() && !isPending
                   ? "bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] cursor-pointer"
-                  : "bg-[#272727] text-[#555555] cursor-not-allowed"
+                  : "bg-[var(--color-surface-hover)] text-[var(--color-text-faint)] cursor-not-allowed"
               ].join(' ')}
             >
               {isPending ? (
                 <Loader2 size={16} className="animate-spin text-white" />
               ) : (
-                <ArrowUp size={18} strokeWidth={2.5} />
+                <ArrowUp size={16} strokeWidth={2} />
               )}
             </button>
           </div>
