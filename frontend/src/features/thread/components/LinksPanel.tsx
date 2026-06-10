@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import type { SourceItem } from '@/types/api.types';
+import { Favicon } from '@/components/ui/Favicon';
+import { extractDomain } from '@/lib/utils/url';
 
 interface LinksPanelProps {
   sources: SourceItem[];
@@ -18,34 +20,17 @@ export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHig
         // Scroll the element into view smoothly after a tiny delay to allow tab render
         const timer = setTimeout(() => {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          
-          // Flash highlight styling
-          element.classList.add(
-            'ring-2', 
-            'ring-[var(--color-accent)]', 
-            'bg-[var(--color-accent-faint)]', 
-            'rounded-xl', 
-            'px-3', 
-            '-mx-3'
-          );
-          
-          // Clean up class after 2 seconds
-          const clearTimer = setTimeout(() => {
-            element.classList.remove(
-              'ring-2', 
-              'ring-[var(--color-accent)]', 
-              'bg-[var(--color-accent-faint)]', 
-              'rounded-xl', 
-              'px-3', 
-              '-mx-3'
-            );
-            onClearHighlight?.();
-          }, 2000);
-          
-          return () => clearTimeout(clearTimer);
         }, 100);
 
-        return () => clearTimeout(timer);
+        // Notify parent to clear the highlight state after 2 seconds
+        const clearTimer = setTimeout(() => {
+          onClearHighlight?.();
+        }, 2000);
+
+        return () => {
+          clearTimeout(timer);
+          clearTimeout(clearTimer);
+        };
       }
     }
   }, [highlightedNumber, onClearHighlight]);
@@ -68,14 +53,8 @@ export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHig
 
       <div className="flex flex-col">
         {sources.map((source: SourceItem, index: number) => {
-          let domainName = source.domain || '';
-          if (!domainName && source.url) {
-            try {
-              domainName = new URL(source.url).hostname.replace('www.', '');
-            } catch {
-              domainName = 'website';
-            }
-          }
+          const domainName = source.domain || extractDomain(source.url, 'website');
+          const isHighlighted = source.citationNumber === highlightedNumber;
 
           return (
             <a
@@ -84,29 +63,19 @@ export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHig
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col py-5 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-300 cursor-pointer"
+              className={[
+                'flex flex-col py-5 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-300 cursor-pointer',
+                isHighlighted
+                  ? 'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-faint)] rounded-xl px-3 -mx-3'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               {/* Header: Favicon + Domain/URL info */}
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[var(--color-sidebar)] border border-[var(--color-border)] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`https://www.google.com/s2/favicons?sz=128&domain=${domainName}`}
-                    className="w-5 h-5 object-contain"
-                    alt=""
-                    onError={(e) => {
-                      // fallback to domain initial if load fails
-                      const img = e.target as HTMLImageElement;
-                      img.style.display = 'none';
-                      const parent = img.parentElement;
-                      if (parent) {
-                        const fallback = document.createElement('div');
-                        fallback.className = "text-[12px] font-bold text-[var(--color-text-muted)] uppercase";
-                        fallback.innerText = domainName.charAt(0) || '?';
-                        parent.appendChild(fallback);
-                      }
-                    }}
-                  />
+                  <Favicon domain={domainName} size={20} />
                 </div>
                 
                 <div className="flex flex-col overflow-hidden">

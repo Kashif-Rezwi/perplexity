@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useHistoryStore } from '@/store/historyStore';
-import { useEffect, useState } from 'react';
+import { useMounted } from '@/hooks/useMounted';
 
 type Props = {
   isOpen: boolean;
@@ -11,14 +11,8 @@ type Props = {
 
 export function ThreadHistory({ isOpen }: Props) {
   const threads = useHistoryStore((state) => state.threads);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const pathname = usePathname();
-
-  // Avoid SSR hydration mismatch with localStorage
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
 
   if (!isOpen) {
     return <div className="flex-1 min-h-0" />;

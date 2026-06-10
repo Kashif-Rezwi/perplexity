@@ -17,6 +17,15 @@ export const useHistoryStore = create<HistoryStore>()(
       threads: [],
       addThread: (thread) =>
         set((state) => {
+          // If the thread is already the most recent one with the same details,
+          // return state unmodified to prevent unnecessary re-renders.
+          if (
+            state.threads.length > 0 &&
+            state.threads[0].id === thread.id &&
+            state.threads[0].title === thread.title
+          ) {
+            return state;
+          }
           // Remove existing thread if it exists to avoid duplicates
           const filtered = state.threads.filter((t) => t.id !== thread.id);
           // Add to top of list

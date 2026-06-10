@@ -58,6 +58,16 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             id: data.thread.threadId,
             title: data.thread.title,
           });
+
+          // Optimistically seed the thread detail cache to make navigation instant
+          queryClient.setQueryData<ThreadDetailResponse>(
+            ['thread', data.thread.threadId],
+            {
+              ...data.thread,
+              turns: [mapAskTurnToTurnItem(data.turn)],
+            }
+          );
+
           router.push(`/thread/${data.thread.threadId}`);
           return;
         }
@@ -173,6 +183,8 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
               placeholder="Ask anything..."
               disabled={isPending}
               rows={1}
+              aria-label="Ask a question"
+              aria-describedby="textarea-submit-instructions"
               className={[
                 'w-full bg-transparent text-[var(--color-text)]',
                 'placeholder:text-[var(--color-text-faint)]',
@@ -183,6 +195,9 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
               style={{ minHeight: '52px' }}
               autoFocus={autoFocus}
             />
+            <span id="textarea-submit-instructions" className="sr-only">
+              Press Enter to submit, Shift + Enter for a new line
+            </span>
           </div>
 
           <div className="flex items-center justify-between px-3 pb-3">

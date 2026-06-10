@@ -4,8 +4,11 @@ import { AnswerMarkdown } from './AnswerMarkdown';
 import { FollowUpSuggestions } from './FollowUpSuggestions';
 import {
   Loader2, Forward, Download, Copy, RotateCw,
-  ThumbsUp, ThumbsDown,
+  ThumbsUp, ThumbsDown, Check,
 } from 'lucide-react';
+import { Favicon } from '@/components/ui/Favicon';
+import { extractDomain } from '@/lib/utils/url';
+import { useState } from 'react';
 
 interface ThreadTurnProps {
   turn: TurnItem;
@@ -22,15 +25,20 @@ export function ThreadTurn({
   onSelectFollowUp,
   onCitationClick
 }: ThreadTurnProps) {
-  console.log('ThreadTurn render:', {
-    turnId: turn.turnId,
-    question: turn.question.substring(0, 20),
-    isLast,
-    status: turn.status,
-    hasOnSelect: !!onSelectFollowUp,
-    questionsLength: turn.suggestedFollowUpQuestions?.length,
-    questions: turn.suggestedFollowUpQuestions
-  });
+  const [isCopied, setIsCopied] = useState(false);
+  const [vote, setVote] = useState<'up' | 'down' | null>(null);
+
+  const handleCopy = () => {
+    if (turn.answerMarkdown) {
+      navigator.clipboard.writeText(turn.answerMarkdown);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  const handleVote = (direction: 'up' | 'down') => {
+    setVote((prev) => (prev === direction ? null : direction));
+  };
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -66,35 +74,39 @@ export function ThreadTurn({
             {/* Left Actions */}
             <div className="flex items-center gap-4 text-[var(--color-text-muted)]">
               <button
-                title="Share"
-                aria-label="Share turn answer"
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                title="Share (Coming soon)"
+                aria-label="Share turn answer (Coming soon)"
+                className="opacity-50 cursor-not-allowed"
+                disabled
               >
                 <Forward size={16} />
               </button>
               <button
-                title="Save"
-                aria-label="Save answer to collections"
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                title="Save (Coming soon)"
+                aria-label="Save answer to collections (Coming soon)"
+                className="opacity-50 cursor-not-allowed"
+                disabled
               >
                 <Download size={16} />
               </button>
               <button
                 title="Copy"
                 aria-label="Copy answer markdown"
-                onClick={() => {
-                  if (turn.answerMarkdown) {
-                    navigator.clipboard.writeText(turn.answerMarkdown);
-                  }
-                }}
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                onClick={handleCopy}
+                className={[
+                  'transition-colors cursor-pointer',
+                  isCopied
+                    ? 'text-[var(--color-accent)]'
+                    : 'hover:text-[var(--color-text)]',
+                ].join(' ')}
               >
-                <Copy size={16} />
+                {isCopied ? <Check size={16} /> : <Copy size={16} />}
               </button>
               <button
-                title="Reload"
-                aria-label="Regenerate answer"
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                title="Regenerate (Coming soon)"
+                aria-label="Regenerate answer (Coming soon)"
+                className="opacity-50 cursor-not-allowed"
+                disabled
               >
                 <RotateCw size={16} />
               </button>
@@ -108,16 +120,13 @@ export function ThreadTurn({
                 >
                   <div className="flex -space-x-1.5 overflow-hidden">
                     {turn.sources.slice(0, 3).map((s, idx) => {
+                      const sDomain = s.domain || extractDomain(s.url, 'website');
                       return (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
+                        <Favicon
                           key={s.sourceId || idx}
-                          src={`https://www.google.com/s2/favicons?sz=64&domain=${s.domain}`}
-                          className="inline-block h-3.5 w-3.5 rounded-full ring-1 ring-[var(--color-bg)] bg-white object-contain"
-                          alt=""
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
+                          domain={sDomain}
+                          size={14}
+                          className="inline-block ring-1 ring-[var(--color-bg)] bg-white object-contain"
                         />
                       );
                     })}
@@ -133,13 +142,25 @@ export function ThreadTurn({
             <div className="flex items-center gap-4 text-[var(--color-text-muted)] font-sans">
               <button 
                 aria-label="Upvote this answer"
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                onClick={() => handleVote('up')}
+                className={[
+                  'transition-colors cursor-pointer',
+                  vote === 'up'
+                    ? 'text-[var(--color-accent)]'
+                    : 'hover:text-[var(--color-text)]',
+                ].join(' ')}
               >
                 <ThumbsUp size={16} />
               </button>
               <button 
                 aria-label="Downvote this answer"
-                className="hover:text-[var(--color-text)] transition-colors cursor-pointer"
+                onClick={() => handleVote('down')}
+                className={[
+                  'transition-colors cursor-pointer',
+                  vote === 'down'
+                    ? 'text-[var(--color-accent)]'
+                    : 'hover:text-[var(--color-text)]',
+                ].join(' ')}
               >
                 <ThumbsDown size={16} />
               </button>

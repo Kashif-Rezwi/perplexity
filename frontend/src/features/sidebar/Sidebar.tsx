@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeft, Search, Plus, User } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { PerplexityLogo } from '@/components/ui/icons';
+import { useMounted } from '@/hooks/useMounted';
 import { SidebarNavItem } from './SidebarNavItem';
 import { ThreadHistory } from './ThreadHistory';
 
@@ -16,11 +17,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const { isOpen, toggle, setOpen } = useSidebarStore();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
@@ -53,11 +50,11 @@ export function Sidebar() {
         aria-label="Sidebar navigation"
         style={{
           width: isOpen ? 'var(--sidebar-width-expanded)' : 'var(--sidebar-width-collapsed)',
+          transition: 'width var(--transition-sidebar), transform var(--transition-sidebar)',
         }}
         className={[
           'flex flex-col h-screen shrink-0 sticky top-0 overflow-hidden',
           'bg-[var(--color-sidebar)] border-r border-[var(--color-border-subtle)]',
-          'transition-all duration-200 ease-in-out',
           // Mobile responsive fixed drawer overrides
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
           isOpen && mounted ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',

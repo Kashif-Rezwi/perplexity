@@ -1,18 +1,55 @@
 'use client';
 
 import type { SourceItem } from '@/types/api.types';
-import { ExternalLink } from 'lucide-react';
-import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Favicon } from '@/components/ui/Favicon';
+import { extractDomain } from '@/lib/utils/url';
+
+function cleanSnippetText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/^#+\s+/, '') // Remove leading markdown headers
+    .replace(/^[\*\-\+]\s+/, '') // Remove leading list markers
+    .trim();
+}
 
 interface CitationBadgeProps {
   number: number;
   source?: SourceItem;
+  allSources?: SourceItem[];
   turnId?: string;
   onCitationClick?: (num: number) => void;
 }
 
-export function CitationBadge({ number, source, turnId, onCitationClick }: CitationBadgeProps) {
+export function CitationBadge({
+  number,
+  source,
+  allSources,
+  turnId,
+  onCitationClick,
+}: CitationBadgeProps) {
+  // Resolve sources array. If allSources is provided, use it. Otherwise fall back to a single item list.
+  const sourcesList = allSources && allSources.length > 0
+    ? allSources
+    : source
+    ? [source]
+    : [];
+
+  // Find index of the badge's primary source in the list to initialize the active index.
+  const initialIndex = source
+    ? sourcesList.findIndex((s) => s.citationNumber === source.citationNumber)
+    : 0;
+  
+  const [activeIndex, setActiveIndex] = useState(
+    initialIndex !== -1 ? initialIndex : 0
+  );
+
+  const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const showTooltip = isHovered || isFocused;
+
   // If there's no matching source, render a muted/disabled badge without interactivity
   if (!source) {
     return (
@@ -25,7 +62,8 @@ export function CitationBadge({ number, source, turnId, onCitationClick }: Citat
     );
   }
 
-  const domainName = source.domain || '';
+  const activeSource = sourcesList[activeIndex];
+  const domainName = activeSource.domain || extractDomain(activeSource.url, 'website');
 
   const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
     if (onCitationClick) {
@@ -53,127 +91,152 @@ export function CitationBadge({ number, source, turnId, onCitationClick }: Citat
     if (e.key === 'Enter' || e.key === ' ') {
       handleClick(e);
     }
+    if (e.key === 'Escape') {
+      setIsFocused(false);
+      setIsHovered(false);
+    }
+  };
+
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveIndex((prev) => (prev - 1 + sourcesList.length) % sourcesList.length);
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setActiveIndex((prev) => (prev + 1) % sourcesList.length);
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+  };
+
+  const handleBlur = (e: React.FocusEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) {
+      return;
+    }
+    setIsFocused(false);
   };
 
   return (
     <span
-      role="link"
-      tabIndex={0}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      aria-label={`Source ${number}: ${source.title || source.url}`}
-      className={[
-        "inline-flex items-center justify-center",
-        "px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)]",
-        "text-[10px] font-bold text-[var(--color-accent)] leading-none no-underline",
-        "hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)]",
-        "transition-all duration-[var(--transition-hover)] cursor-pointer select-none",
-        "relative top-[-3px] mx-0.5 group/badge"
-      ].join(' ')}
+      className="relative inline-block mx-0.5"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     >
-      {number}
-
-      {/* Tooltip Card — all block-level display is achieved via CSS on span elements */}
-      <span
-        className={[
-          "absolute bottom-full left-1/2 -translate-x-1/2 pb-2 w-72 md:w-80",
-          "invisible group-hover/badge:visible opacity-0 group-hover/badge:opacity-100",
-          "scale-95 group-hover/badge:scale-100 transition-all duration-150 pointer-events-none group-hover/badge:pointer-events-auto",
-          "z-50 origin-bottom font-sans text-left"
-        ].join(' ')}
-        style={{ display: 'block' }}
+      {/* The Citation Badge Button */}
+      <button
+        type="button"
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        aria-label={`Source ${number}: ${source.title || source.url}`}
+        className="relative top-[-3px] inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] font-bold text-[var(--color-accent)] leading-none transition-all duration-[var(--transition-hover)] cursor-pointer select-none hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
       >
-        <span
-          className="bg-[var(--color-sidebar)] border border-[var(--color-border)] rounded-xl shadow-2xl p-3.5 gap-2"
-          style={{ display: 'flex', flexDirection: 'column' }}
-        >
-          {/* Header */}
-          <span className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-            <span className="w-5 h-5 rounded bg-[var(--color-bg)] border border-[var(--color-border)] flex items-center justify-center overflow-hidden shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://www.google.com/s2/favicons?sz=64&domain=${domainName}`}
-                className="w-3.5 h-3.5 object-contain"
-                alt=""
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+        {number}
+      </button>
+
+      {/* Sibling Tooltip Card Popover — fully interactive, styled after Perplexity's dark tooltip */}
+      <span
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={[
+          "absolute bottom-full left-1/2 -translate-x-1/2 pb-2.5 w-[320px] transition-all duration-150 z-50 origin-bottom font-sans text-left not-prose block",
+          showTooltip
+            ? "visible opacity-100 scale-100 pointer-events-auto"
+            : "invisible opacity-0 scale-95 pointer-events-none"
+        ].join(' ')}
+      >
+        <span className="bg-[var(--color-sidebar)] border border-[var(--color-border)] rounded-[16px] shadow-2xl p-4 gap-3.5 flex flex-col">
+          {/* Header Bar with Pagination & Stacked Favicons */}
+          <span className="flex items-center justify-between border-b border-[var(--color-border)]/40 pb-2.5">
+            {/* Pagination Controls */}
+            <span className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="text-neutral-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full hover:bg-neutral-800/40 flex items-center justify-center border-0"
+                aria-label="Previous source"
+              >
+                <ChevronLeft size={14} className="stroke-[2.5]" />
+              </button>
+              <span className="text-[13px] font-medium text-neutral-400 select-none font-sans">
+                {activeIndex + 1}/{sourcesList.length}
+              </span>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="text-neutral-400 hover:text-white transition-colors cursor-pointer p-1 rounded-full hover:bg-neutral-800/40 flex items-center justify-center border-0"
+                aria-label="Next source"
+              >
+                <ChevronRight size={14} className="stroke-[2.5]" />
+              </button>
             </span>
-            <span className="font-medium truncate max-w-[150px]">{domainName}</span>
-            <span className="text-[10px] bg-[var(--color-surface)] border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-text-muted)] ml-auto font-mono">
-              Source {number}
+
+            {/* Stacked Favicons + Sources Count */}
+            <span className="flex items-center gap-2">
+              <span className="flex -space-x-1.5 overflow-hidden">
+                {sourcesList.slice(0, 3).map((s, idx) => {
+                  const sDomain = s.domain || extractDomain(s.url, 'website');
+                  return (
+                    <Favicon
+                      key={s.sourceId || idx}
+                      domain={sDomain}
+                      size={18}
+                      className="inline-block ring-2 ring-[var(--color-sidebar)] bg-white object-contain"
+                    />
+                  );
+                })}
+              </span>
+              <span className="text-[13px] font-normal text-neutral-400 leading-none select-none font-sans">
+                {sourcesList.length} sources
+              </span>
             </span>
           </span>
 
-          {/* Title */}
-          <span className="flex items-start justify-between gap-1 mt-0.5">
-            <span
-              className="text-[13px] font-semibold text-[var(--color-text)] leading-snug group-hover/badge:text-white transition-colors"
-              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-            >
-              {source.title || 'Source link'}
+          {/* Body content */}
+          <span className="flex flex-col gap-2.5">
+            {/* Favicon & Domain */}
+            <span className="flex items-center gap-2 text-[13px] text-neutral-400">
+              <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                <Favicon domain={domainName} size={14} className="bg-white" />
+              </span>
+              <span className="font-medium lowercase font-sans">{domainName}</span>
             </span>
-            {/* Open source URL via explicit button — NOT a nested <a> */}
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={`Open ${source.title || source.url} in new tab`}
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(source.url, '_blank', 'noopener,noreferrer');
+
+            {/* Title */}
+            <a
+              href={activeSource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[15px] font-semibold text-white leading-snug hover:underline text-left cursor-pointer transition-colors font-sans"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
               }}
-              className="text-[var(--color-text-muted)] shrink-0 mt-0.5 hover:text-[var(--color-accent)] transition-colors cursor-pointer bg-transparent border-0 p-0"
             >
-              <ExternalLink size={12} className="animate-pulse" />
-            </button>
-          </span>
+              {activeSource.title || 'Source link'}
+            </a>
 
-          {/* Snippet — rendered with all span-based overrides so no block elements nest inside <p> */}
-          {source.snippet && (
-            <span
-              className="text-[11px] text-[var(--color-text-muted)] bg-[var(--color-bg)]/50 border border-[var(--color-border-subtle)] p-2.5 rounded-lg font-normal overflow-y-auto"
-              style={{ display: 'block', maxHeight: 120 }}
-            >
-              <ReactMarkdown
-                components={{
-                  // All block-level elements replaced with <span> + display:block to avoid invalid nesting
-                  p: ({ ...props }) => <span style={{ display: 'block' }} className="mb-1 last:mb-0 leading-relaxed" {...props} />,
-                  h1: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[12px] text-[var(--color-text)] mb-1" {...props} />,
-                  h2: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[11.5px] text-[var(--color-text)] mb-1" {...props} />,
-                  h3: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[11px] text-[var(--color-text)] mb-1" {...props} />,
-                  h4: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[11px] text-[var(--color-text)] mb-1" {...props} />,
-                  h5: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[11px] text-[var(--color-text)] mb-1" {...props} />,
-                  h6: ({ ...props }) => <span style={{ display: 'block' }} className="font-semibold text-[11px] text-[var(--color-text)] mb-1" {...props} />,
-                  // Links inside snippet open in new tab — no nested <a> risk since outer is <span role="link">
-                  a: ({ href, children }) => (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (href) window.open(href, '_blank', 'noopener,noreferrer');
-                      }}
-                      className="text-[var(--color-text-link)] underline cursor-pointer hover:no-underline bg-transparent border-0 p-0 font-[inherit] text-[inherit]"
-                    >
-                      {children}
-                    </button>
-                  ),
-                  ul: ({ ...props }) => <span style={{ display: 'block', paddingLeft: '1rem', marginBottom: '0.5rem' }} {...props} />,
-                  ol: ({ ...props }) => <span style={{ display: 'block', paddingLeft: '1rem', marginBottom: '0.5rem' }} {...props} />,
-                  li: ({ ...props }) => <span style={{ display: 'block' }} className="leading-relaxed before:content-['•'] before:mr-1.5 before:text-[var(--color-text-muted)]" {...props} />,
-                  code: ({ ...props }) => <code className="bg-[var(--color-surface)] px-1 py-0.5 rounded font-mono text-[10px]" {...props} />,
-                  pre: ({ ...props }) => <span style={{ display: 'block' }} className="bg-[var(--color-surface)] p-1.5 rounded font-mono text-[10px] my-1 overflow-x-auto" {...props} />,
+            {/* Snippet */}
+            {activeSource.snippet && (
+              <span
+                className="text-[13px] text-neutral-400 font-normal leading-[1.5] select-text font-sans block"
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
                 }}
               >
-                {source.snippet}
-              </ReactMarkdown>
-            </span>
-          )}
-
-          {/* Action Footer */}
-          <span className="text-[10px] font-medium text-[var(--color-text-muted)] flex items-center gap-1 border-t border-[var(--color-border-subtle)] pt-2 mt-1">
-            <span className="text-[var(--color-accent)]">Click badge</span> to scroll,{' '}
-            <span className="text-[var(--color-accent)]">hover</span> to preview
+                {cleanSnippetText(activeSource.snippet)}
+              </span>
+            )}
           </span>
         </span>
       </span>

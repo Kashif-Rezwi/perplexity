@@ -1,3 +1,5 @@
+import { BACKEND_URL } from './constants';
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -20,7 +22,7 @@ export async function apiClient<T>(
   options?: RequestInit,
 ): Promise<T> {
   const isServer = typeof window === 'undefined';
-  const baseUrl = isServer ? 'http://localhost:8080/perplexity' : '/api/perplexity';
+  const baseUrl = isServer ? `${BACKEND_URL}/perplexity` : '/api/perplexity';
   const url = `${baseUrl}${path}`;
 
   try {
