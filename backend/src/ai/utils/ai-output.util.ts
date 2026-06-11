@@ -26,9 +26,7 @@ export function sanitizeSuggestedFollowUpQuestions(
     }
   }
 
-  return sanitizedQuestions.length === SUGGESTED_FOLLOW_UP_QUESTION_COUNT
-    ? sanitizedQuestions
-    : [];
+  return sanitizedQuestions;
 }
 
 export function sanitizeStandaloneSearchQuery(rawSearchQuery: string): string {

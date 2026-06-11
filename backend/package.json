@@ -20,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@ai-sdk/groq": "^3.0.39",
     "@ai-sdk/openai": "^3.0.68",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
