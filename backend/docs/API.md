@@ -81,17 +81,32 @@ best-effort; if generation fails or times out, the API returns an empty array.
 - **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
 - **Streaming Context**: While the API currently returns a full JSON object synchronously, it is designed with an event-streaming transition in mind. The frontend data models should be robust to future NDJSON or Server-Sent Events (SSE) updates.
 
-LLM Provider config (currently OpenAI):
+LLM Provider configuration options:
 
 ```text
-OPENAI_API_KEY          required
+AI_PROVIDER             optional, select active provider: 'openai' or 'groq',
+                        default openai
+
+# OpenAI Configs
+OPENAI_API_KEY          required (when AI_PROVIDER is openai)
 OPENAI_MODEL            optional, used for answer generation, default gpt-5-mini
 OPENAI_UTILITY_MODEL    optional, used for query rewriting and suggestions,
                         default gpt-5-mini
 OPENAI_ANSWER_TIMEOUT_MS         optional, default 16000
 OPENAI_QUERY_REWRITE_TIMEOUT_MS  optional, default 6000
 OPENAI_SUGGESTION_TIMEOUT_MS     optional, default 15000
+
+# Groq Configs
+GROQ_API_KEY            required (when AI_PROVIDER is groq)
+GROQ_MODEL              optional, used for answer generation, default llama-3.3-70b-versatile
+GROQ_UTILITY_MODEL      optional, used for query rewriting and suggestions,
+                        default llama-3.1-8b-instant
+GROQ_ANSWER_TIMEOUT_MS           optional, default 16000
+GROQ_QUERY_REWRITE_TIMEOUT_MS    optional, default 6000
+GROQ_SUGGESTION_TIMEOUT_MS       optional, default 15000
 ```
+
+
 
 Web Search config (currently Tavily):
 

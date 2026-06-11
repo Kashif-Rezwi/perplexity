@@ -5,7 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createOpenAI } from '@ai-sdk/openai';
+import { createGroq } from '@ai-sdk/groq';
 import { generateText, jsonSchema, Output } from 'ai';
 import {
   getOptionalTrimmedConfig,
@@ -14,17 +14,17 @@ import {
 } from '../common/utils/config.util';
 import { getErrorMessage, getErrorStack } from '../common/utils/error.util';
 import {
-  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-  DEFAULT_OPENAI_MODEL,
-  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-  DEFAULT_OPENAI_UTILITY_MODEL,
-  OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_API_KEY_CONFIG_KEY,
-  OPENAI_MODEL_CONFIG_KEY,
-  OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-  OPENAI_UTILITY_MODEL_CONFIG_KEY,
+  DEFAULT_GROQ_ANSWER_TIMEOUT_MS,
+  DEFAULT_GROQ_MODEL,
+  DEFAULT_GROQ_QUERY_REWRITE_TIMEOUT_MS,
+  DEFAULT_GROQ_SUGGESTION_TIMEOUT_MS,
+  DEFAULT_GROQ_UTILITY_MODEL,
+  GROQ_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+  GROQ_API_KEY_CONFIG_KEY,
+  GROQ_MODEL_CONFIG_KEY,
+  GROQ_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+  GROQ_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+  GROQ_UTILITY_MODEL_CONFIG_KEY,
 } from './ai.constants';
 import {
   ANSWER_SYSTEM_PROMPT,
@@ -49,8 +49,8 @@ import {
 const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 
 @Injectable()
-export class OpenAiProviderService implements AiProvider {
-  private readonly logger = new Logger(OpenAiProviderService.name);
+export class GroqProviderService implements AiProvider {
+  private readonly logger = new Logger(GroqProviderService.name);
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -60,11 +60,11 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getModel();
-    const openaiClient = createOpenAI({ apiKey });
+    const groqClient = this.getClient(apiKey);
 
     try {
       const { text } = await generateText({
-        model: openaiClient(model),
+        model: groqClient(model),
         abortSignal,
         system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
@@ -73,7 +73,7 @@ export class OpenAiProviderService implements AiProvider {
       const answerMarkdown = text.trim();
 
       if (!answerMarkdown) {
-        throw new InternalServerErrorException('OpenAI returned an empty answer');
+        throw new InternalServerErrorException('Groq returned an empty answer');
       }
 
       return answerMarkdown;
@@ -83,11 +83,11 @@ export class OpenAiProviderService implements AiProvider {
       }
 
       this.logger.error(
-        `OpenAI answer generation failed: ${getErrorMessage(error)}`,
+        `Groq answer generation failed: ${getErrorMessage(error)}`,
         getErrorStack(error),
       );
 
-      throw new ServiceUnavailableException('OpenAI answer generation failed');
+      throw new ServiceUnavailableException('Groq answer generation failed');
     }
   }
 
@@ -97,13 +97,13 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string[]> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
+    const groqClient = this.getClient(apiKey);
 
     try {
       const { output } = await generateText({
-        model: openaiClient(model),
+        model: groqClient(model),
         abortSignal,
-        system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
+        system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT + ' Output the response as a JSON object containing a "questions" array.',
         prompt: createSuggestedFollowUpQuestionsPrompt(input),
         output: Output.object({
           schema: jsonSchema<{ questions: string[] }>({
@@ -121,6 +121,11 @@ export class OpenAiProviderService implements AiProvider {
             required: ['questions'],
           }),
         }),
+        providerOptions: {
+          groq: {
+            structuredOutputs: false,
+          },
+        },
       });
 
       return sanitizeSuggestedFollowUpQuestions(output.questions);
@@ -130,13 +135,13 @@ export class OpenAiProviderService implements AiProvider {
       }
 
       this.logger.warn(
-        `OpenAI follow-up suggestion generation failed: ${getErrorMessage(
+        `Groq follow-up suggestion generation failed: ${getErrorMessage(
           error,
         )}`,
       );
 
       throw new ServiceUnavailableException(
-        'OpenAI follow-up suggestion generation failed',
+        'Groq follow-up suggestion generation failed',
       );
     }
   }
@@ -147,11 +152,11 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string> {
     const apiKey = this.getRequiredApiKey();
     const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
+    const groqClient = this.getClient(apiKey);
 
     try {
       const { text } = await generateText({
-        model: openaiClient(model),
+        model: groqClient(model),
         abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
         system: STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
@@ -161,7 +166,7 @@ export class OpenAiProviderService implements AiProvider {
 
       if (!searchQuery) {
         throw new InternalServerErrorException(
-          'OpenAI returned an empty search query',
+          'Groq returned an empty search query',
         );
       }
 
@@ -172,11 +177,11 @@ export class OpenAiProviderService implements AiProvider {
       }
 
       this.logger.warn(
-        `OpenAI search query generation failed: ${getErrorMessage(error)}`,
+        `Groq search query generation failed: ${getErrorMessage(error)}`,
       );
 
       throw new ServiceUnavailableException(
-        'OpenAI search query generation failed',
+        'Groq search query generation failed',
       );
     }
   }
@@ -184,47 +189,53 @@ export class OpenAiProviderService implements AiProvider {
   private getRequiredApiKey(): string {
     return getRequiredTrimmedConfig(
       this.configService,
-      OPENAI_API_KEY_CONFIG_KEY,
+      GROQ_API_KEY_CONFIG_KEY,
     );
+  }
+
+  private getClient(apiKey: string) {
+    return createGroq({
+      apiKey,
+    });
   }
 
   getModel(): string {
     return getOptionalTrimmedConfig(
       this.configService,
-      OPENAI_MODEL_CONFIG_KEY,
-      DEFAULT_OPENAI_MODEL,
+      GROQ_MODEL_CONFIG_KEY,
+      DEFAULT_GROQ_MODEL,
     );
   }
 
   getUtilityModel(): string {
     return getOptionalTrimmedConfig(
       this.configService,
-      OPENAI_UTILITY_MODEL_CONFIG_KEY,
-      DEFAULT_OPENAI_UTILITY_MODEL,
+      GROQ_UTILITY_MODEL_CONFIG_KEY,
+      DEFAULT_GROQ_UTILITY_MODEL,
     );
   }
 
   getAnswerTimeoutMs(): number {
     return getPositiveIntegerConfig(
       this.configService,
-      OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
+      GROQ_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_GROQ_ANSWER_TIMEOUT_MS,
     );
   }
 
   getQueryRewriteTimeoutMs(): number {
     return getPositiveIntegerConfig(
       this.configService,
-      OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+      GROQ_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_GROQ_QUERY_REWRITE_TIMEOUT_MS,
     );
   }
 
   getSuggestionTimeoutMs(): number {
     return getPositiveIntegerConfig(
       this.configService,
-      OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+      GROQ_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_GROQ_SUGGESTION_TIMEOUT_MS,
     );
   }
 }
