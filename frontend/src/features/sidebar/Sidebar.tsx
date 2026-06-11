@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PanelLeft, Search, Plus, User } from 'lucide-react';
+import { PanelLeft, Clock, Plus, User } from 'lucide-react';
 import { useEffect } from 'react';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { PerplexityLogo } from '@/components/ui/icons';
@@ -11,7 +11,7 @@ import { SidebarNavItem } from './SidebarNavItem';
 import { ThreadHistory } from './ThreadHistory';
 
 const NAV_ITEMS = [
-  { icon: Search, label: 'Home', href: '/' },
+  { icon: Clock, label: 'History', href: '/' },
 ] as const;
 
 export function Sidebar() {

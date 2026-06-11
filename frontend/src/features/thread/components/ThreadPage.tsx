@@ -3,16 +3,43 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getThread } from '@/lib/api/threads.api';
-import { Loader2, Globe, Image as ImageIcon, Lock } from 'lucide-react';
+import { Globe, Image as ImageIcon, Lock, Compass, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { ThreadTurn } from './ThreadTurn';
 import { LinksPanel } from './LinksPanel';
 import { AskInput, AskInputRef } from '@/features/home/components/AskInput';
 import { useHistoryStore } from '@/store/historyStore';
+import { ApiError } from '@/lib/api/client';
 
 interface ThreadPageProps {
   threadId: string;
+}
+
+interface ThreadStatusStateProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  actionButton: React.ReactNode;
+}
+
+function ThreadStatusState({ icon, title, description, actionButton }: ThreadStatusStateProps) {
+  return (
+    <div className="w-full flex-1 flex flex-col items-center justify-center py-24 gap-6 px-4 font-sans select-none animate-in fade-in duration-300">
+      <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)] mb-2 shadow-sm">
+        {icon}
+      </div>
+      <div className="text-center max-w-sm font-sans">
+        <h2 className="text-[20px] font-semibold text-[var(--color-text)] mb-2 tracking-tight">
+          {title}
+        </h2>
+        <p className="text-[var(--color-text-muted)] text-[13.5px] leading-relaxed">
+          {description}
+        </p>
+      </div>
+      {actionButton}
+    </div>
+  );
 }
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
@@ -49,40 +76,88 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
 
   if (isPending) {
     return (
-      <div className="w-full flex justify-center py-12">
-        <Loader2 className="animate-spin text-[var(--color-text-muted)]" size={24} />
-      </div>
-    );
-  }
+      <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)] font-sans">
+        {/* Fake Header */}
+        <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border)] w-full">
+          <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
+              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
+              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
 
-  if (error || !thread) {
-    return (
-      <div className="w-full flex flex-col items-center justify-center py-24 gap-6 px-4">
-        <h2 className="text-[20px] font-semibold text-[var(--color-text)] mb-1">
-          Thread not found
-        </h2>
-        <p className="text-[var(--color-text-muted)] text-sm text-center max-w-xs">
-          The thread you&apos;re looking for doesn&apos;t exist or an error occurred.
-        </p>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors"
-          >
-            Go Home
-          </Link>
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['thread', threadId] })}
-            className="px-4 py-2 rounded-lg text-sm font-medium bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-colors cursor-pointer"
-          >
-            Try again
-          </button>
+        {/* Content Skeleton */}
+        <div className="flex-1 overflow-y-auto w-full">
+          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-8 pb-20">
+            {/* Title Skeleton */}
+            <div className="w-3/4 h-8 bg-[var(--color-surface)] rounded-md animate-pulse mb-8" />
+
+            {/* In-flight Turn Skeleton */}
+            <div className="flex flex-col gap-6">
+              {/* Question line */}
+              <div className="w-1/3 h-5 bg-[var(--color-surface)] rounded-md animate-pulse mb-4" />
+
+              {/* Text lines */}
+              <div className="flex flex-col gap-3">
+                <div className="w-full h-3 bg-[var(--color-surface)] rounded animate-pulse" />
+                <div className="w-11/12 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
+                <div className="w-5/6 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
+                <div className="w-2/3 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const hasCompletedAnswer = thread.turns.some((turn) => turn.status === 'completed');
+  if (error || !thread) {
+    const isNotFound = error instanceof ApiError && error.status === 404;
+
+    if (isNotFound || (!thread && !error)) {
+      return (
+        <ThreadStatusState
+          icon={<Compass size={28} className="stroke-[1.5]" />}
+          title="Thread not found"
+          description="This thread doesn't exist, has been deleted, or you don't have permission to view it."
+          actionButton={
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] shadow-sm cursor-pointer no-underline"
+            >
+              Go Home
+            </Link>
+          }
+        />
+      );
+    }
+
+    return (
+      <ThreadStatusState
+        icon={<WifiOff size={28} className="stroke-[1.5]" />}
+        title="Connection failed"
+        description="We couldn't connect to the server. Please check your internet connection or try again."
+        actionButton={
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer no-underline"
+            >
+              Go Home
+            </Link>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['thread', threadId] })}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
+            >
+              Try again
+            </button>
+          </div>
+        }
+      />
+    );
+  }
 
   const renderTabButton = (
     tabId: 'answer' | 'links' | 'images',
@@ -150,6 +225,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                       setActiveTab('links');
                       setHighlightedSourceNum(num);
                     }}
+                    onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
                   />
                 ))}
 
@@ -202,7 +278,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
         </div>
       </div>
 
-      {hasCompletedAnswer && (
+      {thread && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/90 to-transparent pt-8 pb-6 z-10 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput

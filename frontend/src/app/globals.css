@@ -32,6 +32,15 @@
   --color-accent-hover: #1a9099;
   --color-accent-faint: rgba(32, 128, 141, 0.15);
 
+  /* Error state colors */
+  --color-error:              #f87171; /* Tailwind red-400 */
+  --color-error-bg:           rgba(69, 10, 10, 0.2); /* bg-red-950/20 */
+  --color-error-border:       rgba(127, 29, 29, 0.35); /* border-red-900/35 */
+  --color-error-btn-bg:       rgba(127, 29, 29, 0.3); /* bg-red-900/30 */
+  --color-error-btn-border:   rgba(153, 27, 27, 0.3); /* border-red-800/30 */
+  --color-error-btn-hover-bg: rgba(127, 29, 29, 0.4); /* hover:bg-red-900/40 */
+  --color-error-btn-hover-border: rgba(153, 27, 27, 0.5); /* hover:border-red-800/50 */
+
   /* Sidebar dimensions */
   --sidebar-width-expanded:  220px;
   --sidebar-width-collapsed: 56px;

@@ -9,6 +9,7 @@ export type ThreadHistoryItem = {
 type HistoryStore = {
   threads: ThreadHistoryItem[];
   addThread: (thread: ThreadHistoryItem) => void;
+  removeThread: (id: string) => void;
 };
 
 export const useHistoryStore = create<HistoryStore>()(
@@ -33,6 +34,10 @@ export const useHistoryStore = create<HistoryStore>()(
             threads: [thread, ...filtered],
           };
         }),
+      removeThread: (id) =>
+        set((state) => ({
+          threads: state.threads.filter((t) => t.id !== id),
+        })),
     }),
     {
       name: 'perplexity-history-storage',
