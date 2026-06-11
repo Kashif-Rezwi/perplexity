@@ -64,6 +64,7 @@ export function ThreadHistory({ isOpen }: Props) {
                 <Link
                   href={`/thread/${thread.id}`}
                   title={thread.title}
+                  scroll={false}
                   className={[
                     'flex-1 text-[13px] font-normal leading-tight truncate pl-3 pr-8 py-2 no-underline transition-colors duration-100 ease-linear',
                     isActive

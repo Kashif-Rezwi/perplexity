@@ -27,11 +27,26 @@ export const useHistoryStore = create<HistoryStore>()(
           ) {
             return state;
           }
-          // Remove existing thread if it exists to avoid duplicates
-          const filtered = state.threads.filter((t) => t.id !== thread.id);
-          // Add to top of list
+
+          // Check if thread already exists in the list
+          const existingThread = state.threads.find((t) => t.id === thread.id);
+
+          if (existingThread) {
+            // If the title is also the same, return state unmodified to prevent re-renders
+            if (existingThread.title === thread.title) {
+              return state;
+            }
+            // Update the title in place without changing list order
+            return {
+              threads: state.threads.map((t) =>
+                t.id === thread.id ? { ...t, title: thread.title } : t
+              ),
+            };
+          }
+
+          // Prepend new threads to the top of the list
           return {
-            threads: [thread, ...filtered],
+            threads: [thread, ...state.threads],
           };
         }),
       removeThread: (id) =>

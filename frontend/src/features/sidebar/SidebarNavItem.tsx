@@ -14,6 +14,7 @@ export function SidebarNavItem({ icon: Icon, label, href, isActive, isOpen }: Pr
     <Link
       href={href}
       title={!isOpen ? label : undefined}
+      scroll={false}
       aria-current={isActive ? 'page' : undefined}
       className={[
         'flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap',

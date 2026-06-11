@@ -23,6 +23,11 @@ interface ThreadStatusStateProps {
   actionButton: React.ReactNode;
 }
 
+type SourceTurnSelection = {
+  threadId: string;
+  turnId: string;
+};
+
 function ThreadStatusState({ icon, title, description, actionButton }: ThreadStatusStateProps) {
   return (
     <div className="w-full flex-1 flex flex-col items-center justify-center py-24 gap-6 px-4 font-sans select-none animate-in fade-in duration-300">
@@ -46,8 +51,20 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
   const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [selectedSourceTurn, setSelectedSourceTurn] = useState<SourceTurnSelection | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const lastTurnRef = useRef<HTMLDivElement>(null);
+  const pendingTurnRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrolledRef = useRef<{
+    threadId: string | null;
+    turnsCount: number;
+    latestTurnId: string | null;
+  }>({
+    threadId: null,
+    turnsCount: 0,
+    latestTurnId: null,
+  });
   const addThread = useHistoryStore((state) => state.addThread);
   const queryClient = useQueryClient();
 
@@ -56,6 +73,11 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     queryFn: () => getThread(threadId),
     retry: 1,
   });
+
+  const turnsCount = thread?.turns.length ?? 0;
+  const latestTurnId = turnsCount > 0
+    ? thread?.turns[turnsCount - 1]?.turnId ?? null
+    : null;
 
   useEffect(() => {
     if (thread) {
@@ -66,13 +88,58 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     }
   }, [thread, addThread]);
 
+  // Auto-scroll to the latest turn on navigation or new turn completion
   useEffect(() => {
-    if (!pendingQuestion && !thread?.turns.length) return;
-    const frame = requestAnimationFrame(() => {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [pendingQuestion, thread?.turns.length]);
+    if (!thread || !latestTurnId || activeTab !== 'answer') return;
+
+    // Check if we have already scrolled to this state
+    const alreadyScrolled =
+      lastScrolledRef.current.threadId === threadId &&
+      lastScrolledRef.current.turnsCount === turnsCount &&
+      lastScrolledRef.current.latestTurnId === latestTurnId;
+
+    if (alreadyScrolled) {
+      return;
+    }
+
+    const isInitialLoad = lastScrolledRef.current.threadId !== threadId;
+    const delay = isInitialLoad ? 200 : 100;
+
+    const timer = setTimeout(() => {
+      if (scrollContainerRef.current && lastTurnRef.current) {
+        const container = scrollContainerRef.current;
+        const target = lastTurnRef.current;
+        const targetTop = Math.max(0, target.offsetTop - 32); // leave 32px space (equivalent to scroll-mt-8)
+        container.scrollTo({
+          top: targetTop,
+          behavior: 'smooth',
+        });
+
+        // Mark as completed
+        lastScrolledRef.current = { threadId, turnsCount, latestTurnId };
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [thread, threadId, activeTab, turnsCount, latestTurnId]);
+
+  // Auto-scroll when pending question is asked
+  useEffect(() => {
+    if (pendingQuestion && activeTab === 'answer') {
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current && pendingTurnRef.current) {
+          const container = scrollContainerRef.current;
+          const target = pendingTurnRef.current;
+          const targetTop = Math.max(0, target.offsetTop - 32);
+          container.scrollTo({
+            top: targetTop,
+            behavior: 'smooth',
+          });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingQuestion, activeTab]);
 
   if (isPending) {
     return (
@@ -159,6 +226,12 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     );
   }
 
+  const selectedTurnForLinks =
+    selectedSourceTurn?.threadId === threadId
+      ? thread.turns.find((turn) => turn.turnId === selectedSourceTurn.turnId) ||
+        thread.turns[thread.turns.length - 1]
+      : thread.turns[thread.turns.length - 1];
+
   const renderTabButton = (
     tabId: 'answer' | 'links' | 'images',
     label: string,
@@ -203,33 +276,50 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto w-full">
+      <div className="flex-1 min-h-0 w-full relative">
+        {/* Answer Tab Scroll Container */}
         <div
-          className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-6 pb-[380px] md:pb-[340px]"
+          ref={scrollContainerRef}
+          className={[
+            'absolute inset-0 overflow-y-auto w-full',
+            activeTab === 'answer' ? 'block' : 'hidden',
+          ].join(' ')}
         >
-          {activeTab === 'answer' && (
-            <>
-              <h1 className="text-[28px] font-bold text-[var(--color-text)] tracking-tight mb-8 font-sans leading-tight">
-                {thread.title}
-              </h1>
+          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-[180px] md:pb-[160px]">
+            <h1 className="text-[28px] font-bold text-[var(--color-text)] tracking-tight mb-8 font-sans leading-tight">
+              {thread.title}
+            </h1>
 
-              <div className="flex flex-col gap-8">
-                {thread.turns.map((turn, index) => (
-                  <ThreadTurn
+            <div className="flex flex-col gap-8">
+              {thread.turns.map((turn, index) => {
+                const isLastTurn = index === thread.turns.length - 1;
+                return (
+                  <div
                     key={turn.turnId}
-                    turn={turn}
-                    isLast={index === thread.turns.length - 1 && !pendingQuestion}
-                    onViewSources={() => setActiveTab('links')}
-                    onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
-                    onCitationClick={(num) => {
-                      setActiveTab('links');
-                      setHighlightedSourceNum(num);
-                    }}
-                    onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
-                  />
-                ))}
+                    ref={isLastTurn ? lastTurnRef : null}
+                    className="scroll-mt-8"
+                  >
+                    <ThreadTurn
+                      turn={turn}
+                      isLast={isLastTurn && !pendingQuestion}
+                      onViewSources={() => {
+                        setSelectedSourceTurn({ threadId, turnId: turn.turnId });
+                        setActiveTab('links');
+                      }}
+                      onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
+                      onCitationClick={(num) => {
+                        setSelectedSourceTurn({ threadId, turnId: turn.turnId });
+                        setActiveTab('links');
+                        setHighlightedSourceNum(num);
+                      }}
+                      onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
+                    />
+                  </div>
+                );
+              })}
 
-                {pendingQuestion && (
+              {pendingQuestion && (
+                <div ref={pendingTurnRef} className="scroll-mt-8">
                   <ThreadTurn
                     key="pending-turn"
                     turn={{
@@ -247,45 +337,57 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                     }}
                     isLast={false}
                   />
-                )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-                <div
-                  ref={bottomRef}
-                  aria-hidden="true"
-                  className="h-px w-full"
-                  style={{ scrollMarginBottom: 300 }}
-                />
-              </div>
-            </>
-          )}
-
-          {activeTab === 'links' && (
+        {/* Links Tab Scroll Container */}
+        <div
+          className={[
+            'absolute inset-0 overflow-y-auto w-full',
+            activeTab === 'links' ? 'block' : 'hidden',
+          ].join(' ')}
+        >
+          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
             <div className="animate-in fade-in duration-300">
               <LinksPanel
-                sources={thread.turns[thread.turns.length - 1]?.sources || []}
-                searchQuery={thread.turns[thread.turns.length - 1]?.searchQuery}
+                sources={selectedTurnForLinks?.sources || []}
+                searchQuery={selectedTurnForLinks?.searchQuery}
                 highlightedNumber={highlightedSourceNum}
                 onClearHighlight={() => setHighlightedSourceNum(null)}
               />
             </div>
-          )}
+          </div>
+        </div>
 
-          {activeTab === 'images' && (
+        {/* Images Tab Scroll Container */}
+        <div
+          className={[
+            'absolute inset-0 overflow-y-auto w-full',
+            activeTab === 'images' ? 'block' : 'hidden',
+          ].join(' ')}
+        >
+          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
             <div className="animate-in fade-in duration-300">
               <div className="text-[var(--color-text-muted)] text-sm py-4">No images available for this thread.</div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {thread && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/90 to-transparent pt-8 pb-6 z-10 w-full pointer-events-none">
+      {thread && activeTab === 'answer' && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-16 pb-6 z-10 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput
               ref={askInputRef}
               threadId={threadId}
               autoFocus={false}
-              onSubmitStart={(q) => setPendingQuestion(q)}
+              onSubmitStart={(q) => {
+                setSelectedSourceTurn(null);
+                setPendingQuestion(q);
+              }}
               onSettled={() => setPendingQuestion(null)}
             />
           </div>

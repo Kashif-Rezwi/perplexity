@@ -66,6 +66,7 @@ export function Sidebar() {
             <Link
               href="/"
               aria-label="Perplexity home"
+              scroll={false}
               className="flex items-center justify-center text-white hover:opacity-80 transition-opacity duration-150 shrink-0"
             >
               <PerplexityLogo size={24} />
@@ -97,6 +98,7 @@ export function Sidebar() {
             href="/"
             aria-label="New thread"
             title={!isOpen ? 'New thread' : undefined}
+            scroll={false}
             className={[
               'flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]',
               isOpen ? 'gap-3 px-3 py-2.5 w-full' : 'justify-center w-10 h-10 mx-auto',
