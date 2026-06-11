@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { postAsk } from '@/lib/api/ask.api';
+import { getSources } from '@/lib/api/sources.api';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
 import { useHistoryStore } from '@/store/historyStore';
@@ -53,6 +54,11 @@ export function useAskSubmit({
           },
         );
 
+        void queryClient.prefetchQuery({
+          queryKey: ['sources', data.thread.threadId, data.turn.turnId],
+          queryFn: () => getSources({ turnId: data.turn.turnId }),
+        });
+
         router.push(`/thread/${data.thread.threadId}`);
         return;
       }
@@ -83,6 +89,11 @@ export function useAskSubmit({
           };
         },
       );
+
+      void queryClient.prefetchQuery({
+        queryKey: ['sources', activeThreadId, data.turn.turnId],
+        queryFn: () => getSources({ turnId: data.turn.turnId }),
+      });
 
       void queryClient.invalidateQueries({ queryKey: ['thread', activeThreadId] });
     },

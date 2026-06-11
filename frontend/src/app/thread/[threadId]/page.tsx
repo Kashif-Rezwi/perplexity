@@ -36,7 +36,7 @@ export default async function Page({ params }: Props) {
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="w-full h-full flex flex-col overflow-hidden">
-        <ThreadPage threadId={threadId} />
+        <ThreadPage key={threadId} threadId={threadId} />
       </div>
     </HydrationBoundary>
   );

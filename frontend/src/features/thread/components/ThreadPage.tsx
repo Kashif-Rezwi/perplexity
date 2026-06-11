@@ -52,9 +52,11 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     isFetching: isFetchingSources,
     error: sourcesError,
   } = useQuery({
-    queryKey: ['sources', selectedTurnIdForLinks],
+    queryKey: ['sources', threadId, selectedTurnIdForLinks],
     queryFn: () => getSources({ turnId: selectedTurnIdForLinks }),
-    enabled: activeTab === 'links' && Boolean(selectedTurnIdForLinks),
+    enabled: Boolean(selectedTurnIdForLinks) &&
+      selectedTurnForLinks?.status === 'completed' &&
+      (!selectedTurnForLinks?.sources || selectedTurnForLinks.sources.length === 0),
     retry: 1,
   });
   const linksSources = selectedSources?.items ?? selectedTurnForLinks?.sources ?? [];
