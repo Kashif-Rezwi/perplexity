@@ -46,17 +46,32 @@ export type AskResponse = {
   turn: AskTurnSummary;
 };
 
-export type SourceItem = {
+export type SourcePreviewItem = {
   sourceId: string;
   citationNumber: number;
   title: string;
   url: string;
   domain: string;
   snippet: string;
-  provider: string;
-  providerScore: number | null;
   publishedAt: string | null;
   createdAt: string;
+};
+
+export type SourceItem = SourcePreviewItem & {
+  provider: string;
+  providerScore: number | null;
+};
+
+export type SourceListItem = SourcePreviewItem & {
+  turnId: string;
+  threadId: string;
+  threadTitle: string;
+  question: string;
+};
+
+export type SourcesResponse = {
+  items: SourceListItem[];
+  nextCursor: string | null;
 };
 
 export type CitationItem = {
@@ -74,7 +89,10 @@ export type TurnItem = {
   suggestedFollowUpQuestions: string[];
   status: ApiTurnStatus;
   errorMessage: string | null;
+  sourceCount: number;
+  citationCount: number;
   sources: SourceItem[];
+  citationSources?: SourcePreviewItem[];
   citations: CitationItem[];
   createdAt: string;
   completedAt: string | null;

@@ -1,18 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
-import type { SourceItem } from '@/types/api.types';
+import type { SourcePreviewItem } from '@/types/api.types';
 import { Favicon } from '@/components/ui/Favicon';
 import { extractDomain } from '@/lib/utils/url';
 
 interface LinksPanelProps {
-  sources: SourceItem[];
+  sources: SourcePreviewItem[];
   searchQuery?: string;
+  isLoading?: boolean;
+  errorMessage?: string | null;
   highlightedNumber?: number | null;
   onClearHighlight?: () => void;
 }
 
-export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHighlight }: LinksPanelProps) {
+export function LinksPanel({
+  sources,
+  searchQuery,
+  isLoading = false,
+  errorMessage,
+  highlightedNumber,
+  onClearHighlight,
+}: LinksPanelProps) {
   useEffect(() => {
     if (highlightedNumber !== null && highlightedNumber !== undefined) {
       const element = document.getElementById(`source-link-${highlightedNumber}`);
@@ -35,7 +44,23 @@ export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHig
     }
   }, [highlightedNumber, onClearHighlight]);
 
-  if (!sources || sources.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="text-[var(--color-text-muted)] text-sm py-4">
+        Loading links...
+      </div>
+    );
+  }
+
+  if (errorMessage && sources.length === 0) {
+    return (
+      <div className="text-[var(--color-error)] text-sm py-4">
+        {errorMessage}
+      </div>
+    );
+  }
+
+  if (sources.length === 0) {
     return (
       <div className="text-[var(--color-text-muted)] text-sm py-4">
         No links available for this answer.
@@ -52,7 +77,7 @@ export function LinksPanel({ sources, searchQuery, highlightedNumber, onClearHig
       )}
 
       <div className="flex flex-col">
-        {sources.map((source: SourceItem, index: number) => {
+        {sources.map((source: SourcePreviewItem, index: number) => {
           const domainName = source.domain || extractDomain(source.url, 'website');
           const isHighlighted = source.citationNumber === highlightedNumber;
 

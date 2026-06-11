@@ -79,7 +79,7 @@ export function ThreadHistory({ isOpen }: Props) {
                   type="button"
                   onClick={handleDelete}
                   aria-label={`Delete thread: ${thread.title}`}
-                  className="absolute right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 text-[var(--color-text-muted)] hover:text-red-400 p-0.5 rounded transition-all duration-150 shrink-0 cursor-pointer"
+                  className="absolute right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 focus-within:opacity-100 text-[var(--color-text-muted)] hover:text-[var(--color-error)] p-0.5 rounded transition-all duration-150 shrink-0 cursor-pointer"
                 >
                   <Trash2 size={13} className="stroke-[1.5]" />
                 </button>

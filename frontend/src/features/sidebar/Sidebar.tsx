@@ -38,9 +38,8 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Backdrop on Mobile when drawer is open */}
       {isOpen && mounted && (
-        <div 
+        <div
           onClick={() => setOpen(false)}
           className="md:hidden fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150 cursor-pointer"
         />
@@ -60,7 +59,6 @@ export function Sidebar() {
           isOpen && mounted ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',
         ].join(' ')}
       >
-        {/* ── Header ── */}
         <div className={['flex items-center shrink-0 h-14', isOpen ? 'px-3 justify-between' : 'justify-center'].join(' ')}>
           {isOpen ? (
             <Link
@@ -92,7 +90,6 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* ── New Chat Button ── */}
         <div className={['px-2 py-2 shrink-0', !isOpen && 'flex justify-center'].join(' ')}>
           <Link
             href="/"
@@ -110,7 +107,6 @@ export function Sidebar() {
           </Link>
         </div>
 
-        {/* ── Nav items ── */}
         <nav
           aria-label="Main navigation"
           className={['flex flex-col gap-0.5 shrink-0', isOpen ? 'px-2 pt-1' : 'px-2 pt-2'].join(' ')}
@@ -127,20 +123,23 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* ── Thread history ── */}
         <ThreadHistory isOpen={isOpen} />
 
-        {/* ── Footer / User profile dummy ── */}
         <div className={['shrink-0 p-2 mt-auto', !isOpen && 'flex justify-center'].join(' ')}>
-          <button 
+          <button
+            type="button"
             aria-label="Sign in to your account"
-            className={['flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear w-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]', isOpen ? 'gap-3 px-3 py-2.5' : 'justify-center w-10 h-10 cursor-pointer'].join(' ')}
+            className={[
+              'flex items-center rounded-[8px] overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear',
+              'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
+              isOpen ? 'gap-3 px-3 py-2.5 w-full' : 'justify-center w-10 h-10 cursor-pointer',
+            ].join(' ')}
           >
             <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-surface-active)] shrink-0">
               <User size={14} strokeWidth={2} />
             </div>
             {isOpen && (
-              <span className="text-[13px] font-normal leading-none truncate text-[var(--color-text-muted)]">
+              <span className="text-[13px] font-normal leading-none truncate">
                 Sign in
               </span>
             )}

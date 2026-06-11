@@ -14,7 +14,7 @@ This document captures the finalized technology stack for the Perplexity V1 fron
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript |
 | Runtime | Node.js |
 
@@ -43,6 +43,8 @@ This document captures the finalized technology stack for the Perplexity V1 fron
 | HTTP client | Native `fetch` wrapped in typed service functions |
 | Dev proxy (avoids CORS) | Next.js `rewrites` in `next.config.ts` |
 | Type safety | TypeScript types mirroring backend response shapes |
+| Ask response contract | Lightweight thread/turn response with citation previews only |
+| Source loading contract | Full turn sources loaded via `GET /perplexity/sources?turnId=...` |
 
 ## Markdown & Citations
 

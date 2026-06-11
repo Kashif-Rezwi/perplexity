@@ -1,14 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, ChevronDown, ArrowUp, Loader2 } from 'lucide-react';
-import { postAsk } from '@/lib/api/ask.api';
-import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
-import { useHistoryStore } from '@/store/historyStore';
-import { ApiError, NetworkError } from '@/lib/api/client';
-import type { ThreadDetailResponse } from '@/types/api.types';
+import { ArrowUp, ChevronDown, Loader2, Plus, Search, Sparkles } from 'lucide-react';
+import { useAskSubmit } from '../hooks/useAskSubmit';
 
 export interface AskInputRef {
   setQuestion: (q: string) => void;
@@ -24,113 +18,22 @@ interface AskInputProps {
   onSettled?: () => void;
 }
 
-type AskMutationInput = {
-  question: string;
-  threadId?: string;
-};
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof NetworkError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Failed to connect to the server.';
-}
-
 export const AskInput = forwardRef<AskInputRef, AskInputProps>(
   function AskInput({ threadId, autoFocus = true, onSubmitStart, onSettled }, ref) {
     const [question, setQuestion] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const router = useRouter();
-    const addThread = useHistoryStore((state) => state.addThread);
-
-    const queryClient = useQueryClient();
-
-    const { mutate: askQuestion, isPending, error, reset } = useMutation({
-      mutationFn: ({ question, threadId: overrideThreadId }: AskMutationInput) =>
-        postAsk(question, overrideThreadId ?? threadId),
-      onSuccess: (data, variables) => {
-        setQuestion('');
-
-        const activeThreadId = variables.threadId ?? threadId;
-
-        if (!activeThreadId) {
-          addThread({
-            id: data.thread.threadId,
-            title: data.thread.title,
-          });
-
-          // Optimistically seed the thread detail cache to make navigation instant
-          queryClient.setQueryData<ThreadDetailResponse>(
-            ['thread', data.thread.threadId],
-            {
-              ...data.thread,
-              turns: [mapAskTurnToTurnItem(data.turn)],
-            }
-          );
-
-          router.push(`/thread/${data.thread.threadId}`);
-          return;
-        }
-
-        queryClient.setQueryData<ThreadDetailResponse>(
-          ['thread', activeThreadId],
-          (existing) => {
-            if (!existing) return existing;
-
-            const newTurn = mapAskTurnToTurnItem(data.turn);
-            const turnAlreadyPresent = existing.turns.some(
-              (turn) => turn.turnId === newTurn.turnId,
-            );
-
-            return {
-              ...existing,
-              title: data.thread.title,
-              status: data.thread.status,
-              answerPreview: data.thread.answerPreview,
-              totalSourceCount: data.thread.totalSourceCount,
-              turnCount: data.thread.turnCount,
-              updatedAt: data.thread.updatedAt,
-              turns: turnAlreadyPresent
-                ? existing.turns.map((turn) =>
-                    turn.turnId === newTurn.turnId ? newTurn : turn,
-                  )
-                : [...existing.turns, newTurn],
-            };
-          },
-        );
-
-        // Background refetch ensures full source metadata is synced from GET /threads.
-        void queryClient.invalidateQueries({ queryKey: ['thread', activeThreadId] });
-      },
-      onError: async (_error, variables) => {
-        const activeThreadId = variables.threadId ?? threadId;
-        if (!activeThreadId) return;
-
-        // The proxy may fail after the backend already persisted the turn — resync.
-        await queryClient.refetchQueries({ queryKey: ['thread', activeThreadId] });
-        const updated = queryClient.getQueryData<ThreadDetailResponse>([
-          'thread',
-          activeThreadId,
-        ]);
-
-        const questionWasPersisted = updated?.turns.some(
-          (turn) => turn.question === variables.question && turn.status !== 'pending',
-        );
-
-        if (questionWasPersisted) {
-          reset();
-        }
-      },
+    const { submitAsk, isPending, errorMessage } = useAskSubmit({
+      threadId,
+      onSubmitStart,
       onSettled: () => {
         onSettled?.();
       },
     });
 
     const submit = (trimmed: string, overrideThreadId?: string) => {
-      if (!trimmed || isPending) return;
-      reset();
-      onSubmitStart?.(trimmed);
-      askQuestion({ question: trimmed, threadId: overrideThreadId ?? threadId });
+      if (submitAsk(trimmed, overrideThreadId)) {
+        setQuestion('');
+      }
     };
 
     useImperativeHandle(ref, () => ({
@@ -200,32 +103,36 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             </span>
           </div>
 
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3 px-3 pb-3">
+            <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                title="Attach files (Coming soon)"
-                className="p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded-full transition-colors cursor-not-allowed"
+                aria-label="Upload files"
+                title="Upload files"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
               >
                 <Plus size={18} strokeWidth={1.5} />
               </button>
+
               <button
                 type="button"
-                title="Focus search scope (Coming soon)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-bg)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] text-[13px] font-medium border border-[var(--color-border-subtle)] transition-colors cursor-not-allowed"
+                aria-label="Search mode"
+                className="flex min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
               >
                 <Search size={14} strokeWidth={1.5} />
-                <span>Search</span>
-                <ChevronDown size={14} className="text-[var(--color-text-muted)] ml-0.5" strokeWidth={1.5} />
+                <span className="hidden sm:inline">Search</span>
+                <ChevronDown size={14} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
               </button>
+
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                title="Change model (Coming soon)"
-                className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-not-allowed"
+                aria-label="Model selector"
+                className="hidden items-center gap-1.5 rounded-full border border-transparent px-2 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex"
               >
+                <Sparkles size={14} strokeWidth={1.5} />
                 <span>Model</span>
                 <ChevronDown size={14} strokeWidth={1.5} />
               </button>
@@ -252,9 +159,9 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
           </div>
         </form>
 
-        {error && (
-          <div className="mt-4 px-4 py-2 w-full text-sm text-red-400 bg-red-400/10 rounded-lg border border-red-400/20 text-center">
-            {getErrorMessage(error)}
+        {errorMessage && (
+          <div className="mt-4 px-4 py-2 w-full text-sm text-[var(--color-error)] bg-[var(--color-error-bg)] rounded-lg border border-[var(--color-error-border)] text-center">
+            {errorMessage}
           </div>
         )}
       </div>

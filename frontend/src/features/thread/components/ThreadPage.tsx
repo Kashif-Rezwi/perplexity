@@ -1,71 +1,34 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getThread } from '@/lib/api/threads.api';
-import { Globe, Image as ImageIcon, Lock, Compass, WifiOff } from 'lucide-react';
+import { getSources } from '@/lib/api/sources.api';
+import { Globe, Image as ImageIcon, Compass, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { ThreadTurn } from './ThreadTurn';
 import { LinksPanel } from './LinksPanel';
 import { AskInput, AskInputRef } from '@/features/home/components/AskInput';
-import { useHistoryStore } from '@/store/historyStore';
 import { ApiError } from '@/lib/api/client';
+import { useThreadAutoScroll } from '../hooks/useThreadAutoScroll';
+import { useThreadHistoryRegistration } from '../hooks/useThreadHistoryRegistration';
+import { useThreadSourceSelection } from '../hooks/useThreadSourceSelection';
+import { ThreadLoadingState, ThreadStatusState } from './ThreadStates';
+import { ThreadTabButton } from './ThreadTabButton';
 
 interface ThreadPageProps {
   threadId: string;
-}
-
-interface ThreadStatusStateProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  actionButton: React.ReactNode;
-}
-
-type SourceTurnSelection = {
-  threadId: string;
-  turnId: string;
-};
-
-function ThreadStatusState({ icon, title, description, actionButton }: ThreadStatusStateProps) {
-  return (
-    <div className="w-full flex-1 flex flex-col items-center justify-center py-24 gap-6 px-4 font-sans select-none animate-in fade-in duration-300">
-      <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-text-muted)] mb-2 shadow-sm">
-        {icon}
-      </div>
-      <div className="text-center max-w-sm font-sans">
-        <h2 className="text-[20px] font-semibold text-[var(--color-text)] mb-2 tracking-tight">
-          {title}
-        </h2>
-        <p className="text-[var(--color-text-muted)] text-[13.5px] leading-relaxed">
-          {description}
-        </p>
-      </div>
-      {actionButton}
-    </div>
-  );
 }
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
   const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
   const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  const [selectedSourceTurn, setSelectedSourceTurn] = useState<SourceTurnSelection | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
   const lastTurnRef = useRef<HTMLDivElement>(null);
   const pendingTurnRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const lastScrolledRef = useRef<{
-    threadId: string | null;
-    turnsCount: number;
-    latestTurnId: string | null;
-  }>({
-    threadId: null,
-    turnsCount: 0,
-    latestTurnId: null,
-  });
-  const addThread = useHistoryStore((state) => state.addThread);
   const queryClient = useQueryClient();
 
   const { data: thread, isPending, error } = useQuery({
@@ -78,106 +41,38 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   const latestTurnId = turnsCount > 0
     ? thread?.turns[turnsCount - 1]?.turnId ?? null
     : null;
+  const {
+    selectedTurn: selectedTurnForLinks,
+    selectSourceTurn,
+    clearSourceTurnSelection,
+  } = useThreadSourceSelection(threadId, thread?.turns ?? []);
+  const selectedTurnIdForLinks = selectedTurnForLinks?.turnId;
+  const {
+    data: selectedSources,
+    isFetching: isFetchingSources,
+    error: sourcesError,
+  } = useQuery({
+    queryKey: ['sources', selectedTurnIdForLinks],
+    queryFn: () => getSources({ turnId: selectedTurnIdForLinks }),
+    enabled: activeTab === 'links' && Boolean(selectedTurnIdForLinks),
+    retry: 1,
+  });
+  const linksSources = selectedSources?.items ?? selectedTurnForLinks?.sources ?? [];
 
-  useEffect(() => {
-    if (thread) {
-      addThread({
-        id: thread.threadId,
-        title: thread.title,
-      });
-    }
-  }, [thread, addThread]);
-
-  // Auto-scroll to the latest turn on navigation or new turn completion
-  useEffect(() => {
-    if (!thread || !latestTurnId || activeTab !== 'answer') return;
-
-    // Check if we have already scrolled to this state
-    const alreadyScrolled =
-      lastScrolledRef.current.threadId === threadId &&
-      lastScrolledRef.current.turnsCount === turnsCount &&
-      lastScrolledRef.current.latestTurnId === latestTurnId;
-
-    if (alreadyScrolled) {
-      return;
-    }
-
-    const isInitialLoad = lastScrolledRef.current.threadId !== threadId;
-    const delay = isInitialLoad ? 200 : 100;
-
-    const timer = setTimeout(() => {
-      if (scrollContainerRef.current && lastTurnRef.current) {
-        const container = scrollContainerRef.current;
-        const target = lastTurnRef.current;
-        const targetTop = Math.max(0, target.offsetTop - 32); // leave 32px space (equivalent to scroll-mt-8)
-        container.scrollTo({
-          top: targetTop,
-          behavior: 'smooth',
-        });
-
-        // Mark as completed
-        lastScrolledRef.current = { threadId, turnsCount, latestTurnId };
-      }
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [thread, threadId, activeTab, turnsCount, latestTurnId]);
-
-  // Auto-scroll when pending question is asked
-  useEffect(() => {
-    if (pendingQuestion && activeTab === 'answer') {
-      const timer = setTimeout(() => {
-        if (scrollContainerRef.current && pendingTurnRef.current) {
-          const container = scrollContainerRef.current;
-          const target = pendingTurnRef.current;
-          const targetTop = Math.max(0, target.offsetTop - 32);
-          container.scrollTo({
-            top: targetTop,
-            behavior: 'smooth',
-          });
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [pendingQuestion, activeTab]);
+  useThreadHistoryRegistration(thread);
+  useThreadAutoScroll({
+    threadId,
+    activeTab,
+    turnsCount,
+    latestTurnId,
+    pendingQuestion,
+    scrollContainerRef,
+    lastTurnRef,
+    pendingTurnRef,
+  });
 
   if (isPending) {
-    return (
-      <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)] font-sans">
-        {/* Fake Header */}
-        <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border)] w-full">
-          <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
-              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
-              <div className="w-16 h-4 bg-[var(--color-surface)] rounded animate-pulse" />
-            </div>
-          </div>
-        </div>
-
-        {/* Content Skeleton */}
-        <div className="flex-1 overflow-y-auto w-full">
-          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-8 pb-20">
-            {/* Title Skeleton */}
-            <div className="w-3/4 h-8 bg-[var(--color-surface)] rounded-md animate-pulse mb-8" />
-
-            {/* In-flight Turn Skeleton */}
-            <div className="flex flex-col gap-6">
-              {/* Question line */}
-              <div className="w-1/3 h-5 bg-[var(--color-surface)] rounded-md animate-pulse mb-4" />
-
-              {/* Text lines */}
-              <div className="flex flex-col gap-3">
-                <div className="w-full h-3 bg-[var(--color-surface)] rounded animate-pulse" />
-                <div className="w-11/12 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
-                <div className="w-5/6 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
-                <div className="w-2/3 h-3 bg-[var(--color-surface)] rounded animate-pulse" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <ThreadLoadingState />;
   }
 
   if (error || !thread) {
@@ -226,52 +121,29 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     );
   }
 
-  const selectedTurnForLinks =
-    selectedSourceTurn?.threadId === threadId
-      ? thread.turns.find((turn) => turn.turnId === selectedSourceTurn.turnId) ||
-        thread.turns[thread.turns.length - 1]
-      : thread.turns[thread.turns.length - 1];
-
-  const renderTabButton = (
-    tabId: 'answer' | 'links' | 'images',
-    label: string,
-    icon: React.ReactNode
-  ) => {
-    const isActive = activeTab === tabId;
-    return (
-      <button
-        onClick={() => setActiveTab(tabId)}
-        className={[
-          'flex items-center gap-2 pb-2 px-1 text-[15px] font-medium transition-colors relative cursor-pointer',
-          isActive
-            ? 'text-[var(--color-text)] font-semibold'
-            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-        ].join(' ')}
-      >
-        {icon}
-        {label}
-        {isActive && (
-          <div className="absolute bottom-[-9px] left-0 right-0 h-[2px] bg-[var(--color-accent)] rounded-t-full" />
-        )}
-      </button>
-    );
-  };
-
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
       <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border)] w-full">
-        <div className="flex items-center justify-between px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto font-sans">
+        <div className="flex items-center px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto font-sans">
           <div className="flex items-center gap-6">
-            {renderTabButton('answer', 'Answer', <PerplexityLogo size={16} className={activeTab === 'answer' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'} />)}
-            {renderTabButton('links', 'Links', <Globe size={16} />)}
-            {renderTabButton('images', 'Images', <ImageIcon size={16} />)}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text)] bg-transparent border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] rounded-md transition-colors cursor-pointer">
-              <Lock size={13} />
-              Share
-            </button>
+            <ThreadTabButton
+              label="Answer"
+              icon={<PerplexityLogo size={16} className={activeTab === 'answer' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'} />}
+              isActive={activeTab === 'answer'}
+              onClick={() => setActiveTab('answer')}
+            />
+            <ThreadTabButton
+              label="Links"
+              icon={<Globe size={16} />}
+              isActive={activeTab === 'links'}
+              onClick={() => setActiveTab('links')}
+            />
+            <ThreadTabButton
+              label="Images"
+              icon={<ImageIcon size={16} />}
+              isActive={activeTab === 'images'}
+              onClick={() => setActiveTab('images')}
+            />
           </div>
         </div>
       </div>
@@ -303,12 +175,12 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                       turn={turn}
                       isLast={isLastTurn && !pendingQuestion}
                       onViewSources={() => {
-                        setSelectedSourceTurn({ threadId, turnId: turn.turnId });
+                        selectSourceTurn(turn.turnId);
                         setActiveTab('links');
                       }}
                       onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
                       onCitationClick={(num) => {
-                        setSelectedSourceTurn({ threadId, turnId: turn.turnId });
+                        selectSourceTurn(turn.turnId);
                         setActiveTab('links');
                         setHighlightedSourceNum(num);
                       }}
@@ -330,6 +202,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                       suggestedFollowUpQuestions: [],
                       status: 'pending',
                       errorMessage: null,
+                      sourceCount: 0,
+                      citationCount: 0,
                       sources: [],
                       citations: [],
                       createdAt: new Date().toISOString(),
@@ -353,8 +227,10 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
             <div className="animate-in fade-in duration-300">
               <LinksPanel
-                sources={selectedTurnForLinks?.sources || []}
+                sources={linksSources}
                 searchQuery={selectedTurnForLinks?.searchQuery}
+                isLoading={isFetchingSources && linksSources.length === 0}
+                errorMessage={sourcesError ? 'Unable to load links for this answer.' : null}
                 highlightedNumber={highlightedSourceNum}
                 onClearHighlight={() => setHighlightedSourceNum(null)}
               />
@@ -378,14 +254,14 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
       </div>
 
       {thread && activeTab === 'answer' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-16 pb-6 z-10 w-full pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-16 pb-6 z-40 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput
               ref={askInputRef}
               threadId={threadId}
               autoFocus={false}
               onSubmitStart={(q) => {
-                setSelectedSourceTurn(null);
+                clearSourceTurnSelection();
                 setPendingQuestion(q);
               }}
               onSettled={() => setPendingQuestion(null)}

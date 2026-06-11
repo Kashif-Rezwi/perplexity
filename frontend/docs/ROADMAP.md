@@ -6,13 +6,14 @@ Perplexity-inspired AI answer engine frontend, built incrementally on top of the
 
 ## Backend at a glance
 
-Three endpoints drive the entire frontend:
+Four endpoint paths drive the V1 frontend:
 
-- `POST /perplexity/ask` — submit a question (new thread or follow-up), get back a full answer with citations and source metadata
+- `POST /perplexity/ask` — submit a question (new thread or follow-up), get back a lightweight thread/turn response with the answer and cited-source previews
 - `GET /perplexity/threads/:threadId` — reload a full thread with all its turns, sources, and citations
-- `GET /perplexity/sources` — list recent sources, optionally filtered to a single turn
+- `GET /perplexity/sources?turnId=...` — load the full source list for the selected turn in the Links tab
+- `GET /health` — backend health check
 
-No authentication in V1. Responses are synchronous (non-streaming). Answers are GitHub Flavored Markdown with `[1]`, `[2]` citation markers embedded in the text.
+No authentication in V1. Responses are synchronous (non-streaming). Answers are GitHub Flavored Markdown with `[1]`, `[2]` citation markers embedded in the text. Citation hover data comes from the lightweight ask/thread turn payload; the full Links tab source list comes from `/sources?turnId=...`.
 
 ---
 

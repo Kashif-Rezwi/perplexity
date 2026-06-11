@@ -5,75 +5,15 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import 'highlight.js/styles/github-dark.css';
 import { Copy } from 'lucide-react';
-import type { SourceItem } from '@/types/api.types';
+import type { SourcePreviewItem } from '@/types/api.types';
 import { CitationBadge } from './CitationBadge';
-import React from 'react';
+import { remarkCitations } from '../markdown/remarkCitations';
+import { copyTextToClipboard } from '@/lib/utils/clipboard';
 
 interface AnswerMarkdownProps {
   markdown: string;
-  sources?: SourceItem[];
-  turnId?: string;
+  sources?: SourcePreviewItem[];
   onCitationClick?: (num: number) => void;
-}
-
-interface AstNode {
-  type: string;
-  value?: string;
-  url?: string;
-  children?: AstNode[];
-}
-
-/**
- * Custom Remark AST-level plugin to parse citation patterns [n] in text nodes
- * and convert them into mdast link nodes with target URL "citation:n".
- */
-function remarkCitations() {
-  return (tree: AstNode) => {
-    const walk = (node: AstNode) => {
-      if (!node) return;
-      if (node.type === 'code' || node.type === 'inlineCode') {
-        return;
-      }
-      if (node.children) {
-        const newChildren: AstNode[] = [];
-        for (const child of node.children) {
-          if (child.type === 'text' && child.value) {
-            const regex = /\[(\d+)\]/g;
-            const text = child.value;
-            let lastIndex = 0;
-            let match;
-            const parts: AstNode[] = [];
-            while ((match = regex.exec(text)) !== null) {
-              const matchIndex = match.index;
-              const citationNumber = match[1];
-              if (matchIndex > lastIndex) {
-                parts.push({ type: 'text', value: text.substring(lastIndex, matchIndex) });
-              }
-              parts.push({
-                type: 'link',
-                url: `citation:${citationNumber}`,
-                children: [{ type: 'text', value: citationNumber }]
-              });
-              lastIndex = regex.lastIndex;
-            }
-            if (lastIndex < text.length) {
-              parts.push({ type: 'text', value: text.substring(lastIndex) });
-            }
-            if (parts.length > 0) {
-              newChildren.push(...parts);
-            } else {
-              newChildren.push(child);
-            }
-          } else {
-            walk(child);
-            newChildren.push(child);
-          }
-        }
-        node.children = newChildren;
-      }
-    };
-    walk(tree);
-  };
 }
 
 /**
@@ -86,7 +26,7 @@ function omitNode<T extends { node?: unknown }>(props: T): Omit<T, 'node'> {
   return copy;
 }
 
-export function AnswerMarkdown({ markdown, sources = [], turnId, onCitationClick }: AnswerMarkdownProps) {
+export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: AnswerMarkdownProps) {
   const components: Components = {
     p: (props) => (
       <p className="mb-4 last:mb-0 leading-[1.75]" {...omitNode(props)} />
@@ -102,7 +42,6 @@ export function AnswerMarkdown({ markdown, sources = [], turnId, onCitationClick
             number={citationNumber}
             source={source}
             allSources={sources}
-            turnId={turnId}
             onCitationClick={onCitationClick}
           />
         );
@@ -145,14 +84,14 @@ export function AnswerMarkdown({ markdown, sources = [], turnId, onCitationClick
     th: (props) => (
       <th className="border border-[var(--color-border)] px-4 py-2 font-semibold bg-[var(--color-surface)]" {...omitNode(props)} />
     ),
-    
+
     // Code block and inline code
     code: (props) => {
       const { className, children } = props;
       const classNameStr = className || '';
       const match = /language-(\w+)/.exec(classNameStr);
       const isInline = !match && !classNameStr.includes('hljs');
-      
+
       if (isInline) {
         return (
           <code className="bg-[var(--color-surface-hover)] text-[var(--color-text)] px-1.5 py-0.5 rounded-[4px] text-[13px] font-mono" {...omitNode(props)}>
@@ -172,9 +111,7 @@ export function AnswerMarkdown({ markdown, sources = [], turnId, onCitationClick
               {language}
             </span>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(codeString);
-              }}
+              onClick={() => void copyTextToClipboard(codeString)}
               className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer"
               title="Copy code"
             >

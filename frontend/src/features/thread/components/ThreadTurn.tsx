@@ -2,12 +2,11 @@ import type { TurnItem } from '@/types/api.types';
 import { QuestionBlock } from './QuestionBlock';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { FollowUpSuggestions } from './FollowUpSuggestions';
-import {
-  Loader2, Forward, Download, Copy, RotateCw,
-  ThumbsUp, ThumbsDown, Check, AlertCircle,
-} from 'lucide-react';
+import { Loader2, Copy, RotateCw, Check, AlertCircle, Share2 } from 'lucide-react';
 import { Favicon } from '@/components/ui/Favicon';
+import { IconButton } from '@/components/ui/IconButton';
 import { extractDomain } from '@/lib/utils/url';
+import { copyTextToClipboard } from '@/lib/utils/clipboard';
 import { useState } from 'react';
 
 interface ThreadTurnProps {
@@ -28,18 +27,20 @@ export function ThreadTurn({
   onRetry,
 }: ThreadTurnProps) {
   const [isCopied, setIsCopied] = useState(false);
-  const [vote, setVote] = useState<'up' | 'down' | null>(null);
+  const sourceCount = turn.sourceCount ?? turn.sources.length;
+  const sourcePreviewItems = turn.sources.length > 0
+    ? turn.sources
+    : turn.citationSources ?? [];
 
-  const handleCopy = () => {
-    if (turn.answerMarkdown) {
-      navigator.clipboard.writeText(turn.answerMarkdown);
+  const handleCopy = async () => {
+    if (!turn.answerMarkdown) {
+      return;
+    }
+
+    if (await copyTextToClipboard(turn.answerMarkdown)) {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
-  };
-
-  const handleVote = (direction: 'up' | 'down') => {
-    setVote((prev) => (prev === direction ? null : direction));
   };
 
   return (
@@ -62,12 +63,12 @@ export function ThreadTurn({
                 <span className="text-[14.5px] font-semibold tracking-tight">
                   Answer generation failed
                 </span>
-                <span className="text-[13px] text-neutral-400 leading-relaxed font-sans">
+                <span className="text-[13px] text-[var(--color-text-muted)] leading-relaxed font-sans">
                   {turn.errorMessage || "An error occurred while communicating with the AI model. Please check your network or try again."}
                 </span>
               </div>
             </div>
-            
+
             {onRetry && (
               <div className="flex items-center pl-7.5">
                 <button
@@ -84,110 +85,58 @@ export function ThreadTurn({
 
 
         {turn.status === 'completed' && turn.answerMarkdown ? (
-          <AnswerMarkdown 
-            markdown={turn.answerMarkdown} 
-            sources={turn.sources} 
-            turnId={turn.turnId} 
+          <AnswerMarkdown
+            markdown={turn.answerMarkdown}
+            sources={turn.citationSources ?? turn.sources}
             onCitationClick={onCitationClick}
           />
         ) : null}
 
-        {/* Turn Action Bar */}
         {turn.status === 'completed' ? (
-          <div className="flex items-center justify-between border-t border-[var(--color-border-subtle)] pt-4 mt-2">
-            {/* Left Actions */}
-            <div className="flex items-center gap-4 text-[var(--color-text-muted)]">
-              <button
-                title="Share (Coming soon)"
-                aria-label="Share turn answer (Coming soon)"
-                className="opacity-50 cursor-not-allowed"
+          <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-4 mt-2">
+            <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+              <IconButton
+                label="Share this response"
+                icon={<Share2 size={16} />}
                 disabled
-              >
-                <Forward size={16} />
-              </button>
-              <button
-                title="Save (Coming soon)"
-                aria-label="Save answer to collections (Coming soon)"
-                className="opacity-50 cursor-not-allowed"
-                disabled
-              >
-                <Download size={16} />
-              </button>
-              <button
-                title="Copy"
-                aria-label="Copy answer markdown"
-                onClick={handleCopy}
-                className={[
-                  'transition-colors cursor-pointer',
-                  isCopied
-                    ? 'text-[var(--color-accent)]'
-                    : 'hover:text-[var(--color-text)]',
-                ].join(' ')}
-              >
-                {isCopied ? <Check size={16} /> : <Copy size={16} />}
-              </button>
-              <button
-                title="Regenerate (Coming soon)"
-                aria-label="Regenerate answer (Coming soon)"
-                className="opacity-50 cursor-not-allowed"
-                disabled
-              >
-                <RotateCw size={16} />
-              </button>
+                className="cursor-not-allowed opacity-70"
+              />
 
-              {/* Sources link */}
-              {turn.sources && turn.sources.length > 0 && (
+              <IconButton
+                label="Copy answer markdown"
+                onClick={handleCopy}
+                active={isCopied}
+                icon={isCopied ? <Check size={16} /> : <Copy size={16} />}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+              {sourceCount > 0 && (
                 <button
                   onClick={onViewSources}
                   aria-label="View sources list"
                   className="flex items-center gap-2 group hover:opacity-95 transition-opacity cursor-pointer border border-[var(--color-border)] rounded-full px-2.5 py-1 bg-[var(--color-surface)]"
                 >
-                  <div className="flex -space-x-1.5 overflow-hidden">
-                    {turn.sources.slice(0, 3).map((s, idx) => {
-                      const sDomain = s.domain || extractDomain(s.url, 'website');
-                      return (
-                        <Favicon
-                          key={s.sourceId || idx}
-                          domain={sDomain}
-                          size={14}
-                          className="inline-block ring-1 ring-[var(--color-bg)] bg-white object-contain"
-                        />
-                      );
-                    })}
-                  </div>
+                  {sourcePreviewItems.length > 0 && (
+                    <div className="flex -space-x-1.5 overflow-hidden">
+                      {sourcePreviewItems.slice(0, 3).map((s, idx) => {
+                        const sDomain = s.domain || extractDomain(s.url, 'website');
+                        return (
+                          <Favicon
+                            key={s.sourceId || idx}
+                            domain={sDomain}
+                            size={14}
+                            className="inline-block ring-1 ring-[var(--color-bg)] bg-white object-contain"
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
                   <span className="text-[12px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors leading-none">
-                    {turn.sources.length} sources
+                    {sourceCount} sources
                   </span>
                 </button>
               )}
-            </div>
-
-            {/* Right Actions */}
-            <div className="flex items-center gap-4 text-[var(--color-text-muted)] font-sans">
-              <button 
-                aria-label="Upvote this answer"
-                onClick={() => handleVote('up')}
-                className={[
-                  'transition-colors cursor-pointer',
-                  vote === 'up'
-                    ? 'text-[var(--color-accent)]'
-                    : 'hover:text-[var(--color-text)]',
-                ].join(' ')}
-              >
-                <ThumbsUp size={16} />
-              </button>
-              <button 
-                aria-label="Downvote this answer"
-                onClick={() => handleVote('down')}
-                className={[
-                  'transition-colors cursor-pointer',
-                  vote === 'down'
-                    ? 'text-[var(--color-accent)]'
-                    : 'hover:text-[var(--color-text)]',
-                ].join(' ')}
-              >
-                <ThumbsDown size={16} />
-              </button>
             </div>
           </div>
         ) : null}
