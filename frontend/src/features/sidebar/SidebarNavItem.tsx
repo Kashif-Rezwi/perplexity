@@ -4,37 +4,78 @@ import type { LucideIcon } from 'lucide-react';
 type Props = {
   icon: LucideIcon;
   label: string;
-  href: string;
+  href?: string;
+  ariaLabel?: string;
   isActive?: boolean;
   isOpen: boolean;
+  variant?: 'default' | 'primary';
 };
 
-export function SidebarNavItem({ icon: Icon, label, href, isActive, isOpen }: Props) {
+export function SidebarNavItem({
+  icon: Icon,
+  label,
+  href,
+  ariaLabel,
+  isActive,
+  isOpen,
+  variant = 'default',
+}: Props) {
+  const className = [
+    'flex h-10 w-full items-center rounded-xl no-underline overflow-hidden whitespace-nowrap',
+    'transition-colors duration-100 ease-linear',
+    isOpen
+      ? 'gap-2 px-2'
+      : 'px-2',
+    isActive
+      ? 'bg-[var(--color-surface-active)] text-[var(--color-text)]'
+      : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const content = (
+    <>
+      <span
+        className={[
+          'grid size-6 shrink-0 place-items-center',
+          variant === 'primary'
+            ? 'rounded-full bg-[var(--color-surface-hover)]'
+            : '',
+        ].join(' ')}
+      >
+        <Icon size={18} strokeWidth={1.75} />
+      </span>
+      {isOpen && (
+        <span className="truncate text-sm font-normal leading-none">
+          {label}
+        </span>
+      )}
+    </>
+  );
+
+  if (!href) {
+    return (
+      <button
+        type="button"
+        title={!isOpen ? label : undefined}
+        aria-label={ariaLabel ?? label}
+        className={className}
+      >
+        {content}
+      </button>
+    );
+  }
+
   return (
     <Link
       href={href}
       title={!isOpen ? label : undefined}
       scroll={false}
       aria-current={isActive ? 'page' : undefined}
-      className={[
-        'flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap',
-        'transition-colors duration-100 ease-linear',
-        isOpen
-          ? 'gap-3 px-3 py-2.5'
-          : 'justify-center w-10 h-10 mx-auto',
-        isActive
-          ? 'bg-[var(--color-surface-active)] text-[var(--color-text)]'
-          : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      aria-label={ariaLabel}
+      className={className}
     >
-      <Icon size={18} strokeWidth={1.5} className="shrink-0" />
-      {isOpen && (
-        <span className="text-[13px] font-normal leading-none truncate">
-          {label}
-        </span>
-      )}
+      {content}
     </Link>
   );
 }

@@ -2,17 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PanelLeft, Clock, Plus, User } from 'lucide-react';
+import { PanelLeft, User } from 'lucide-react';
 import { useEffect } from 'react';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { useMounted } from '@/hooks/useMounted';
 import { SidebarNavItem } from './SidebarNavItem';
-import { ThreadHistory } from './ThreadHistory';
-
-const NAV_ITEMS = [
-  { icon: Clock, label: 'History', href: '/' },
-] as const;
+import { SidebarRecentThreads } from './SidebarRecentThreads';
+import { SIDEBAR_NAV_ITEMS } from './sidebarNavItems';
 
 export function Sidebar() {
   const { isOpen, toggle, setOpen } = useSidebarStore();
@@ -52,20 +49,21 @@ export function Sidebar() {
           transition: 'width var(--transition-sidebar), transform var(--transition-sidebar)',
         }}
         className={[
-          'flex flex-col h-screen shrink-0 sticky top-0 overflow-hidden',
-          'bg-[var(--color-sidebar)] border-r border-[var(--color-border-subtle)]',
+          'group/sidebar flex flex-col h-screen shrink-0 sticky top-0 overflow-hidden',
+          'bg-[var(--color-sidebar)]',
+          isOpen ? 'border-r border-[var(--color-border-subtle)]' : '',
           // Mobile responsive fixed drawer overrides
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
           isOpen && mounted ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',
         ].join(' ')}
       >
-        <div className={['flex items-center shrink-0 h-14', isOpen ? 'px-3 justify-between' : 'justify-center'].join(' ')}>
+        <div className="flex h-[74px] shrink-0 items-center px-2">
           {isOpen ? (
             <Link
               href="/"
               aria-label="Perplexity home"
               scroll={false}
-              className="flex items-center justify-center text-white hover:opacity-80 transition-opacity duration-150 shrink-0"
+              className="flex size-10 shrink-0 items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
             >
               <PerplexityLogo size={24} />
             </Link>
@@ -73,9 +71,14 @@ export function Sidebar() {
             <button
               onClick={() => toggle()}
               aria-label="Expand sidebar"
-              className="flex items-center justify-center text-white hover:opacity-80 transition-opacity duration-150 shrink-0 cursor-pointer"
+              className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
             >
-              <PerplexityLogo size={24} />
+              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/sidebar:opacity-0">
+                <PerplexityLogo size={24} />
+              </span>
+              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/sidebar:opacity-100">
+                <PanelLeft size={18} strokeWidth={1.75} />
+              </span>
             </button>
           )}
 
@@ -83,67 +86,55 @@ export function Sidebar() {
             <button
               onClick={() => toggle()}
               aria-label="Collapse sidebar"
-              className="flex items-center justify-center w-8 h-8 rounded-[6px] shrink-0 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] transition-colors duration-100 cursor-pointer"
+              className="ml-auto flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
             >
-              <PanelLeft size={18} strokeWidth={1.5} />
+              <PanelLeft size={18} strokeWidth={1.75} />
             </button>
           )}
         </div>
 
-        <div className={['px-2 py-2 shrink-0', !isOpen && 'flex justify-center'].join(' ')}>
-          <Link
-            href="/"
-            aria-label="New thread"
-            title={!isOpen ? 'New thread' : undefined}
-            scroll={false}
-            className={[
-              'flex items-center rounded-[8px] no-underline overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]',
-              isOpen ? 'gap-3 px-3 py-2.5 w-full' : 'justify-center w-10 h-10 mx-auto',
-              'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-            ].join(' ')}
-          >
-            <Plus size={18} strokeWidth={1.5} className="shrink-0 text-[var(--color-text-muted)]" />
-            {isOpen && <span className="text-[13px] font-normal leading-none text-[var(--color-text)]">New</span>}
-          </Link>
-        </div>
-
         <nav
           aria-label="Main navigation"
-          className={['flex flex-col gap-0.5 shrink-0', isOpen ? 'px-2 pt-1' : 'px-2 pt-2'].join(' ')}
+          className="flex shrink-0 flex-col gap-px px-2 pb-1"
         >
-          {NAV_ITEMS.map(({ icon, label, href }) => (
+          {SIDEBAR_NAV_ITEMS.map(({ icon, label, href, ariaLabel, variant }) => (
             <SidebarNavItem
               key={label}
               icon={icon}
               label={label}
               href={href}
+              ariaLabel={ariaLabel}
               isActive={pathname === href}
               isOpen={isOpen}
+              variant={variant}
             />
           ))}
         </nav>
 
-        <ThreadHistory isOpen={isOpen} />
+        <SidebarRecentThreads isOpen={isOpen} />
 
-        <div className={['shrink-0 p-2 mt-auto', !isOpen && 'flex justify-center'].join(' ')}>
-          <button
-            type="button"
-            aria-label="Sign in to your account"
-            className={[
-              'flex items-center rounded-[8px] overflow-hidden whitespace-nowrap transition-colors duration-100 ease-linear',
-              'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
-              isOpen ? 'gap-3 px-3 py-2.5 w-full' : 'justify-center w-10 h-10 cursor-pointer',
-            ].join(' ')}
-          >
-            <div className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-surface-active)] shrink-0">
-              <User size={14} strokeWidth={2} />
+        <div className="mt-auto flex shrink-0 flex-col">
+          <div className={isOpen ? 'border-t border-[var(--color-border-subtle)] px-2 py-2' : 'border-t border-transparent py-2 pl-3 pr-2'}>
+            <div className="flex items-center">
+              <button
+                type="button"
+                aria-label="Sign in to your account"
+                className={[
+                  'flex items-center overflow-hidden rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer',
+                  isOpen ? 'min-w-0 flex-1 gap-2 py-1 pl-1.5 pr-2' : 'size-8 justify-center',
+                ].join(' ')}
+              >
+                <span className="relative grid size-7 shrink-0 place-items-center rounded-full bg-[var(--color-surface-active)]">
+                  <User size={15} strokeWidth={2} />
+                </span>
+                {isOpen && (
+                  <span className="truncate text-sm font-normal leading-5">
+                    Sign in
+                  </span>
+                )}
+              </button>
             </div>
-            {isOpen && (
-              <span className="text-[13px] font-normal leading-none truncate">
-                Sign in
-              </span>
-            )}
-          </button>
+          </div>
         </div>
       </aside>
     </>
