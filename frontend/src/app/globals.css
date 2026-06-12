@@ -11,21 +11,21 @@
 /* ─── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --color-bg:             #111111;
-  --color-sidebar:        #171717;
-  --color-surface:        #1f1f1f;
-  --color-surface-hover:  #272727;
-  --color-surface-active: #232323;
+  --color-bg:             #121212;
+  --color-sidebar:        #181818;
+  --color-surface:        #1d1d1d;
+  --color-surface-hover:  #242424;
+  --color-surface-active: #222222;
 
   /* Borders */
-  --color-border:        #2a2a2a;
-  --color-border-subtle: #1e1e1e;
+  --color-border:        #303030;
+  --color-border-subtle: #262626;
 
   /* Text */
-  --color-text:       #ededed;
-  --color-text-muted: #9a9a9a;
-  --color-text-faint: #555555;
-  --color-text-link:  #20808d;
+  --color-text:       #e7e7e7;
+  --color-text-muted: #a4a4a4;
+  --color-text-faint: #686868;
+  --color-text-link:  #53a8b0;
 
   /* Accent */
   --color-accent:       #20808d;
@@ -98,4 +98,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-faint);
 }
-
