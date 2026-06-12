@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Plus, Search, Sparkles } from 'lucide-react';
+import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 
 export interface AskInputRef {
@@ -66,7 +66,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     }, [question]);
 
     return (
-      <div className="w-full max-w-3xl mx-auto flex flex-col items-center px-4 md:px-6">
+      <div className="w-full max-w-[860px] mx-auto flex flex-col items-center px-4 md:px-6">
         <form
           onSubmit={handleSubmit}
           className={[
@@ -77,7 +77,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             'shadow-sm',
           ].join(' ')}
         >
-          <div className="pt-3 px-4">
+          <div className="pt-3 px-5">
             <textarea
               ref={textareaRef}
               value={question}
@@ -103,7 +103,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-3 px-3 pb-3">
+          <div className="flex items-center justify-between gap-3 px-4 pb-3">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
@@ -111,30 +111,28 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
                 title="Upload files"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
               >
-                <Plus size={18} strokeWidth={1.5} />
+                <Plus size={16} strokeWidth={1.75} />
               </button>
 
               <button
                 type="button"
                 aria-label="Search mode"
-                className="flex min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg)] px-3 py-1.5 text-[13px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                className="flex min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[14px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
               >
-                <Search size={14} strokeWidth={1.5} />
+                <Search size={14} strokeWidth={1.75} />
                 <span className="hidden sm:inline">Search</span>
-                <ChevronDown size={14} strokeWidth={1.5} className="text-[var(--color-text-muted)]" />
+                <ChevronDown size={14} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
               </button>
-
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 aria-label="Model selector"
-                className="hidden items-center gap-1.5 rounded-full border border-transparent px-2 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex"
+                className="hidden h-8 items-center gap-1 rounded-full border border-transparent px-3 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex"
               >
-                <Sparkles size={14} strokeWidth={1.5} />
                 <span>Model</span>
-                <ChevronDown size={14} strokeWidth={1.5} />
+                <ChevronDown size={16} strokeWidth={1.75} />
               </button>
 
               <button

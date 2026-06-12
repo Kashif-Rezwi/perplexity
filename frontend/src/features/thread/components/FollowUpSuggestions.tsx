@@ -9,11 +9,11 @@ export function FollowUpSuggestions({ questions = [], onSelect }: FollowUpSugges
   if (!questions || questions.length === 0) return null;
 
   return (
-    <div className="flex flex-col mt-2 font-sans">
-      <h3 className="text-[15px] font-medium text-[var(--color-text)] mb-1 tracking-wide">
+    <div className="flex flex-col mt-3 font-sans">
+      <h3 className="text-[18px] font-semibold text-[var(--color-text)] mb-3 tracking-[-0.005em]">
         Follow-ups
       </h3>
-      <ul className="flex flex-col">
+      <ul className="flex flex-col border-t border-[var(--color-border-subtle)]">
         {questions.map((question, index) => (
           <li
             key={question}
@@ -26,7 +26,7 @@ export function FollowUpSuggestions({ questions = [], onSelect }: FollowUpSugges
               onClick={() => onSelect(question)}
               className={[
                 'flex w-full items-start gap-2.5 text-left',
-                'py-3.5 text-[14px] leading-snug',
+                'py-3 text-[14px] leading-snug',
                 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
                 'transition-colors cursor-pointer group',
               ].join(' ')}

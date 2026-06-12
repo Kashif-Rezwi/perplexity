@@ -44,7 +44,7 @@ export function ThreadTurn({
   };
 
   return (
-    <div className="flex flex-col gap-6 pb-6">
+    <div className="flex flex-col gap-6 pb-7">
       <QuestionBlock question={turn.question} />
 
       <div className="flex flex-col gap-6">
@@ -93,7 +93,7 @@ export function ThreadTurn({
         ) : null}
 
         {turn.status === 'completed' ? (
-          <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-4 mt-2">
+          <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-4 mt-1">
             <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
               <IconButton
                 label="Share this response"
@@ -115,7 +115,7 @@ export function ThreadTurn({
                 <button
                   onClick={onViewSources}
                   aria-label="View sources list"
-                  className="flex items-center gap-2 group hover:opacity-95 transition-opacity cursor-pointer border border-[var(--color-border)] rounded-full px-2.5 py-1 bg-[var(--color-surface)]"
+                  className="flex items-center gap-2 group hover:opacity-95 transition-opacity cursor-pointer border border-[var(--color-border)] rounded-full px-3 py-1.5 bg-[var(--color-surface)]"
                 >
                   {sourcePreviewItems.length > 0 && (
                     <div className="flex -space-x-1.5 overflow-hidden">
@@ -125,14 +125,14 @@ export function ThreadTurn({
                           <Favicon
                             key={s.sourceId || idx}
                             domain={sDomain}
-                            size={14}
+                            size={13}
                             className="inline-block ring-1 ring-[var(--color-bg)] bg-white object-contain"
                           />
                         );
                       })}
                     </div>
                   )}
-                  <span className="text-[12px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors leading-none">
+                  <span className="text-[14px] font-medium text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors leading-none">
                     {sourceCount} sources
                   </span>
                 </button>

@@ -18,7 +18,7 @@ export function ThreadTabButton({
       type="button"
       onClick={onClick}
       className={[
-        'flex items-center gap-2 pb-2 px-1 text-[15px] font-medium transition-colors relative cursor-pointer',
+        'flex items-center gap-2 pb-4 px-0 text-[15px] font-medium transition-colors relative cursor-pointer',
         isActive
           ? 'text-[var(--color-text)] font-semibold'
           : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
@@ -27,7 +27,7 @@ export function ThreadTabButton({
       {icon}
       {label}
       {isActive && (
-        <div className="absolute bottom-[-9px] left-0 right-0 h-[2px] bg-[var(--color-accent)] rounded-t-full" />
+        <div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-[var(--color-text)] rounded-t-full" />
       )}
     </button>
   );
