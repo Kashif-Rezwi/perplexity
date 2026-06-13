@@ -59,13 +59,13 @@ export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: Answ
       );
     },
     h1: (props) => (
-      <h1 className="text-[21px] font-semibold mt-7 mb-3 text-[var(--color-text)] leading-tight" {...omitNode(props)} />
+      <h1 className="text-[21px] font-medium mt-7 mb-3 text-[var(--color-answer-heading)] leading-tight" {...omitNode(props)} />
     ),
     h2: (props) => (
-      <h2 className="text-[18px] font-semibold mt-6 mb-2 text-[var(--color-text)] leading-snug" {...omitNode(props)} />
+      <h2 className="text-[18px] font-medium mt-6 mb-2 text-[var(--color-answer-heading)] leading-snug" {...omitNode(props)} />
     ),
     h3: (props) => (
-      <h3 className="text-[16px] font-semibold mt-5 mb-2 text-[var(--color-text)] leading-snug" {...omitNode(props)} />
+      <h3 className="text-[16px] font-medium mt-5 mb-2 text-[var(--color-answer-heading)] leading-snug" {...omitNode(props)} />
     ),
     ul: (props) => <ul className="list-disc pl-5 mb-3.5 space-y-2" {...omitNode(props)} />,
     ol: (props) => <ol className="list-decimal pl-5 mb-3.5 space-y-2" {...omitNode(props)} />,
@@ -73,7 +73,7 @@ export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: Answ
       <li className="leading-[1.65] pl-1 marker:text-[var(--color-text-faint)]" {...omitNode(props)} />
     ),
     strong: (props) => (
-      <strong className="font-semibold text-[var(--color-text)]" {...omitNode(props)} />
+      <strong className="font-semibold text-[var(--color-answer-heading)]" {...omitNode(props)} />
     ),
     blockquote: (props) => (
       <blockquote className="border-l-2 border-[var(--color-border)] pl-4 italic my-4 text-[var(--color-text-muted)]" {...omitNode(props)} />
@@ -94,7 +94,7 @@ export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: Answ
 
       if (isInline) {
         return (
-          <code className="bg-[var(--color-surface-hover)] text-[var(--color-text)] px-1.5 py-0.5 rounded-[4px] text-[13px] font-mono" {...omitNode(props)}>
+          <code className="bg-[var(--color-surface-hover)] text-[var(--color-answer-heading)] px-1.5 py-0.5 rounded-[4px] text-[13px] font-mono" {...omitNode(props)}>
             {children}
           </code>
         );
@@ -132,7 +132,7 @@ export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: Answ
 
   return (
     <div className="flex flex-col gap-3 w-full animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
-      <div className="prose prose-invert max-w-none text-[16px] text-[var(--color-text)] font-serif leading-[1.65] tracking-[-0.002em]">
+      <div className="prose prose-invert max-w-none text-[16px] text-[var(--color-answer-text)] font-serif leading-[1.65] tracking-[-0.002em]">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkCitations]}
           rehypePlugins={[rehypeHighlight]}

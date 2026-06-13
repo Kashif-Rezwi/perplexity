@@ -126,8 +126,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
       <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full">
-        <div className="flex items-center px-4 md:px-6 pt-5 pb-0 w-full max-w-[860px] mx-auto font-sans">
-          <div className="flex items-center gap-7">
+        <div className="flex items-center px-4 md:px-6 pt-5 pb-0 w-full max-w-[720px] mx-auto font-sans">
+          <div className="flex items-center gap-6">
             <ThreadTabButton
               label="Answer"
               icon={<PerplexityLogo size={16} className={activeTab === 'answer' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'} />}
@@ -143,8 +143,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             <ThreadTabButton
               label="Images"
               icon={<ImageIcon size={16} />}
-              isActive={activeTab === 'images'}
-              onClick={() => setActiveTab('images')}
+              isActive={false}
+              onClick={() => undefined}
+              disabled
             />
           </div>
         </div>
@@ -159,12 +160,12 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'answer' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-[860px] mx-auto flex flex-col px-4 md:px-6 pt-10 pb-[172px] md:pb-[152px]">
-            <h1 className="text-[24px] font-semibold text-[var(--color-text)] tracking-[-0.005em] mb-7 font-sans leading-tight">
+          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-[132px] md:pb-[118px]">
+            <h1 className="text-[22px] font-medium text-[var(--color-text)] tracking-[-0.005em] mb-7 font-sans leading-tight">
               {thread.title}
             </h1>
 
-            <div className="flex flex-col gap-9">
+            <div className="flex flex-col gap-8">
               {thread.turns.map((turn, index) => {
                 const isLastTurn = index === thread.turns.length - 1;
                 return (
@@ -226,7 +227,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'links' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-[860px] mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
+          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-10">
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 sources={linksSources}
@@ -247,7 +248,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'images' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-[860px] mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
+          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-10">
             <div className="animate-in fade-in duration-300">
               <div className="text-[var(--color-text-muted)] text-sm py-4">No images available for this thread.</div>
             </div>
@@ -256,12 +257,13 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
       </div>
 
       {thread && activeTab === 'answer' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-[72px] pb-6 z-40 w-full pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-12 pb-4 z-40 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput
               ref={askInputRef}
               threadId={threadId}
               autoFocus={false}
+              placeholder="Ask a follow-up"
               onSubmitStart={(q) => {
                 clearSourceTurnSelection();
                 setPendingQuestion(q);

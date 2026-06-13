@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
+import { ArrowUp, ChevronDown, Loader2, Mic, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 
 export interface AskInputRef {
@@ -12,6 +12,7 @@ export interface AskInputRef {
 interface AskInputProps {
   threadId?: string;
   autoFocus?: boolean;
+  placeholder?: string;
   /** Called immediately before the mutation fires, with the trimmed question. */
   onSubmitStart?: (question: string) => void;
   /** Called when the mutation settles (success or error). */
@@ -19,7 +20,13 @@ interface AskInputProps {
 }
 
 export const AskInput = forwardRef<AskInputRef, AskInputProps>(
-  function AskInput({ threadId, autoFocus = true, onSubmitStart, onSettled }, ref) {
+  function AskInput({
+    threadId,
+    autoFocus = true,
+    placeholder = 'Ask anything...',
+    onSubmitStart,
+    onSettled,
+  }, ref) {
     const [question, setQuestion] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { submitAsk, isPending, errorMessage } = useAskSubmit({
@@ -61,41 +68,42 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     useEffect(() => {
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
-        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 132)}px`;
       }
     }, [question]);
 
     return (
-      <div className="w-full max-w-[860px] mx-auto flex flex-col items-center px-4 md:px-6">
+      <div className="w-full max-w-[720px] mx-auto flex flex-col items-center px-4 md:px-6">
         <form
           onSubmit={handleSubmit}
           className={[
-            'relative w-full flex flex-col bg-[var(--color-surface)]',
-            'border border-[var(--color-border)] rounded-2xl',
+            'relative w-full flex flex-col bg-[var(--color-sidebar)]',
+            'border border-[var(--color-border)]',
+            'rounded-[18px]',
             'transition-all duration-[var(--transition-fade)]',
-            'focus-within:border-[var(--color-border-subtle)] focus-within:ring-1 focus-within:ring-[var(--color-border)]',
+            'focus-within:border-neutral-700 focus-within:ring-0',
             'shadow-sm',
           ].join(' ')}
         >
-          <div className="pt-3 px-5">
+          <div className="px-5 pt-3.5 pb-1">
             <textarea
               ref={textareaRef}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything..."
+              placeholder={placeholder}
               disabled={isPending}
               rows={1}
               aria-label="Ask a question"
               aria-describedby="textarea-submit-instructions"
               className={[
                 'w-full bg-transparent text-[var(--color-text)]',
-                'placeholder:text-[var(--color-text-faint)]',
+                'placeholder:text-[var(--color-text-muted)] placeholder:font-[350] font-normal',
                 'resize-none outline-none overflow-hidden',
-                'text-[16px] leading-relaxed',
+                'text-[16px] leading-[1.35]',
                 isPending ? 'opacity-50' : '',
               ].join(' ')}
-              style={{ minHeight: '52px' }}
+              style={{ minHeight: '28px' }}
               autoFocus={autoFocus}
             />
             <span id="textarea-submit-instructions" className="sr-only">
@@ -103,25 +111,25 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-3 px-4 pb-3">
+          <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
                 aria-label="Upload files"
                 title="Upload files"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer"
               >
-                <Plus size={16} strokeWidth={1.75} />
+                <Plus size={20} strokeWidth={1.75} />
               </button>
 
               <button
                 type="button"
                 aria-label="Search mode"
-                className="flex min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-[14px] font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                className="flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-transparent pl-3 pr-2 text-[15px] font-medium text-[var(--color-text)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
               >
-                <Search size={14} strokeWidth={1.75} />
+                <Search size={16} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
                 <span className="hidden sm:inline">Search</span>
-                <ChevronDown size={14} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
+                <ChevronDown size={15} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
               </button>
             </div>
 
@@ -129,10 +137,19 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
               <button
                 type="button"
                 aria-label="Model selector"
-                className="hidden h-8 items-center gap-1 rounded-full border border-transparent px-3 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex"
+                className="hidden h-8 items-center gap-1 rounded-full px-2 text-[15px] font-medium text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex cursor-pointer"
               >
                 <span>Model</span>
-                <ChevronDown size={16} strokeWidth={1.75} />
+                <ChevronDown size={15} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
+              </button>
+
+              <button
+                type="button"
+                aria-label="Voice input"
+                title="Voice input"
+                className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex cursor-pointer"
+              >
+                <Mic size={17} strokeWidth={1.75} />
               </button>
 
               <button
@@ -140,17 +157,17 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
                 disabled={!question.trim() || isPending}
                 aria-label="Submit question"
                 className={[
-                  'flex items-center justify-center w-8 h-8 rounded-full',
+                  'flex items-center justify-center h-8 w-8 rounded-full',
                   'transition-all duration-[var(--transition-hover)]',
                   question.trim() && !isPending
-                    ? 'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] cursor-pointer'
-                    : 'bg-[var(--color-surface-hover)] text-[var(--color-text-faint)] cursor-not-allowed',
+                    ? 'bg-white text-black hover:bg-neutral-200 cursor-pointer'
+                    : 'bg-[#78787a] text-[#1c1c1e] cursor-not-allowed',
                 ].join(' ')}
               >
                 {isPending ? (
-                  <Loader2 size={16} className="animate-spin text-white" />
+                  <Loader2 size={15} className="animate-spin text-black" />
                 ) : (
-                  <ArrowUp size={16} strokeWidth={2} />
+                  <ArrowUp size={16} strokeWidth={2.25} />
                 )}
               </button>
             </div>
