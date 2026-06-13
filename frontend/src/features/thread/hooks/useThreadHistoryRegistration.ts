@@ -11,6 +11,8 @@ export function useThreadHistoryRegistration(thread?: ThreadDetailResponse) {
     addThread({
       id: thread.threadId,
       title: thread.title,
+      mode: thread.mode,
+      updatedAt: thread.updatedAt,
     });
   }, [thread, addThread]);
 }
