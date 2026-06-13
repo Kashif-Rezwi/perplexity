@@ -1,4 +1,4 @@
-import { Clock, Plus } from 'lucide-react';
+import { HistoryIcon, Plus } from 'lucide-react';
 
 export const SIDEBAR_NAV_ITEMS = [
   {
@@ -9,7 +9,7 @@ export const SIDEBAR_NAV_ITEMS = [
     variant: 'primary',
   },
   {
-    icon: Clock,
+    icon: HistoryIcon,
     label: 'History',
     href: '/history',
     ariaLabel: 'Open chat history',

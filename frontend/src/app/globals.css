@@ -11,21 +11,26 @@
 /* ─── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --color-bg:             #121212;
-  --color-sidebar:        #181818;
+  --color-bg:             #171615;
+  --color-sidebar:        #1e1d1b;
   --color-surface:        #1d1d1d;
   --color-surface-hover:  #242424;
   --color-surface-active: #222222;
+  --color-selection-surface: #1e2323;
+  --color-selection-check:   #4e99a4;
 
   /* Borders */
   --color-border:        #303030;
   --color-border-subtle: #262626;
+  --color-focus-ring:    rgba(216, 212, 204, 0.36);
 
   /* Text */
-  --color-text:       #e7e7e7;
-  --color-text-muted: #a4a4a4;
-  --color-text-faint: #686868;
-  --color-text-link:  #53a8b0;
+  --color-text:       #d8d4cc;
+  --color-text-muted: #9d9992;
+  --color-text-faint: #716c65;
+  --color-text-link:  #6aa7ad;
+  --color-answer-text:    #cbc7bf;
+  --color-answer-heading: #cec9c0;
 
   /* Accent */
   --color-accent:       #20808d;
@@ -72,6 +77,27 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:where(
+  a[href],
+  button,
+  input,
+  textarea,
+  select,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+):focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 1px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+button[data-text-tab="true"]:focus-visible {
+  outline: none;
 }
 
 /* ─── Reduced motion ─────────────────────────────────────────────────────────── */

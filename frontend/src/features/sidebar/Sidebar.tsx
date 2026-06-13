@@ -57,7 +57,7 @@ export function Sidebar() {
           isOpen && mounted ? 'max-md:translate-x-0' : 'max-md:-translate-x-full max-md:border-none',
         ].join(' ')}
       >
-        <div className="flex h-[74px] shrink-0 items-center px-2">
+        <div className="flex h-[62px] shrink-0 items-center px-2">
           {isOpen ? (
             <Link
               href="/"
@@ -65,18 +65,18 @@ export function Sidebar() {
               scroll={false}
               className="flex size-10 shrink-0 items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
             >
-              <PerplexityLogo size={24} />
+              <PerplexityLogo size={20} />
             </Link>
           ) : (
             <button
               onClick={() => toggle()}
               aria-label="Expand sidebar"
-              className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+              className="group/logo relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
             >
-              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/sidebar:opacity-0">
-                <PerplexityLogo size={24} />
+              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/logo:opacity-0">
+                <PerplexityLogo size={20} />
               </span>
-              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/sidebar:opacity-100">
+              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/logo:opacity-100">
                 <PanelLeft size={18} strokeWidth={1.75} />
               </span>
             </button>
@@ -113,9 +113,16 @@ export function Sidebar() {
 
         <SidebarRecentThreads isOpen={isOpen} />
 
-        <div className="mt-auto flex shrink-0 flex-col">
-          <div className={isOpen ? 'border-t border-[var(--color-border-subtle)] px-2 py-2' : 'border-t border-transparent py-2 pl-3 pr-2'}>
-            <div className="flex items-center">
+        <div className="mt-auto flex h-[53px] shrink-0 flex-col">
+          <div
+            className={[
+              'flex h-full items-center border-t',
+              isOpen
+                ? 'border-[var(--color-border-subtle)] px-2'
+                : 'border-transparent pl-3 pr-2',
+            ].join(' ')}
+          >
+            <div className="flex w-full items-center">
               <button
                 type="button"
                 aria-label="Sign in to your account"

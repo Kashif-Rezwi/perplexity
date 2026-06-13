@@ -1,8 +1,14 @@
 import Link from 'next/link';
-import type { LucideIcon } from 'lucide-react';
+import type { ComponentType } from 'react';
+
+type SidebarIcon = ComponentType<{
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}>;
 
 type Props = {
-  icon: LucideIcon;
+  icon: SidebarIcon;
   label: string;
   href?: string;
   ariaLabel?: string;
@@ -27,7 +33,7 @@ export function SidebarNavItem({
       ? 'gap-2 px-2'
       : 'px-2',
     isActive
-      ? 'bg-[var(--color-surface-active)] text-[var(--color-text)]'
+      ? 'bg-white/[0.025] text-[var(--color-text)]'
       : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
   ]
     .filter(Boolean)
