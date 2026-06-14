@@ -241,7 +241,7 @@ export function HistoryPage() {
                 <button
                   type="button"
                   onClick={deleteSelectedThreads}
-                  className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                  className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]"
                 >
                   <Trash2 size={14} strokeWidth={1.75} />
                   Delete
@@ -291,7 +291,7 @@ export function HistoryPage() {
                     type="button"
                     aria-label="Search history"
                     onClick={() => setIsSearchOpen(true)}
-                    className="flex size-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+                    className="flex size-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-state-hover)]"
                   >
                     <Search size={15} strokeWidth={1.75} />
                   </button>
@@ -300,7 +300,7 @@ export function HistoryPage() {
                 <Link
                   href="/"
                   scroll={false}
-                  className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                  className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]"
                 >
                   <Plus size={14} strokeWidth={1.75} />
                   New Session
@@ -348,7 +348,7 @@ export function HistoryPage() {
                   <li
                     key={thread.id}
                     className={[
-                      'group grid min-h-[46px] grid-cols-[132px_minmax(0,1fr)_68px] items-center gap-3 rounded-[9px] border-b px-3.5 transition-colors',
+                      'group grid min-h-[46px] grid-cols-[112px_minmax(0,1fr)_max-content] items-center gap-4 rounded-[9px] border-b px-3.5 transition-colors',
                       isSelected
                         ? 'border-[#151a1a] bg-[var(--color-selection-surface)] hover:bg-[var(--color-selection-surface)]'
                         : 'border-transparent hover:bg-[var(--color-surface-hover)]',
@@ -390,12 +390,12 @@ export function HistoryPage() {
                     <Link
                       href={`/thread/${thread.id}`}
                       scroll={false}
-                      className="block w-full min-w-0 justify-self-stretch truncate py-2 text-[14px] font-normal text-[var(--color-text)] no-underline"
+                      className="block w-full min-w-0 justify-self-stretch truncate py-2 text-[14px] font-normal text-[var(--color-text)] no-underline transition-colors"
                     >
                       {thread.title}
                     </Link>
 
-                    <time className="justify-self-end text-[12.5px] text-[var(--color-text-muted)]">
+                    <time className="justify-self-end whitespace-nowrap text-[12.5px] text-[var(--color-text-muted)]">
                       {formatRelativeDate(thread)}
                     </time>
                   </li>
