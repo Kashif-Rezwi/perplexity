@@ -65,7 +65,7 @@ export function SidebarRecentThreads({ isOpen }: Props) {
                 type="button"
                 onClick={handleDelete}
                 aria-label={`Delete thread: ${thread.title}`}
-                className="absolute right-2 rounded p-0.5 text-[var(--color-text-muted)] opacity-0 transition-all duration-150 hover:text-[var(--color-error)] focus:opacity-100 group-hover:opacity-100"
+                className="absolute right-2 rounded p-0.5 text-[var(--color-text-muted)] opacity-0 transition-all duration-150 hover:text-[var(--color-error)] group-hover:opacity-100"
               >
                 <Trash2 size={12} strokeWidth={1.5} />
               </button>

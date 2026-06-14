@@ -71,12 +71,12 @@ export function Sidebar() {
             <button
               onClick={() => toggle()}
               aria-label="Expand sidebar"
-              className="group/logo relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)]"
+              className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 group-hover/sidebar:bg-[var(--color-surface-hover)]"
             >
-              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/logo:opacity-0">
+              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/sidebar:opacity-0">
                 <PerplexityLogo size={20} />
               </span>
-              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/logo:opacity-100">
+              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/sidebar:opacity-100">
                 <PanelLeft size={18} strokeWidth={1.75} />
               </span>
             </button>

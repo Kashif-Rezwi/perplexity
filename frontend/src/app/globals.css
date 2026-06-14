@@ -32,6 +32,11 @@
   --color-answer-text:    #cbc7bf;
   --color-answer-heading: #cec9c0;
 
+  /* Interaction states */
+  --color-state-hover:  #c9c4bc;
+  --color-state-active: #e1ddd5;
+  --color-state-faint:  rgba(216, 212, 204, 0.055);
+
   /* Accent */
   --color-accent:       #20808d;
   --color-accent-hover: #1a9099;
@@ -88,15 +93,6 @@ body {
   summary,
   [tabindex]:not([tabindex="-1"])
 ):focus {
-  outline: none;
-}
-
-button:focus-visible {
-  outline: 1px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-button[data-text-tab="true"]:focus-visible {
   outline: none;
 }
 
