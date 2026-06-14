@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Mic, Plus, Search } from 'lucide-react';
+import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 
 export interface AskInputRef {
@@ -81,7 +81,6 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
             'border border-[var(--color-border)]',
             'rounded-[18px]',
             'transition-all duration-[var(--transition-fade)]',
-            'focus-within:border-neutral-700 focus-within:ring-0',
             'shadow-sm',
           ].join(' ')}
         >
@@ -141,15 +140,6 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
               >
                 <span>Model</span>
                 <ChevronDown size={15} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Voice input"
-                title="Voice input"
-                className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex cursor-pointer"
-              >
-                <Mic size={17} strokeWidth={1.75} />
               </button>
 
               <button

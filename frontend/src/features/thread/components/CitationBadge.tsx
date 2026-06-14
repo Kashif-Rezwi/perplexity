@@ -108,7 +108,7 @@ export function CitationBadge({
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         aria-label={`Source ${number}: ${source.title || source.url}`}
-        className="relative top-[-3px] inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-[6px] bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[11px] font-bold text-[var(--color-accent)] leading-none transition-all duration-[var(--transition-hover)] cursor-pointer select-none hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] font-sans"
+        className="relative top-[-3px] inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-[6px] bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[11px] font-bold text-[var(--color-accent)] leading-none transition-all duration-[var(--transition-hover)] cursor-pointer select-none hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-sans"
       >
         {number}
       </button>
