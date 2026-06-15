@@ -5,6 +5,7 @@ interface ThreadTabButtonProps {
   icon: ReactNode;
   isActive: boolean;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 export function ThreadTabButton({
@@ -12,22 +13,31 @@ export function ThreadTabButton({
   icon,
   isActive,
   onClick,
+  disabled = false,
 }: ThreadTabButtonProps) {
   return (
     <button
       type="button"
+      data-text-tab="true"
+      disabled={disabled}
       onClick={onClick}
       className={[
-        'flex items-center gap-2 pb-2 px-1 text-[15px] font-medium transition-colors relative cursor-pointer',
-        isActive
-          ? 'text-[var(--color-text)] font-semibold'
-          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+        'flex items-center gap-2 pb-4 px-0 text-[15px] font-medium transition-colors relative',
+        disabled
+          ? 'cursor-not-allowed text-[var(--color-text-faint)] opacity-70'
+          : 'cursor-pointer',
+        !disabled && isActive
+          ? 'text-[var(--color-state-active)] font-medium'
+          : '',
+        !disabled && !isActive
+          ? 'text-[var(--color-text-muted)] hover:text-[var(--color-state-hover)]'
+          : '',
       ].join(' ')}
     >
       {icon}
       {label}
-      {isActive && (
-        <div className="absolute bottom-[-9px] left-0 right-0 h-[2px] bg-[var(--color-accent)] rounded-t-full" />
+      {!disabled && isActive && (
+        <div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-[var(--color-state-active)] rounded-t-full" />
       )}
     </button>
   );

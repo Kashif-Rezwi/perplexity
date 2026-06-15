@@ -44,6 +44,8 @@ export function useAskSubmit({
         addThread({
           id: data.thread.threadId,
           title: data.thread.title,
+          mode: data.thread.mode,
+          updatedAt: data.thread.updatedAt,
         });
 
         queryClient.setQueryData<ThreadDetailResponse>(

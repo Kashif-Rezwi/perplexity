@@ -44,7 +44,7 @@ export function CitationBadge({
     return (
       <span
         title="Unresolved citation"
-        className="inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[var(--color-border-subtle)] border border-[var(--color-border)] text-[10px] font-bold text-[var(--color-text-faint)] relative top-[-3px] mx-0.5 select-none"
+        className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-[6px] bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[11px] font-bold text-[var(--color-text-faint)] relative top-[-3px] mx-0.5 select-none font-sans"
       >
         {number}
       </span>
@@ -108,7 +108,7 @@ export function CitationBadge({
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         aria-label={`Source ${number}: ${source.title || source.url}`}
-        className="relative top-[-3px] inline-flex items-center justify-center px-1.5 py-0.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[10px] font-bold text-[var(--color-accent)] leading-none transition-all duration-[var(--transition-hover)] cursor-pointer select-none hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+        className="relative top-[-3px] inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-[6px] bg-[var(--color-surface-hover)] border border-[var(--color-border)] text-[11px] font-bold text-[var(--color-accent)] leading-none transition-all duration-[var(--transition-hover)] cursor-pointer select-none hover:bg-[var(--color-accent-faint)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent-hover)] font-sans"
       >
         {number}
       </button>
@@ -117,7 +117,7 @@ export function CitationBadge({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={[
-          "absolute bottom-full left-1/2 -translate-x-1/2 pb-2.5 w-[320px] transition-all duration-150 z-30 origin-bottom font-sans text-left not-prose block",
+          "absolute bottom-full left-1/2 -translate-x-1/2 pb-3 w-[320px] transition-all duration-150 z-30 origin-bottom font-sans text-left not-prose block",
           showTooltip
             ? "visible opacity-100 scale-100 pointer-events-auto"
             : "invisible opacity-0 scale-95 pointer-events-none"
