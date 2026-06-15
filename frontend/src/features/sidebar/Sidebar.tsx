@@ -38,7 +38,7 @@ export function Sidebar() {
       {isOpen && mounted && (
         <div
           onClick={() => setOpen(false)}
-          className="md:hidden fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150 cursor-pointer"
+          className="md:hidden fixed inset-0 bg-[var(--color-backdrop)] z-40 animate-in fade-in duration-150 cursor-pointer"
         />
       )}
 

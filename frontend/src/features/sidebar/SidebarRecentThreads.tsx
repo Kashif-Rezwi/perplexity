@@ -43,7 +43,7 @@ export function SidebarRecentThreads({ isOpen }: Props) {
               className={[
                 'group relative flex h-7 items-center overflow-hidden rounded-lg whitespace-nowrap transition-colors duration-100 ease-linear',
                 isActive
-                  ? 'bg-white/[0.025]'
+                  ? 'bg-[var(--color-surface-active-faint)]'
                   : 'hover:bg-[var(--color-surface-hover)]',
               ].join(' ')}
             >

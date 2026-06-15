@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 're
 import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 
+const MAIN_CONTENT_WIDTH_CLASS = 'w-full max-w-[720px] mx-auto px-4 md:px-6';
+
 export interface AskInputRef {
   setQuestion: (q: string) => void;
   submitQuestion: (q: string, threadId?: string) => void;
@@ -73,7 +75,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     }, [question]);
 
     return (
-      <div className="w-full max-w-[720px] mx-auto flex flex-col items-center px-4 md:px-6">
+      <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col items-center`}>
         <form
           onSubmit={handleSubmit}
           className={[
@@ -150,12 +152,12 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
                   'flex items-center justify-center h-8 w-8 rounded-full',
                   'transition-all duration-[var(--transition-hover)]',
                   question.trim() && !isPending
-                    ? 'bg-white text-black hover:bg-neutral-200 cursor-pointer'
-                    : 'bg-[#78787a] text-[#1c1c1e] cursor-not-allowed',
+                    ? 'bg-[var(--color-submit-bg)] text-[var(--color-submit-text)] hover:bg-[var(--color-submit-hover-bg)] cursor-pointer'
+                    : 'bg-[var(--color-submit-disabled-bg)] text-[var(--color-submit-disabled-text)] cursor-not-allowed',
                 ].join(' ')}
               >
                 {isPending ? (
-                  <Loader2 size={15} className="animate-spin text-black" />
+                  <Loader2 size={15} className="animate-spin text-[var(--color-submit-text)]" />
                 ) : (
                   <ArrowUp size={16} strokeWidth={2.25} />
                 )}

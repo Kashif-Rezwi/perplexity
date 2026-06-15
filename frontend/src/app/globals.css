@@ -16,8 +16,12 @@
   --color-surface:        #1d1d1d;
   --color-surface-hover:  #242424;
   --color-surface-active: #222222;
+  --color-surface-active-faint: rgba(255, 255, 255, 0.025);
+  --color-backdrop: rgba(0, 0, 0, 0.6);
   --color-selection-surface: #1e2323;
+  --color-selection-border:  #151a1a;
   --color-selection-check:   #4e99a4;
+  --color-selection-check-icon: #0f1716;
 
   /* Borders */
   --color-border:        #303030;
@@ -41,6 +45,14 @@
   --color-accent:       #20808d;
   --color-accent-hover: #1a9099;
   --color-accent-faint: rgba(32, 128, 141, 0.15);
+  --color-accent-text:  #ffffff;
+
+  /* Ask input */
+  --color-submit-bg: #ffffff;
+  --color-submit-hover-bg: #e5e5e5;
+  --color-submit-text: #000000;
+  --color-submit-disabled-bg: #78787a;
+  --color-submit-disabled-text: #1c1c1e;
 
   /* Error state colors */
   --color-error:              #f87171; /* Tailwind red-400 */
