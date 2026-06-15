@@ -11,26 +11,48 @@
 /* ─── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
   /* Backgrounds */
-  --color-bg:             #111111;
-  --color-sidebar:        #171717;
-  --color-surface:        #1f1f1f;
-  --color-surface-hover:  #272727;
-  --color-surface-active: #232323;
+  --color-bg:             #171615;
+  --color-sidebar:        #1e1d1b;
+  --color-surface:        #1d1d1d;
+  --color-surface-hover:  #242424;
+  --color-surface-active: #222222;
+  --color-surface-active-faint: rgba(255, 255, 255, 0.025);
+  --color-backdrop: rgba(0, 0, 0, 0.6);
+  --color-selection-surface: #1e2323;
+  --color-selection-border:  #151a1a;
+  --color-selection-check:   #4e99a4;
+  --color-selection-check-icon: #0f1716;
 
   /* Borders */
-  --color-border:        #2a2a2a;
-  --color-border-subtle: #1e1e1e;
+  --color-border:        #303030;
+  --color-border-subtle: #262626;
+  --color-focus-ring:    rgba(216, 212, 204, 0.36);
 
   /* Text */
-  --color-text:       #ededed;
-  --color-text-muted: #9a9a9a;
-  --color-text-faint: #555555;
-  --color-text-link:  #20808d;
+  --color-text:       #d8d4cc;
+  --color-text-muted: #9d9992;
+  --color-text-faint: #716c65;
+  --color-text-link:  #6aa7ad;
+  --color-answer-text:    #cbc7bf;
+  --color-answer-heading: #cec9c0;
+
+  /* Interaction states */
+  --color-state-hover:  #c9c4bc;
+  --color-state-active: #e1ddd5;
+  --color-state-faint:  rgba(216, 212, 204, 0.055);
 
   /* Accent */
   --color-accent:       #20808d;
   --color-accent-hover: #1a9099;
   --color-accent-faint: rgba(32, 128, 141, 0.15);
+  --color-accent-text:  #ffffff;
+
+  /* Ask input */
+  --color-submit-bg: #ffffff;
+  --color-submit-hover-bg: #e5e5e5;
+  --color-submit-text: #000000;
+  --color-submit-disabled-bg: #78787a;
+  --color-submit-disabled-text: #1c1c1e;
 
   /* Error state colors */
   --color-error:              #f87171; /* Tailwind red-400 */
@@ -74,6 +96,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+:where(
+  a[href],
+  button,
+  input,
+  textarea,
+  select,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+):focus {
+  outline: none;
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -98,4 +132,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-faint);
 }
-

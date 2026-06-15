@@ -22,8 +22,8 @@ export function CitationTooltipCard({
   const domainName = activeSource.domain || extractDomain(activeSource.url, 'website');
 
   return (
-    <span className="h-[260px] overflow-hidden bg-[var(--color-sidebar)] border border-[var(--color-border)] rounded-[16px] shadow-2xl p-4 gap-3.5 flex flex-col">
-      <span className="flex items-center justify-between border-b border-[var(--color-border)]/40 pb-2.5">
+    <span className="h-[232px] overflow-hidden bg-[var(--color-sidebar)] border border-[var(--color-border)] rounded-2xl shadow-2xl p-3.5 gap-3 flex flex-col">
+      <span className="flex items-center justify-between border-b border-[var(--color-border)]/40 pb-2">
         <span className="flex items-center gap-3">
           <button
             type="button"
@@ -33,7 +33,7 @@ export function CitationTooltipCard({
           >
             <ChevronLeft size={14} className="stroke-[2.5]" />
           </button>
-          <span className="text-[13px] font-medium text-[var(--color-text-muted)] select-none font-sans">
+          <span className="text-[12px] font-medium text-[var(--color-text-muted)] select-none font-sans">
             {activeIndex + 1}/{sources.length}
           </span>
           <button
@@ -55,24 +55,24 @@ export function CitationTooltipCard({
                 <Favicon
                   key={source.sourceId}
                   domain={sourceDomain}
-                  size={18}
+                  size={16}
                   className="inline-block ring-2 ring-[var(--color-sidebar)] bg-[var(--color-text)] object-contain"
                 />
               );
             })}
           </span>
-          <span className="text-[13px] font-normal text-[var(--color-text-muted)] leading-none select-none font-sans">
+          <span className="text-[12px] font-normal text-[var(--color-text-muted)] leading-none select-none font-sans">
             {sources.length} sources
           </span>
         </span>
       </span>
 
       <span className="flex flex-col gap-2.5">
-        <span className="flex items-center gap-2 text-[13px] text-[var(--color-text-muted)]">
-          <span className="w-6 h-6 rounded-full bg-[var(--color-text)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+        <span className="flex items-center gap-2 text-[12px] text-[var(--color-text-muted)]">
+          <span className="w-5 h-5 rounded-full bg-[var(--color-text)] flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
             <Favicon
               domain={domainName}
-              size={14}
+              size={12}
               className="bg-[var(--color-text)]"
             />
           </span>
@@ -83,14 +83,14 @@ export function CitationTooltipCard({
           href={activeSource.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[15px] font-semibold text-[var(--color-text)] leading-snug hover:underline text-left cursor-pointer transition-colors font-sans line-clamp-2"
+          className="text-[14px] font-semibold text-[var(--color-text)] leading-snug hover:underline text-left cursor-pointer transition-colors font-sans line-clamp-2"
         >
           {activeSource.title || 'Source link'}
         </a>
 
         {activeSource.snippet && (
           <span
-            className="text-[13px] text-[var(--color-text-muted)] font-normal leading-[1.5] select-text font-sans block"
+            className="text-[12.5px] text-[var(--color-text-muted)] font-normal leading-[1.45] select-text font-sans block"
             style={{
               display: '-webkit-box',
               WebkitBoxOrient: 'vertical',

@@ -69,9 +69,9 @@ export function LinksPanel({
   }
 
   return (
-    <div className="flex flex-col gap-4 w-full animate-in fade-in duration-300 font-sans pb-12">
+    <div className="flex flex-col gap-3 w-full animate-in fade-in duration-300 font-sans pb-10">
       {searchQuery && (
-        <div className="text-[14px] text-[var(--color-text-muted)] mb-4 px-1">
+        <div className="text-[13px] text-[var(--color-text-muted)] mb-1.5 px-1">
           Search results for: <span className="text-[var(--color-text)] font-semibold">{searchQuery}</span>
         </div>
       )}
@@ -89,9 +89,9 @@ export function LinksPanel({
               target="_blank"
               rel="noopener noreferrer"
               className={[
-                'flex flex-col py-5 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-300 cursor-pointer',
+                'flex flex-col py-4 border-b border-[var(--color-border-subtle)] last:border-b-0 group transition-all duration-300 cursor-pointer',
                 isHighlighted
-                  ? 'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-faint)] rounded-xl px-3 -mx-3'
+                  ? 'ring-1 ring-[var(--color-accent)] bg-[var(--color-accent-faint)] rounded-[10px] px-3 -mx-3'
                   : '',
               ]
                 .filter(Boolean)
@@ -99,15 +99,15 @@ export function LinksPanel({
             >
               {/* Header: Favicon + Domain/URL info */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[var(--color-sidebar)] border border-[var(--color-border)] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-                  <Favicon domain={domainName} size={20} />
+                <div className="w-9 h-9 rounded-[10px] bg-[var(--color-sidebar)] border border-[var(--color-border)] flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                  <Favicon domain={domainName} size={18} />
                 </div>
-                
+
                 <div className="flex flex-col overflow-hidden">
                   <span className="text-[13px] font-medium text-[var(--color-text)] truncate leading-tight">
                     {domainName}
                   </span>
-                  <span className="text-[11px] text-[var(--color-text-muted)] truncate max-w-[280px] sm:max-w-[500px] mt-0.5 leading-none">
+                  <span className="text-[12px] text-[var(--color-text-muted)] truncate max-w-[280px] sm:max-w-[640px] mt-1 leading-none">
                     {source.url}
                   </span>
                 </div>
@@ -117,7 +117,7 @@ export function LinksPanel({
               <h4 className="text-[14px] font-semibold text-[var(--color-text-link)] group-hover:underline decoration-[var(--color-text-link)] underline-offset-2 leading-snug mt-3">
                 {source.title}
               </h4>
-              
+
               {/* Snippet */}
               <p className="text-[13px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2 mt-1.5 font-normal">
                 {source.snippet}

@@ -17,7 +17,7 @@ export function MainLayout({ children }: Props) {
       
       <main className="flex-1 overflow-hidden flex flex-col relative">
         {/* Mobile Header Bar */}
-        <header className="md:hidden h-14 border-b border-[var(--color-border-subtle)] bg-[var(--color-sidebar)] flex items-center px-4 shrink-0 justify-between">
+        <header className="md:hidden h-14 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)] flex items-center px-4 shrink-0 justify-between">
           <button
             onClick={() => setOpen(true)}
             aria-label="Open navigation sidebar"

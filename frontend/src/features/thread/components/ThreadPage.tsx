@@ -17,12 +17,14 @@ import { useThreadSourceSelection } from '../hooks/useThreadSourceSelection';
 import { ThreadLoadingState, ThreadStatusState } from './ThreadStates';
 import { ThreadTabButton } from './ThreadTabButton';
 
+const MAIN_CONTENT_WIDTH_CLASS = 'w-full max-w-[720px] mx-auto px-4 md:px-6';
+
 interface ThreadPageProps {
   threadId: string;
 }
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
-  const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
+  const [activeTab, setActiveTab] = useState<'answer' | 'links'>('answer');
   const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
@@ -89,7 +91,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           actionButton={
             <Link
               href="/"
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] shadow-sm cursor-pointer no-underline"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-[var(--color-accent-text)] hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] shadow-sm cursor-pointer no-underline"
             >
               Go Home
             </Link>
@@ -113,7 +115,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             </Link>
             <button
               onClick={() => queryClient.invalidateQueries({ queryKey: ['thread', threadId] })}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-[var(--color-accent-text)] hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
             >
               Try again
             </button>
@@ -125,8 +127,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
 
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
-      <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border)] w-full">
-        <div className="flex items-center px-4 md:px-6 pt-4 pb-2 w-full max-w-3xl mx-auto font-sans">
+      <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full">
+        <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex items-center pt-5 pb-0 font-sans`}>
           <div className="flex items-center gap-6">
             <ThreadTabButton
               label="Answer"
@@ -143,8 +145,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             <ThreadTabButton
               label="Images"
               icon={<ImageIcon size={16} />}
-              isActive={activeTab === 'images'}
-              onClick={() => setActiveTab('images')}
+              isActive={false}
+              onClick={() => undefined}
+              disabled
             />
           </div>
         </div>
@@ -159,8 +162,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'answer' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-[180px] md:pb-[160px]">
-            <h1 className="text-[28px] font-bold text-[var(--color-text)] tracking-tight mb-8 font-sans leading-tight">
+          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-[132px] md:pb-[118px]`}>
+            <h1 className="text-[22px] font-medium text-[var(--color-text)] tracking-[-0.005em] mb-7 font-sans leading-tight">
               {thread.title}
             </h1>
 
@@ -226,7 +229,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'links' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
+          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-10`}>
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 sources={linksSources}
@@ -239,29 +242,16 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             </div>
           </div>
         </div>
-
-        {/* Images Tab Scroll Container */}
-        <div
-          className={[
-            'absolute inset-0 overflow-y-auto w-full',
-            activeTab === 'images' ? 'block' : 'hidden',
-          ].join(' ')}
-        >
-          <div className="w-full max-w-3xl mx-auto flex flex-col px-4 md:px-6 pt-10 pb-10">
-            <div className="animate-in fade-in duration-300">
-              <div className="text-[var(--color-text-muted)] text-sm py-4">No images available for this thread.</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {thread && activeTab === 'answer' && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-16 pb-6 z-40 w-full pointer-events-none">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-12 pb-4 z-40 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput
               ref={askInputRef}
               threadId={threadId}
               autoFocus={false}
+              placeholder="Ask a follow-up"
               onSubmitStart={(q) => {
                 clearSourceTurnSelection();
                 setPendingQuestion(q);

@@ -4,6 +4,8 @@ import { persist } from 'zustand/middleware';
 export type ThreadHistoryItem = {
   id: string;
   title: string;
+  mode?: 'web' | 'deep-research';
+  updatedAt?: string;
 };
 
 const MAX_THREAD_HISTORY_ITEMS = 50;
@@ -20,18 +22,27 @@ function upsertThreadHistoryItem(
 ) {
   const existingIndex = threads.findIndex((item) => item.id === thread.id);
 
-  if (existingIndex === 0 && threads[0].title === thread.title) {
+  if (
+    existingIndex === 0 &&
+    threads[0].title === thread.title &&
+    threads[0].mode === thread.mode &&
+    threads[0].updatedAt === thread.updatedAt
+  ) {
     return threads;
   }
 
   if (existingIndex >= 0) {
     const existingThread = threads[existingIndex];
-    if (existingThread.title === thread.title) {
+    if (
+      existingThread.title === thread.title &&
+      existingThread.mode === thread.mode &&
+      existingThread.updatedAt === thread.updatedAt
+    ) {
       return threads;
     }
 
     return threads.map((item, index) =>
-      index === existingIndex ? { ...item, title: thread.title } : item
+      index === existingIndex ? { ...item, ...thread } : item
     );
   }
 

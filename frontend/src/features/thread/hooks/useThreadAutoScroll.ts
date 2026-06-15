@@ -7,7 +7,7 @@ const UPDATE_SCROLL_DELAY_MS = 100;
 
 type UseThreadAutoScrollInput = {
   threadId: string;
-  activeTab: 'answer' | 'links' | 'images';
+  activeTab: 'answer' | 'links';
   turnsCount: number;
   latestTurnId: string | null;
   pendingQuestion: string | null;
