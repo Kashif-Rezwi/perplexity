@@ -17,12 +17,14 @@ import { useThreadSourceSelection } from '../hooks/useThreadSourceSelection';
 import { ThreadLoadingState, ThreadStatusState } from './ThreadStates';
 import { ThreadTabButton } from './ThreadTabButton';
 
+const MAIN_CONTENT_WIDTH_CLASS = 'w-full max-w-[720px] mx-auto px-4 md:px-6';
+
 interface ThreadPageProps {
   threadId: string;
 }
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
-  const [activeTab, setActiveTab] = useState<'answer' | 'links' | 'images'>('answer');
+  const [activeTab, setActiveTab] = useState<'answer' | 'links'>('answer');
   const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const askInputRef = useRef<AskInputRef>(null);
@@ -89,7 +91,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           actionButton={
             <Link
               href="/"
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] shadow-sm cursor-pointer no-underline"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-[var(--color-accent-text)] hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] shadow-sm cursor-pointer no-underline"
             >
               Go Home
             </Link>
@@ -113,7 +115,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             </Link>
             <button
               onClick={() => queryClient.invalidateQueries({ queryKey: ['thread', threadId] })}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-[var(--color-accent-text)] hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
             >
               Try again
             </button>
@@ -126,7 +128,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
       <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full">
-        <div className="flex items-center px-4 md:px-6 pt-5 pb-0 w-full max-w-[720px] mx-auto font-sans">
+        <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex items-center pt-5 pb-0 font-sans`}>
           <div className="flex items-center gap-6">
             <ThreadTabButton
               label="Answer"
@@ -160,7 +162,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'answer' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-[132px] md:pb-[118px]">
+          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-[132px] md:pb-[118px]`}>
             <h1 className="text-[22px] font-medium text-[var(--color-text)] tracking-[-0.005em] mb-7 font-sans leading-tight">
               {thread.title}
             </h1>
@@ -227,7 +229,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'links' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-10">
+          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-10`}>
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 sources={linksSources}
@@ -237,20 +239,6 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                 highlightedNumber={highlightedSourceNum}
                 onClearHighlight={() => setHighlightedSourceNum(null)}
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Images Tab Scroll Container */}
-        <div
-          className={[
-            'absolute inset-0 overflow-y-auto w-full',
-            activeTab === 'images' ? 'block' : 'hidden',
-          ].join(' ')}
-        >
-          <div className="w-full max-w-[720px] mx-auto flex flex-col px-4 md:px-6 pt-9 pb-10">
-            <div className="animate-in fade-in duration-300">
-              <div className="text-[var(--color-text-muted)] text-sm py-4">No images available for this thread.</div>
             </div>
           </div>
         </div>
