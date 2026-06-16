@@ -5,7 +5,6 @@ export type ApiTurnStatus = 'pending' | 'completed' | 'failed';
 export type ThreadSummaryItem = {
   threadId: string;
   title: string;
-  link: string;
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
@@ -62,6 +61,7 @@ export type SourceItem = SourcePreviewItem & {
   providerScore: number | null;
 };
 
+// Source item with parent turn/thread context returned by GET /sources.
 export type SourceListItem = SourcePreviewItem & {
   turnId: string;
   threadId: string;
@@ -69,10 +69,8 @@ export type SourceListItem = SourcePreviewItem & {
   question: string;
 };
 
-export type SourcesResponse = {
-  items: SourceListItem[];
-  nextCursor: string | null;
-};
+// Response list returned by GET /sources.
+export type SourcesResponse = SourceListItem[];
 
 export type CitationItem = {
   citationId: string;
@@ -92,7 +90,6 @@ export type TurnItem = {
   sourceCount: number;
   citationCount: number;
   sources: SourceItem[];
-  citationSources?: SourcePreviewItem[];
   citations: CitationItem[];
   createdAt: string;
   completedAt: string | null;

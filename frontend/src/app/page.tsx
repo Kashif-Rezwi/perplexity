@@ -1,6 +1,5 @@
-'use client';
-
 import { AskInput } from '@/features/home/components/AskInput';
+
 
 export default function Home() {
   return (
