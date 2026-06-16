@@ -1,16 +1,21 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { SourcesQueryDto } from './dto/sources-query.dto';
-import { SourcesService } from './sources.service';
+import { SourcesRepository } from './repositories/sources.repository';
+import { mapSource } from './mappers/source-response.mapper';
+
+const DEFAULT_SOURCES_LIMIT = 20;
 
 @Controller('sources')
 export class SourcesController {
-  constructor(private readonly sourcesService: SourcesService) {}
+  constructor(private readonly sourcesRepository: SourcesRepository) {}
 
   @Get()
-  listSources(@Query() query: SourcesQueryDto) {
-    return this.sourcesService.listSources({
-      limit: query.limit,
+  async listSources(@Query() query: SourcesQueryDto) {
+    const sources = await this.sourcesRepository.findSources({
+      limit: query.limit ?? DEFAULT_SOURCES_LIMIT,
       turnId: query.turnId,
     });
+
+    return sources.map(mapSource);
   }
 }

@@ -1,13 +1,13 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getOptionalTrimmedConfig } from '../common/utils/config.util';
 import { getErrorMessage } from '../common/utils/error.util';
 import { withTimeout } from '../common/utils/with-timeout.util';
-import { getOptionalTrimmedConfig } from '../common/utils/config.util';
 import { OpenAiProviderService } from './openai-provider.service';
 import { GroqProviderService } from './groq-provider.service';
 import { AiProvider } from './types/ai-provider.interface';
 import type { PriorTurn } from './types/ai.types';
-import type { CreateTurnSourceInput } from '../sources/types/source-persistence.types';
+import type { CreateTurnSourceInput } from '../sources/types/sources.types';
 import {
   AI_PROVIDER_CONFIG_KEY,
   DEFAULT_AI_PROVIDER,
@@ -36,79 +36,39 @@ function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly configService?: ConfigService;
-  private readonly openAiProviderService: OpenAiProviderService;
-  private readonly groqProviderService?: GroqProviderService;
 
   constructor(
-    openAiProviderService: OpenAiProviderService,
-    configService?: ConfigService,
-    groqProviderService?: GroqProviderService,
-  ) {
-    this.openAiProviderService = openAiProviderService;
-    this.configService = configService;
-    this.groqProviderService = groqProviderService;
-  }
+    private readonly openAiProviderService: OpenAiProviderService,
+    private readonly configService: ConfigService,
+    private readonly groqProviderService: GroqProviderService,
+  ) {}
 
-  private getProvider(): AiProvider {
-    if (!this.configService || !this.groqProviderService) {
-      return this.openAiProviderService;
-    }
-
-    const providerType = getOptionalTrimmedConfig(
+  private resolveProvider(): { provider: AiProvider; name: string } {
+    const type = getOptionalTrimmedConfig(
       this.configService,
       AI_PROVIDER_CONFIG_KEY,
       DEFAULT_AI_PROVIDER,
     ).toLowerCase();
 
-    if (providerType === 'groq') {
-      return this.groqProviderService;
+    if (type === 'groq') {
+      return { provider: this.groqProviderService, name: 'Groq' };
     }
 
-    return this.openAiProviderService;
+    return { provider: this.openAiProviderService, name: 'OpenAI' };
   }
-
-  private getProviderName(): string {
-    if (!this.configService || !this.groqProviderService) {
-      return 'OpenAI';
-    }
-
-    const providerType = getOptionalTrimmedConfig(
-      this.configService,
-      AI_PROVIDER_CONFIG_KEY,
-      DEFAULT_AI_PROVIDER,
-    ).toLowerCase();
-
-    return providerType === 'groq' ? 'Groq' : 'OpenAI';
-  }
-
 
   async generateAnswer(
     question: string,
     priorTurns: PriorTurn[],
     sources: CreateTurnSourceInput[],
   ): Promise<string> {
-    const provider = this.getProvider();
-    const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      provider.getAnswerTimeoutMs(),
-    );
+    const { provider, name } = this.resolveProvider();
 
-    try {
-      return await provider.generateAnswer(
-        { question, priorTurns, sources },
-        controller.signal,
-      );
-    } catch (error) {
-      if (controller.signal.aborted) {
-        const providerName = this.getProviderName();
-        throw new ServiceUnavailableException(`${providerName} answer generation timed out`);
-      }
-      throw error;
-    } finally {
-      clearTimeout(timeout);
-    }
+    return withTimeout(
+      provider.generateAnswer({ question, priorTurns, sources }),
+      provider.getAnswerTimeoutMs(),
+      () => new ServiceUnavailableException(`${name} answer generation timed out`),
+    );
   }
 
   async resolveSearchQuery(
@@ -120,7 +80,8 @@ export class AiService {
       return question;
     }
 
-    const provider = this.getProvider();
+    const { provider, name } = this.resolveProvider();
+
     try {
       return await withTimeout(
         provider.generateStandaloneSearchQuery({
@@ -129,10 +90,7 @@ export class AiService {
           priorTurns: getQueryRewritePriorTurns(priorTurns),
         }),
         provider.getQueryRewriteTimeoutMs(),
-        () => {
-          const providerName = this.getProviderName();
-          return new ServiceUnavailableException(`${providerName} search query rewrite timed out`);
-        },
+        () => new ServiceUnavailableException(`${name} search query rewrite timed out`),
       );
     } catch (error) {
       this.logger.warn(
@@ -151,7 +109,8 @@ export class AiService {
     priorTurns: PriorTurn[],
     sources: CreateTurnSourceInput[],
   ): Promise<string[]> {
-    const provider = this.getProvider();
+    const { provider, name } = this.resolveProvider();
+
     try {
       return await withTimeout(
         provider.generateSuggestedFollowUpQuestions({
@@ -161,10 +120,7 @@ export class AiService {
           sources,
         }),
         provider.getSuggestionTimeoutMs(),
-        () => {
-          const providerName = this.getProviderName();
-          return new ServiceUnavailableException(`${providerName} suggestion generation timed out`);
-        },
+        () => new ServiceUnavailableException(`${name} suggestion generation timed out`),
       );
     } catch (error) {
       this.logger.warn(
@@ -177,4 +133,3 @@ export class AiService {
     }
   }
 }
-

@@ -10,7 +10,7 @@ const {
   DEFAULT_TAVILY_SEARCH_TIMEOUT_MS,
   TAVILY_API_KEY_CONFIG_KEY,
   TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY,
-} = require('../src/search/search.constants.ts');
+} = require('../src/search/tavily-search.service.ts');
 
 test('TavilySearchService fails clearly when TAVILY_API_KEY is missing', async () => {
   const service = new TavilySearchService({
