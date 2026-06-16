@@ -1,6 +1,6 @@
 import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query';
 import { ThreadPage } from '@/features/thread/components/ThreadPage';
-import { getThread } from '@/lib/api/threads.api';
+import { getThread } from '@/lib/api';
 import { queryClientConfig } from '@/lib/api/queryClientConfig';
 import type { Metadata } from 'next';
 
