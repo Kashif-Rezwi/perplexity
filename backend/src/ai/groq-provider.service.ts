@@ -51,20 +51,30 @@ const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 @Injectable()
 export class GroqProviderService implements AiProvider {
   private readonly logger = new Logger(GroqProviderService.name);
+  private readonly client: ReturnType<typeof createGroq>;
+  private readonly model: string;
+  private readonly utilityModel: string;
+  private readonly answerTimeoutMs: number;
+  private readonly queryRewriteTimeoutMs: number;
+  private readonly suggestionTimeoutMs: number;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(configService: ConfigService) {
+    const apiKey = getRequiredTrimmedConfig(configService, GROQ_API_KEY_CONFIG_KEY);
+    this.client = createGroq({ apiKey });
+    this.model = getOptionalTrimmedConfig(configService, GROQ_MODEL_CONFIG_KEY, DEFAULT_GROQ_MODEL);
+    this.utilityModel = getOptionalTrimmedConfig(configService, GROQ_UTILITY_MODEL_CONFIG_KEY, DEFAULT_GROQ_UTILITY_MODEL);
+    this.answerTimeoutMs = getPositiveIntegerConfig(configService, GROQ_ANSWER_TIMEOUT_MS_CONFIG_KEY, DEFAULT_GROQ_ANSWER_TIMEOUT_MS);
+    this.queryRewriteTimeoutMs = getPositiveIntegerConfig(configService, GROQ_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY, DEFAULT_GROQ_QUERY_REWRITE_TIMEOUT_MS);
+    this.suggestionTimeoutMs = getPositiveIntegerConfig(configService, GROQ_SUGGESTION_TIMEOUT_MS_CONFIG_KEY, DEFAULT_GROQ_SUGGESTION_TIMEOUT_MS);
+  }
 
   async generateAnswer(
     input: GenerateAnswerInput,
     abortSignal?: AbortSignal,
   ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getModel();
-    const groqClient = this.getClient(apiKey);
-
     try {
       const { text } = await generateText({
-        model: groqClient(model),
+        model: this.client(this.model),
         abortSignal,
         system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
@@ -95,13 +105,9 @@ export class GroqProviderService implements AiProvider {
     input: GenerateSuggestedFollowUpQuestionsInput,
     abortSignal?: AbortSignal,
   ): Promise<string[]> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const groqClient = this.getClient(apiKey);
-
     try {
       const { output } = await generateText({
-        model: groqClient(model),
+        model: this.client(this.utilityModel),
         abortSignal,
         system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT + ' Output the response as a JSON object containing a "questions" array.',
         prompt: createSuggestedFollowUpQuestionsPrompt(input),
@@ -135,9 +141,7 @@ export class GroqProviderService implements AiProvider {
       }
 
       this.logger.warn(
-        `Groq follow-up suggestion generation failed: ${getErrorMessage(
-          error,
-        )}`,
+        `Groq follow-up suggestion generation failed: ${getErrorMessage(error)}`,
       );
 
       throw new ServiceUnavailableException(
@@ -150,13 +154,9 @@ export class GroqProviderService implements AiProvider {
     input: GenerateStandaloneSearchQueryInput,
     abortSignal?: AbortSignal,
   ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const groqClient = this.getClient(apiKey);
-
     try {
       const { text } = await generateText({
-        model: groqClient(model),
+        model: this.client(this.utilityModel),
         abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
         system: STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
@@ -186,56 +186,15 @@ export class GroqProviderService implements AiProvider {
     }
   }
 
-  private getRequiredApiKey(): string {
-    return getRequiredTrimmedConfig(
-      this.configService,
-      GROQ_API_KEY_CONFIG_KEY,
-    );
-  }
-
-  private getClient(apiKey: string) {
-    return createGroq({
-      apiKey,
-    });
-  }
-
-  getModel(): string {
-    return getOptionalTrimmedConfig(
-      this.configService,
-      GROQ_MODEL_CONFIG_KEY,
-      DEFAULT_GROQ_MODEL,
-    );
-  }
-
-  getUtilityModel(): string {
-    return getOptionalTrimmedConfig(
-      this.configService,
-      GROQ_UTILITY_MODEL_CONFIG_KEY,
-      DEFAULT_GROQ_UTILITY_MODEL,
-    );
-  }
-
   getAnswerTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      GROQ_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_GROQ_ANSWER_TIMEOUT_MS,
-    );
+    return this.answerTimeoutMs;
   }
 
   getQueryRewriteTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      GROQ_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_GROQ_QUERY_REWRITE_TIMEOUT_MS,
-    );
+    return this.queryRewriteTimeoutMs;
   }
 
   getSuggestionTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      GROQ_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_GROQ_SUGGESTION_TIMEOUT_MS,
-    );
+    return this.suggestionTimeoutMs;
   }
 }

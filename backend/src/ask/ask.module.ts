@@ -9,6 +9,5 @@ import { AskService } from './ask.service';
   imports: [AiModule, SearchModule, ThreadsModule],
   controllers: [AskController],
   providers: [AskService],
-  exports: [AskService],
 })
 export class AskModule {}
