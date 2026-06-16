@@ -1,14 +1,15 @@
-import { ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
 import type {
   ThreadWithSingleTurnRecord,
   TurnDetailRecord,
-} from '../../threads/types/thread-record.types';
+} from '../../threads/types/threads.types';
 import type {
-  ApiThreadMode,
-  ApiThreadStatus,
-  ApiTurnStatus,
   ThreadSummaryItem,
-} from '../../threads/types/thread-response.types';
+} from '../../threads/types/threads.types';
+import {
+  THREAD_MODE_MAP,
+  THREAD_STATUS_MAP,
+  TURN_STATUS_MAP,
+} from '../../threads/types/threads.types';
 import type {
   AskCitationReference,
   AskResponse,
@@ -31,7 +32,7 @@ export function mapAskTurnSummary(turn: TurnDetailRecord): AskTurnSummary {
     searchQuery: turn.searchQuery,
     answerMarkdown: turn.answerMarkdown,
     suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
-    status: TURN_STATUS[turn.status],
+    status: TURN_STATUS_MAP[turn.status],
     errorMessage: turn.errorMessage,
     sourceCount: turn.sources.length,
     citationCount: citations.length,
@@ -48,9 +49,8 @@ function mapAskThreadSummary(
   return {
     threadId: thread.id,
     title: thread.title,
-    link: `/search/${thread.id}`,
-    status: THREAD_STATUS[thread.status],
-    mode: THREAD_MODE[thread.mode],
+    status: THREAD_STATUS_MAP[thread.status],
+    mode: THREAD_MODE_MAP[thread.mode],
     answerPreview: thread.answerPreview,
     totalSourceCount,
     turnCount: thread._count.turns,
@@ -83,19 +83,3 @@ function mapAskCitationReferences(turn: TurnDetailRecord): AskCitationReference[
     };
   });
 }
-
-const THREAD_STATUS: Record<ThreadStatus, ApiThreadStatus> = {
-  [ThreadStatus.RUNNING]: 'running',
-  [ThreadStatus.COMPLETED]: 'completed',
-  [ThreadStatus.FAILED]: 'failed',
-};
-
-const THREAD_MODE: Record<ThreadMode, ApiThreadMode> = {
-  [ThreadMode.WEB]: 'web',
-};
-
-const TURN_STATUS: Record<TurnStatus, ApiTurnStatus> = {
-  [TurnStatus.PENDING]: 'pending',
-  [TurnStatus.COMPLETED]: 'completed',
-  [TurnStatus.FAILED]: 'failed',
-};

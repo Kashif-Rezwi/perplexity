@@ -1,7 +1,7 @@
 import { InternalServerErrorException } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
 import type { PriorTurn } from '../../ai/types/ai.types';
-import type { ThreadDetailRecord } from '../../threads/types/thread-record.types';
+import type { ThreadDetailRecord } from '../../threads/types/threads.types';
 
 const PRIOR_TURN_CONTEXT_LIMIT = 5;
 

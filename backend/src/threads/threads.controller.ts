@@ -1,6 +1,11 @@
 import { Controller, Get, Param } from '@nestjs/common';
-import { ThreadParamsDto } from './dto/thread-params.dto';
+import { IsUUID } from 'class-validator';
 import { ThreadsService } from './threads.service';
+
+export class ThreadParamsDto {
+  @IsUUID()
+  threadId!: string;
+}
 
 @Controller('threads')
 export class ThreadsController {

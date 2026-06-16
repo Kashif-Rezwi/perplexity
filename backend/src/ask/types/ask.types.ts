@@ -1,7 +1,7 @@
 import type {
   ApiTurnStatus,
   ThreadSummaryItem,
-} from '../../threads/types/thread-response.types';
+} from '../../threads/types/threads.types';
 
 export type AskInput = {
   question: string;

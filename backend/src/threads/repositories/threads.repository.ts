@@ -6,13 +6,13 @@ import type {
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
-} from '../types/thread-command.types';
+} from '../types/threads.types';
 import {
   threadDetailInclude,
   ThreadDetailRecord,
   ThreadWithSingleTurnRecord,
   turnDetailInclude,
-} from '../types/thread-record.types';
+} from '../types/threads.types';
 
 type RepositoryTransaction = Prisma.TransactionClient;
 type SourceIdsByCitationNumber = Map<number, string>;
