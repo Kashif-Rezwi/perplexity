@@ -1,12 +1,24 @@
+'use client';
+
 import type { TurnItem } from '@/types/api.types';
-import { QuestionBlock } from './QuestionBlock';
+import type { TurnItemWithCache } from '@/lib/mappers/ask.mapper';
 import { AnswerMarkdown } from './AnswerMarkdown';
 import { FollowUpSuggestions } from './FollowUpSuggestions';
 import { FailedTurnBlock, PendingTurnBlock } from './TurnStatusBlocks';
 import { TurnResponseActions } from './TurnResponseActions';
 
+function QuestionBlock({ question }: { question: string }) {
+  return (
+    <div className="flex w-full justify-end mb-2 font-sans">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border-subtle)] text-[var(--color-text)] px-4 py-3 rounded-[18px] max-w-[78%] leading-relaxed text-[15px] break-words shadow-sm">
+        {question}
+      </div>
+    </div>
+  );
+}
+
 interface ThreadTurnProps {
-  turn: TurnItem;
+  turn: TurnItem | TurnItemWithCache;
   isLast?: boolean;
   onViewSources?: () => void;
   onSelectFollowUp?: (q: string) => void;
@@ -23,9 +35,14 @@ export function ThreadTurn({
   onRetry,
 }: ThreadTurnProps) {
   const sourceCount = turn.sourceCount ?? turn.sources.length;
-  const sourcePreviewItems = turn.sources.length > 0
-    ? turn.sources
-    : turn.citationSources ?? [];
+
+  // Prefer server-fetched sources, fallback to client-cached citation sources.
+  const sourcePreviewItems =
+    turn.sources.length > 0
+      ? turn.sources
+      : 'citationSources' in turn
+        ? turn.citationSources
+        : [];
 
   return (
     <div className="flex flex-col gap-6 pb-7">
@@ -44,11 +61,10 @@ export function ThreadTurn({
           />
         ) : null}
 
-
         {turn.status === 'completed' && turn.answerMarkdown ? (
           <AnswerMarkdown
             markdown={turn.answerMarkdown}
-            sources={turn.citationSources ?? turn.sources}
+            sources={sourcePreviewItems}
             onCitationClick={onCitationClick}
           />
         ) : null}
