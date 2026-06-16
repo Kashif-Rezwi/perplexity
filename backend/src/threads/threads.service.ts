@@ -4,24 +4,21 @@ import type {
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
-} from './types/thread-command.types';
+} from './types/threads.types';
 import type {
   ThreadDetailRecord,
   ThreadWithSingleTurnRecord,
-} from './types/thread-record.types';
+} from './types/threads.types';
 import type {
   ThreadDetailResponse,
-} from './types/thread-response.types';
+} from './types/threads.types';
 import { mapThreadDetail } from './mappers/thread-response.mapper';
 import { ThreadsRepository } from './repositories/threads.repository';
 
+/** Service boundary for all thread and turn operations. */
 @Injectable()
 export class ThreadsService {
   constructor(private readonly threadsRepository: ThreadsRepository) {}
-
-  // ---------------------------------------------------------------------------
-  // Query methods – used by ThreadsController and AskService for read access
-  // ---------------------------------------------------------------------------
 
   findThreadDetailById(
     threadId: string,
@@ -46,10 +43,6 @@ export class ThreadsService {
     return this.threadsRepository.findThreadWithSingleTurn(threadId, turnId);
   }
 
-  // ---------------------------------------------------------------------------
-  // Command methods – used exclusively by AskService for ask orchestration.
-  // Future streaming or pipeline steps should call these, not add new logic here.
-  // ---------------------------------------------------------------------------
   createThreadWithPendingTurn(
     input: CreateThreadWithPendingTurnInput,
   ): Promise<ThreadDetailRecord> {

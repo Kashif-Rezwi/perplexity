@@ -51,20 +51,30 @@ const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 @Injectable()
 export class OpenAiProviderService implements AiProvider {
   private readonly logger = new Logger(OpenAiProviderService.name);
+  private readonly client: ReturnType<typeof createOpenAI>;
+  private readonly model: string;
+  private readonly utilityModel: string;
+  private readonly answerTimeoutMs: number;
+  private readonly queryRewriteTimeoutMs: number;
+  private readonly suggestionTimeoutMs: number;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(configService: ConfigService) {
+    const apiKey = getRequiredTrimmedConfig(configService, OPENAI_API_KEY_CONFIG_KEY);
+    this.client = createOpenAI({ apiKey });
+    this.model = getOptionalTrimmedConfig(configService, OPENAI_MODEL_CONFIG_KEY, DEFAULT_OPENAI_MODEL);
+    this.utilityModel = getOptionalTrimmedConfig(configService, OPENAI_UTILITY_MODEL_CONFIG_KEY, DEFAULT_OPENAI_UTILITY_MODEL);
+    this.answerTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_ANSWER_TIMEOUT_MS);
+    this.queryRewriteTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS);
+    this.suggestionTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS);
+  }
 
   async generateAnswer(
     input: GenerateAnswerInput,
     abortSignal?: AbortSignal,
   ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getModel();
-    const openaiClient = createOpenAI({ apiKey });
-
     try {
       const { text } = await generateText({
-        model: openaiClient(model),
+        model: this.client(this.model),
         abortSignal,
         system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
@@ -95,13 +105,9 @@ export class OpenAiProviderService implements AiProvider {
     input: GenerateSuggestedFollowUpQuestionsInput,
     abortSignal?: AbortSignal,
   ): Promise<string[]> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
-
     try {
       const { output } = await generateText({
-        model: openaiClient(model),
+        model: this.client(this.utilityModel),
         abortSignal,
         system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
         prompt: createSuggestedFollowUpQuestionsPrompt(input),
@@ -130,9 +136,7 @@ export class OpenAiProviderService implements AiProvider {
       }
 
       this.logger.warn(
-        `OpenAI follow-up suggestion generation failed: ${getErrorMessage(
-          error,
-        )}`,
+        `OpenAI follow-up suggestion generation failed: ${getErrorMessage(error)}`,
       );
 
       throw new ServiceUnavailableException(
@@ -145,13 +149,9 @@ export class OpenAiProviderService implements AiProvider {
     input: GenerateStandaloneSearchQueryInput,
     abortSignal?: AbortSignal,
   ): Promise<string> {
-    const apiKey = this.getRequiredApiKey();
-    const model = this.getUtilityModel();
-    const openaiClient = createOpenAI({ apiKey });
-
     try {
       const { text } = await generateText({
-        model: openaiClient(model),
+        model: this.client(this.utilityModel),
         abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
         system: STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
@@ -181,50 +181,15 @@ export class OpenAiProviderService implements AiProvider {
     }
   }
 
-  private getRequiredApiKey(): string {
-    return getRequiredTrimmedConfig(
-      this.configService,
-      OPENAI_API_KEY_CONFIG_KEY,
-    );
-  }
-
-  getModel(): string {
-    return getOptionalTrimmedConfig(
-      this.configService,
-      OPENAI_MODEL_CONFIG_KEY,
-      DEFAULT_OPENAI_MODEL,
-    );
-  }
-
-  getUtilityModel(): string {
-    return getOptionalTrimmedConfig(
-      this.configService,
-      OPENAI_UTILITY_MODEL_CONFIG_KEY,
-      DEFAULT_OPENAI_UTILITY_MODEL,
-    );
-  }
-
   getAnswerTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-    );
+    return this.answerTimeoutMs;
   }
 
   getQueryRewriteTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-    );
+    return this.queryRewriteTimeoutMs;
   }
 
   getSuggestionTimeoutMs(): number {
-    return getPositiveIntegerConfig(
-      this.configService,
-      OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-    );
+    return this.suggestionTimeoutMs;
   }
 }

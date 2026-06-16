@@ -12,7 +12,7 @@ import { SidebarRecentThreads } from './SidebarRecentThreads';
 import { SIDEBAR_NAV_ITEMS } from './sidebarNavItems';
 
 export function Sidebar() {
-  const { isOpen, toggle, setOpen } = useSidebarStore();
+  const { isOpen, setOpen } = useSidebarStore();
   const pathname = usePathname();
   const mounted = useMounted();
 
@@ -69,7 +69,7 @@ export function Sidebar() {
             </Link>
           ) : (
             <button
-              onClick={() => toggle()}
+              onClick={() => setOpen(true)}
               aria-label="Expand sidebar"
               className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 group-hover/sidebar:bg-[var(--color-surface-hover)]"
             >
@@ -84,7 +84,7 @@ export function Sidebar() {
 
           {isOpen && (
             <button
-              onClick={() => toggle()}
+              onClick={() => setOpen(false)}
               aria-label="Collapse sidebar"
               className="ml-auto flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
             >

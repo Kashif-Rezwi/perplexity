@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { postAsk } from '@/lib/api/ask.api';
-import { getSources } from '@/lib/api/sources.api';
+import { postAsk } from '@/lib/api';
+import { getSources } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
 import { useHistoryStore } from '@/store/historyStore';

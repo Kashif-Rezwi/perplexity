@@ -2,8 +2,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Favicon } from '@/components/ui/Favicon';
 import { extractDomain } from '@/lib/utils/url';
 import type { SourcePreviewItem } from '@/types/api.types';
-import { cleanSnippetText } from '../utils/sourceText';
 import type { MouseEvent } from 'react';
+
+function cleanSnippetText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/^#+\s+/, '')
+    .replace(/^[*-+]\s+/, '')
+    .trim();
+}
 
 interface CitationTooltipCardProps {
   sources: SourcePreviewItem[];

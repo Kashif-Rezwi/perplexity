@@ -1,5 +1,5 @@
 import type { SearchResult } from '../../search/types/search.types';
-import type { CreateTurnSourceInput } from '../../sources/types/source-persistence.types';
+import type { CreateTurnSourceInput } from '../../sources/types/sources.types';
 
 const SOURCE_PROVIDER = 'tavily';
 const UNKNOWN_DOMAIN = 'unknown';

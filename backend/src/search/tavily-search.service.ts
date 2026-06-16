@@ -8,16 +8,16 @@ import {
 } from '../common/utils/config.util';
 import { getErrorStack } from '../common/utils/error.util';
 import { withTimeout } from '../common/utils/with-timeout.util';
-import {
-  DEFAULT_TAVILY_MAX_RESULTS,
-  DEFAULT_TAVILY_SEARCH_DEPTH,
-  DEFAULT_TAVILY_SEARCH_TIMEOUT_MS,
-  TAVILY_API_KEY_CONFIG_KEY,
-  TAVILY_MAX_RESULTS_CONFIG_KEY,
-  TAVILY_SEARCH_DEPTH_CONFIG_KEY,
-  TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY,
-} from './search.constants';
 import type { SearchDepth, SearchInput, SearchResult } from './types/search.types';
+
+export const TAVILY_API_KEY_CONFIG_KEY = 'TAVILY_API_KEY';
+export const TAVILY_MAX_RESULTS_CONFIG_KEY = 'TAVILY_MAX_RESULTS';
+export const TAVILY_SEARCH_DEPTH_CONFIG_KEY = 'TAVILY_SEARCH_DEPTH';
+export const TAVILY_SEARCH_TIMEOUT_MS_CONFIG_KEY = 'TAVILY_SEARCH_TIMEOUT_MS';
+
+export const DEFAULT_TAVILY_MAX_RESULTS = 5;
+export const DEFAULT_TAVILY_SEARCH_DEPTH: SearchDepth = 'basic';
+export const DEFAULT_TAVILY_SEARCH_TIMEOUT_MS = 6000;
 
 const SEARCH_DEPTHS = new Set<SearchDepth>([
   'basic',

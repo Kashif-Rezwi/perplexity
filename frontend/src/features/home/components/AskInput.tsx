@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 're
 import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 
-const MAIN_CONTENT_WIDTH_CLASS = 'w-full max-w-[720px] mx-auto px-4 md:px-6';
 
 export interface AskInputRef {
   setQuestion: (q: string) => void;
@@ -75,7 +74,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     }, [question]);
 
     return (
-      <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col items-center`}>
+      <div className="content-width flex flex-col items-center">
         <form
           onSubmit={handleSubmit}
           className={[

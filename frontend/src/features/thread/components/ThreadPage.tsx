@@ -1,79 +1,44 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getThread } from '@/lib/api/threads.api';
-import { getSources } from '@/lib/api/sources.api';
-import { Globe, Image as ImageIcon, Compass, WifiOff } from 'lucide-react';
 import Link from 'next/link';
+import { Globe, Image as ImageIcon, Compass, WifiOff } from 'lucide-react';
 import { PerplexityLogo } from '@/components/ui/icons';
+import { AskInput } from '@/features/home/components/AskInput';
+import { ApiError } from '@/lib/api/client';
+import { useThreadPage } from '../hooks/useThreadPage';
 import { ThreadTurn } from './ThreadTurn';
 import { LinksPanel } from './LinksPanel';
-import { AskInput, AskInputRef } from '@/features/home/components/AskInput';
-import { ApiError } from '@/lib/api/client';
-import { useThreadAutoScroll } from '../hooks/useThreadAutoScroll';
-import { useThreadHistoryRegistration } from '../hooks/useThreadHistoryRegistration';
-import { useThreadSourceSelection } from '../hooks/useThreadSourceSelection';
 import { ThreadLoadingState, ThreadStatusState } from './ThreadStates';
 import { ThreadTabButton } from './ThreadTabButton';
-
-const MAIN_CONTENT_WIDTH_CLASS = 'w-full max-w-[720px] mx-auto px-4 md:px-6';
 
 interface ThreadPageProps {
   threadId: string;
 }
 
 export function ThreadPage({ threadId }: ThreadPageProps) {
-  const [activeTab, setActiveTab] = useState<'answer' | 'links'>('answer');
-  const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
-  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
-  const askInputRef = useRef<AskInputRef>(null);
-  const lastTurnRef = useRef<HTMLDivElement>(null);
-  const pendingTurnRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-
-  const { data: thread, isPending, error } = useQuery({
-    queryKey: ['thread', threadId],
-    queryFn: () => getThread(threadId),
-    retry: 1,
-  });
-
-  const turnsCount = thread?.turns.length ?? 0;
-  const latestTurnId = turnsCount > 0
-    ? thread?.turns[turnsCount - 1]?.turnId ?? null
-    : null;
   const {
-    selectedTurn: selectedTurnForLinks,
-    selectSourceTurn,
-    clearSourceTurnSelection,
-  } = useThreadSourceSelection(threadId, thread?.turns ?? []);
-  const selectedTurnIdForLinks = selectedTurnForLinks?.turnId;
-  const {
-    data: selectedSources,
-    isFetching: isFetchingSources,
-    error: sourcesError,
-  } = useQuery({
-    queryKey: ['sources', threadId, selectedTurnIdForLinks],
-    queryFn: () => getSources({ turnId: selectedTurnIdForLinks }),
-    enabled: Boolean(selectedTurnIdForLinks) &&
-      selectedTurnForLinks?.status === 'completed' &&
-      (!selectedTurnForLinks?.sources || selectedTurnForLinks.sources.length === 0),
-    retry: 1,
-  });
-  const linksSources = selectedSources?.items ?? selectedTurnForLinks?.sources ?? [];
-
-  useThreadHistoryRegistration(thread);
-  useThreadAutoScroll({
-    threadId,
+    thread,
+    linksSources,
+    selectedTurnForLinks,
+    isPending,
+    error,
+    isFetchingSources,
+    sourcesError,
     activeTab,
-    turnsCount,
-    latestTurnId,
+    setActiveTab,
+    highlightedSourceNum,
+    setHighlightedSourceNum,
     pendingQuestion,
-    scrollContainerRef,
+    askInputRef,
     lastTurnRef,
     pendingTurnRef,
-  });
+    scrollContainerRef,
+    handleSelectSourceTurn,
+    handleCitationClick,
+    handleSubmitStart,
+    handleSettled,
+    retryThread,
+  } = useThreadPage(threadId);
 
   if (isPending) {
     return <ThreadLoadingState />;
@@ -114,7 +79,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               Go Home
             </Link>
             <button
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['thread', threadId] })}
+              onClick={retryThread}
               className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-[var(--color-accent-text)] hover:bg-[var(--color-accent-hover)] transition-all duration-[var(--transition-hover)] cursor-pointer"
             >
               Try again
@@ -127,8 +92,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
 
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
+      {/* Tab bar */}
       <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full">
-        <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex items-center pt-5 pb-0 font-sans`}>
+        <div className="content-width flex items-center pt-5 pb-0 font-sans">
           <div className="flex items-center gap-6">
             <ThreadTabButton
               label="Answer"
@@ -154,7 +120,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
       </div>
 
       <div className="flex-1 min-h-0 w-full relative">
-        {/* Answer Tab Scroll Container */}
+        {/* Answer Tab */}
         <div
           ref={scrollContainerRef}
           className={[
@@ -162,7 +128,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             activeTab === 'answer' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-[132px] md:pb-[118px]`}>
+          <div className="content-width flex flex-col pt-9 pb-[132px] md:pb-[118px]">
             <h1 className="text-[22px] font-medium text-[var(--color-text)] tracking-[-0.005em] mb-7 font-sans leading-tight">
               {thread.title}
             </h1>
@@ -179,16 +145,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                     <ThreadTurn
                       turn={turn}
                       isLast={isLastTurn && !pendingQuestion}
-                      onViewSources={() => {
-                        selectSourceTurn(turn.turnId);
-                        setActiveTab('links');
-                      }}
+                      onViewSources={() => handleSelectSourceTurn(turn.turnId)}
                       onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
-                      onCitationClick={(num) => {
-                        selectSourceTurn(turn.turnId);
-                        setActiveTab('links');
-                        setHighlightedSourceNum(num);
-                      }}
+                      onCitationClick={(num) => handleCitationClick(turn.turnId, num)}
                       onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
                     />
                   </div>
@@ -198,7 +157,6 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               {pendingQuestion && (
                 <div ref={pendingTurnRef} className="scroll-mt-8">
                   <ThreadTurn
-                    key="pending-turn"
                     turn={{
                       turnId: 'pending',
                       question: pendingQuestion,
@@ -222,14 +180,14 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           </div>
         </div>
 
-        {/* Links Tab Scroll Container */}
+        {/* Links Tab */}
         <div
           className={[
             'absolute inset-0 overflow-y-auto w-full',
             activeTab === 'links' ? 'block' : 'hidden',
           ].join(' ')}
         >
-          <div className={`${MAIN_CONTENT_WIDTH_CLASS} flex flex-col pt-9 pb-10`}>
+          <div className="content-width flex flex-col pt-9 pb-10">
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 sources={linksSources}
@@ -244,7 +202,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
         </div>
       </div>
 
-      {thread && activeTab === 'answer' && (
+      {/* Floating follow-up input */}
+      {activeTab === 'answer' && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--color-bg)] via-[var(--color-bg)]/95 to-transparent pt-12 pb-4 z-40 w-full pointer-events-none">
           <div className="pointer-events-auto">
             <AskInput
@@ -252,11 +211,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               threadId={threadId}
               autoFocus={false}
               placeholder="Ask a follow-up"
-              onSubmitStart={(q) => {
-                clearSourceTurnSelection();
-                setPendingQuestion(q);
-              }}
-              onSettled={() => setPendingQuestion(null)}
+              onSubmitStart={handleSubmitStart}
+              onSettled={handleSettled}
             />
           </div>
         </div>

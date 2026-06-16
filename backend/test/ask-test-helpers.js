@@ -1,11 +1,6 @@
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const { AskService } = require('../src/ask/ask.service.ts');
 const { AiService } = require('../src/ai/ai.service.ts');
-const {
-  DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
-  DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
-  DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
-} = require('../src/ai/ai.constants.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
@@ -17,20 +12,21 @@ const updatedAt = new Date('2026-06-04T00:05:00.000Z');
 const completedAt = new Date('2026-06-04T00:04:00.000Z');
 const publishedAt = new Date('2026-06-03T00:00:00.000Z');
 
+// Generous fixed timeouts to avoid test timing dependencies.
 const DEFAULT_AI_TIMEOUTS = {
-  getAnswerTimeoutMs() { return DEFAULT_OPENAI_ANSWER_TIMEOUT_MS; },
-  getQueryRewriteTimeoutMs() { return DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS; },
-  getSuggestionTimeoutMs() { return DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS; },
+  getAnswerTimeoutMs() { return 30_000; },
+  getQueryRewriteTimeoutMs() { return 10_000; },
+  getSuggestionTimeoutMs() { return 25_000; },
 };
 
 function createTestAskService(aiMock, searchMock, threadsMock) {
-  const aiService = new AiService({
-    ...DEFAULT_AI_TIMEOUTS,
-    async generateSuggestedFollowUpQuestions() {
-      return [];
-    },
-    ...aiMock,
-  });
+  // Pass aiMock as the active provider via stubbed ConfigService fallback.
+  const stubConfigService = { get() { return undefined; } };
+  const aiService = new AiService(
+    { ...DEFAULT_AI_TIMEOUTS, async generateSuggestedFollowUpQuestions() { return []; }, ...aiMock },
+    stubConfigService,
+    { ...DEFAULT_AI_TIMEOUTS, async generateSuggestedFollowUpQuestions() { return []; }, ...aiMock },
+  );
 
   return new AskService(aiService, searchMock, threadsMock);
 }

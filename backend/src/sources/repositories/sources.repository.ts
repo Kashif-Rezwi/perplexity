@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
-import { sourceInclude, type SourceRecord } from './source-record.types';
+import { sourceInclude, type SourceRecord } from '../types/sources.types';
 
 type FindSourcesOptions = {
   limit: number;

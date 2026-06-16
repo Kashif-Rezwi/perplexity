@@ -1,5 +1,11 @@
 import { apiClient } from './client';
-import type { SourcesResponse } from '@/types/api.types';
+import type { ThreadDetailResponse, SourcesResponse, AskResponse } from '@/types/api.types';
+
+export async function getThread(
+  threadId: string,
+): Promise<ThreadDetailResponse> {
+  return apiClient<ThreadDetailResponse>(`/threads/${threadId}`);
+}
 
 type GetSourcesInput = {
   turnId?: string;
@@ -23,4 +29,14 @@ export async function getSources({
   const query = params.toString();
 
   return apiClient<SourcesResponse>(`/sources${query ? `?${query}` : ''}`);
+}
+
+export async function postAsk(
+  question: string,
+  threadId?: string,
+): Promise<AskResponse> {
+  return apiClient<AskResponse>('/ask', {
+    method: 'POST',
+    body: JSON.stringify({ question, threadId }),
+  });
 }
