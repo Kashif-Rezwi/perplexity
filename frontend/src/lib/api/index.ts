@@ -40,3 +40,12 @@ export async function postAsk(
     body: JSON.stringify({ question, threadId }),
   });
 }
+
+
+export async function deleteThread(
+  threadId: string,
+): Promise<void> {
+  return apiClient<void>(`/threads/${threadId}`, {
+    method: 'DELETE',
+  });
+}

@@ -29,7 +29,7 @@ Enhancements that improve the client experience once the core flow is stable.
 |---|---|---|
 | **Backend/Frontend** | Streaming responses | Return and render answer tokens progressively via SSE |
 | **Backend** | Pagination support | Load large lists such as recents in stable chunks |
-| **Frontend** | Thread Management | Rename threads, delete threads |
+| **Frontend** | Thread Management | Delete threads |
 
 ## V3 - Deployment Readiness
 

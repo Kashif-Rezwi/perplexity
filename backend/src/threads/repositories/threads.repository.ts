@@ -11,7 +11,7 @@ import {
   threadDetailInclude,
   ThreadDetailRecord,
   ThreadWithSingleTurnRecord,
-  turnDetailInclude,
+  turnDetailInclude
 } from '../types/threads.types';
 
 type RepositoryTransaction = Prisma.TransactionClient;
@@ -93,6 +93,13 @@ export class ThreadsRepository {
     return this.database.thread.findUnique({
       where: { id: threadId },
       include: threadDetailInclude,
+    });
+  }
+
+
+  async deleteThread(threadId: string): Promise<void> {
+    await this.database.thread.delete({
+      where: { id: threadId },
     });
   }
 

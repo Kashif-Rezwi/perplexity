@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Delete, HttpCode } from '@nestjs/common';
 import { IsUUID } from 'class-validator';
 import { ThreadsService } from './threads.service';
 
@@ -14,5 +14,11 @@ export class ThreadsController {
   @Get(':threadId')
   getThreadDetail(@Param() params: ThreadParamsDto) {
     return this.threadsService.getThreadDetail(params.threadId);
+  }
+
+  @Delete(':threadId')
+  @HttpCode(204)
+  deleteThread(@Param() params: ThreadParamsDto) {
+    return this.threadsService.deleteThread(params.threadId);
   }
 }

@@ -178,6 +178,12 @@ Response:
 }
 ```
 
+## DELETE /perplexity/threads/:threadId
+
+Deletes a thread and all associated turns, sources, and citations.
+
+Response: `204 No Content`
+
 ## GET /health
 
 Backend health check endpoint to verify server status.

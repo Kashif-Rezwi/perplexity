@@ -18,7 +18,7 @@ import { ThreadsRepository } from './repositories/threads.repository';
 /** Service boundary for all thread and turn operations. */
 @Injectable()
 export class ThreadsService {
-  constructor(private readonly threadsRepository: ThreadsRepository) {}
+  constructor(private readonly threadsRepository: ThreadsRepository) { }
 
   findThreadDetailById(
     threadId: string,
@@ -34,6 +34,10 @@ export class ThreadsService {
     }
 
     return mapThreadDetail(thread);
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    await this.threadsRepository.deleteThread(threadId);
   }
 
   findThreadWithSingleTurn(
