@@ -18,12 +18,9 @@ interface ThreadPageProps {
 export function ThreadPage({ threadId }: ThreadPageProps) {
   const {
     thread,
-    linksSources,
-    selectedTurnForLinks,
+    turnSourceGroups,
     isPending,
     error,
-    isFetchingSources,
-    sourcesError,
     activeTab,
     setActiveTab,
     highlightedSourceNum,
@@ -145,9 +142,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                     <ThreadTurn
                       turn={turn}
                       isLast={isLastTurn && !pendingQuestion}
-                      onViewSources={() => handleSelectSourceTurn(turn.turnId)}
+                      onViewSources={handleSelectSourceTurn}
                       onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
-                      onCitationClick={(num) => handleCitationClick(turn.turnId, num)}
+                      onCitationClick={(num) => handleCitationClick(num)}
                       onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
                     />
                   </div>
@@ -190,10 +187,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           <div className="content-width flex flex-col pt-9 pb-10">
             <div className="animate-in fade-in duration-300">
               <LinksPanel
-                sources={linksSources}
-                searchQuery={selectedTurnForLinks?.searchQuery}
-                isLoading={isFetchingSources && linksSources.length === 0}
-                errorMessage={sourcesError ? 'Unable to load links for this answer.' : null}
+                groups={turnSourceGroups}
                 highlightedNumber={highlightedSourceNum}
                 onClearHighlight={() => setHighlightedSourceNum(null)}
               />

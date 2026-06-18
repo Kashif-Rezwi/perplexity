@@ -75,6 +75,14 @@ export type SourcesResponse = {
   nextCursor: string | null;
 };
 
+// A single turn's sources assembled for the thread-level Links tab.
+export type TurnSourceGroup = {
+  turnId: string;
+  question: string;
+  searchQuery: string;
+  sources: SourcePreviewItem[];
+};
+
 export type CitationItem = {
   citationId: string;
   sourceId: string;
