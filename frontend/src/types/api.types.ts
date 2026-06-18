@@ -70,7 +70,10 @@ export type SourceListItem = SourcePreviewItem & {
 };
 
 // Response list returned by GET /sources.
-export type SourcesResponse = SourceListItem[];
+export type SourcesResponse = {
+  items: SourceListItem[];
+  nextCursor: string | null;
+};
 
 export type CitationItem = {
   citationId: string;

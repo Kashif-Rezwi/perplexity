@@ -58,7 +58,7 @@ export function useThreadPage(threadId: string) {
   });
 
   // Prefer freshly fetched sources; fall back to inline sources already on the turn.
-  const linksSources = selectedSources ?? selectedTurnForLinks?.sources ?? [];
+  const linksSources = selectedSources?.items ?? selectedTurnForLinks?.sources ?? [];
 
   useThreadHistoryRegistration(thread);
   useThreadAutoScroll({

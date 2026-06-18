@@ -10,11 +10,13 @@ export async function getThread(
 type GetSourcesInput = {
   turnId?: string;
   limit?: number;
+  cursor?: string;
 };
 
 export async function getSources({
   turnId,
   limit,
+  cursor,
 }: GetSourcesInput = {}): Promise<SourcesResponse> {
   const params = new URLSearchParams();
 
@@ -24,6 +26,10 @@ export async function getSources({
 
   if (limit) {
     params.set('limit', String(limit));
+  }
+
+  if (cursor) {
+    params.set('cursor', cursor);
   }
 
   const query = params.toString();
