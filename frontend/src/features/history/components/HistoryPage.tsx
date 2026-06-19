@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import {
+  ThreadDeleteDialog,
+  ThreadRenameDialog,
+} from '@/features/thread-management/components/ThreadManagementDialogs';
+import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
 import { useThreadMutations } from '@/features/sidebar/hooks/useThreadMutations';
 import { useHistoryStore } from '@/store/historyStore';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useMounted } from '@/hooks/useMounted';
-import { ApiError, NetworkError } from '@/lib/api/client';
 import type { HistoryTypeFilter, SortOrder } from '../constants/history.constants';
 import { useHistorySearch } from '../hooks/useHistorySearch';
 import { useHistorySelection } from '../hooks/useHistorySelection';
@@ -14,18 +18,6 @@ import { useServerHistoryThreads } from '../hooks/useServerHistoryThreads';
 import { HistoryFiltersBar } from './HistoryFiltersBar';
 import { HistoryList } from './HistoryList';
 import { HistoryToolbar } from './HistoryToolbar';
-
-function getMutationErrorMessage(error: unknown) {
-  if (error instanceof ApiError || error instanceof NetworkError) {
-    return error.message;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return 'Something went wrong. Please try again.';
-}
 
 export function HistoryPage() {
   const mounted = useMounted();
@@ -44,6 +36,7 @@ export function HistoryPage() {
     deleteThreadAsync,
     deleteThreadsAsync,
     renameThreadAsync,
+    togglePin,
     isDeleting,
     isRenaming,
   } = useThreadMutations();
@@ -78,7 +71,7 @@ export function HistoryPage() {
       clearSelection();
       setIsBulkDeleteDialogOpen(false);
     } catch (error) {
-      setDeleteError(getMutationErrorMessage(error));
+      setDeleteError(getThreadMutationErrorMessage(error));
     }
   };
 
@@ -86,6 +79,10 @@ export function HistoryPage() {
     setTypeFilter(value);
     clearSelection();
     setIsBulkDeleteDialogOpen(false);
+  };
+
+  const handleTogglePinThread = (thread: ThreadHistoryItem) => {
+    togglePin({ threadId: thread.id, isPinned: !(thread.isPinned ?? false) });
   };
 
   const openRenameDialog = (thread: ThreadHistoryItem) => {
@@ -120,7 +117,7 @@ export function HistoryPage() {
       await renameThreadAsync({ threadId: threadToRename.id, title });
       closeRenameDialog();
     } catch (error) {
-      setRenameError(getMutationErrorMessage(error));
+      setRenameError(getThreadMutationErrorMessage(error));
     }
   };
 
@@ -150,7 +147,7 @@ export function HistoryPage() {
       await deleteThreadAsync(threadToDelete.id);
       setThreadToDelete(null);
     } catch (error) {
-      setDeleteError(getMutationErrorMessage(error));
+      setDeleteError(getThreadMutationErrorMessage(error));
     }
   };
 
@@ -197,6 +194,7 @@ export function HistoryPage() {
             onToggleSelection={toggleThreadSelection}
             onRenameThread={openRenameDialog}
             onDeleteThread={setThreadToDelete}
+            onTogglePinThread={handleTogglePinThread}
             isLoading={historyThreads.isLoading}
             isError={historyThreads.isError}
           />
@@ -215,93 +213,24 @@ export function HistoryPage() {
         </section>
       </div>
 
-      <Modal
-        isOpen={threadToRename !== null}
+      <ThreadRenameDialog
+        thread={threadToRename}
+        titleValue={renameTitle}
+        error={renameError}
+        isSubmitting={isRenaming}
+        inputId="rename-thread-title"
+        onTitleChange={setRenameTitle}
         onClose={closeRenameDialog}
-        title="Rename thread"
-      >
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitRename();
-          }}
-        >
-          <div className="space-y-1.5">
-            <label
-              htmlFor="rename-thread-title"
-              className="text-xs font-medium text-[var(--color-text-muted)]"
-            >
-              Title
-            </label>
-            <input
-              id="rename-thread-title"
-              type="text"
-              value={renameTitle}
-              maxLength={80}
-              onChange={(event) => setRenameTitle(event.target.value)}
-              className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-border-strong)]"
-              autoFocus
-            />
-            {renameError && (
-              <p className="text-xs text-[var(--color-error)]">{renameError}</p>
-            )}
-          </div>
+        onSubmit={() => void submitRename()}
+      />
 
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={closeRenameDialog}
-              disabled={isRenaming}
-              className="h-8 rounded-lg px-3 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isRenaming || renameTitle.trim().length === 0}
-              className="h-8 rounded-lg bg-[var(--color-text)] px-3 text-xs font-medium text-[var(--color-bg)] transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {isRenaming ? 'Renaming...' : 'Rename'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={threadToDelete !== null}
+      <ThreadDeleteDialog
+        thread={threadToDelete}
+        error={deleteError}
+        isDeleting={isDeleting}
         onClose={closeDeleteDialog}
-        title="Delete thread"
-      >
-        <div className="space-y-4">
-          <p className="text-sm leading-5 text-[var(--color-text-muted)]">
-            Delete “{threadToDelete?.title}”? This removes the thread from
-            history.
-          </p>
-          {deleteError && (
-            <p className="text-xs text-[var(--color-error)]">{deleteError}</p>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={closeDeleteDialog}
-              disabled={isDeleting}
-              className="h-8 rounded-lg px-3 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void confirmSingleDelete()}
-              disabled={isDeleting}
-              className="h-8 rounded-lg bg-[var(--color-error)] px-3 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+        onConfirm={() => void confirmSingleDelete()}
+      />
 
       <Modal
         isOpen={isBulkDeleteDialogOpen}
