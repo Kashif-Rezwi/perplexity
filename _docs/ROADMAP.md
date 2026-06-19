@@ -18,7 +18,7 @@ Core capabilities required to make the first complete product loop work.
 | **Backend** | Core API endpoints | Ask a question, retrieve thread details, load per-turn sources, and delete threads |
 | **Frontend** | Layout & design system | Two-column shell, styling tokens, typography, animations |
 | **Frontend** | Core Thread UI | Submit questions, render markdown answers, render citation badges |
-| **Frontend** | Sidebar & History | Local storage-based thread history, navigation, and basic thread deletion |
+| **Frontend** | Sidebar & History | Local fallback thread history, navigation, and basic thread deletion |
 | **Frontend** | UX Polish | Loading states, error handling, suggested follow-ups chips |
 
 ### V1 Verification Checklist
@@ -37,8 +37,9 @@ Enhancements that improve the client experience once the core flow is stable.
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend/Frontend** | Streaming responses | Return and render answer tokens progressively via SSE |
-| **Backend** | Pagination support | Load large lists such as recents in stable chunks |
-| **Backend/Frontend** | Expanded Thread Management | History-page delete, multi-delete, rename/archive/pin candidates, and server-backed history |
+| **Backend/Frontend** | Server-backed history | Load sidebar and `/history` from `GET /perplexity/threads`, with local history as an optimistic fallback |
+| **Backend** | Pagination support | Load large lists such as thread history and source lists in stable chunks |
+| **Backend/Frontend** | Expanded Thread Management | History-page delete, multi-delete, rename/archive/pin candidates, and richer server-backed history controls |
 
 ## V3 - Deployment Readiness
 

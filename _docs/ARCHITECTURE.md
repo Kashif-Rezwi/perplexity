@@ -56,7 +56,10 @@ The following describes the end-to-end data flow when a user submits a question.
 11. **Hydration (Frontend)**: 
     *   If the ask was a new thread, the initial turn data is passed into React Query's cache.
     *   If the user navigates directly to a URL, `useThreadPage` fetches the full thread via `GET /perplexity/threads/:threadId` (see [`API.md`](API.md)).
-12. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
+12. **Server History (Frontend)**:
+    *   The sidebar and `/history` prefer `GET /perplexity/threads` for persisted thread summaries.
+    *   Local history remains as an optimistic/offline fallback so newly-created threads appear quickly before the server list reconciles.
+13. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
 
 ---
 

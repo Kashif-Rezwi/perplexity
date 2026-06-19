@@ -117,6 +117,46 @@ Response:
 }
 ```
 
+## GET /perplexity/threads
+
+Lists persisted thread summaries for server-backed sidebar and history views.
+
+Query:
+
+```text
+limit?: number, 1-50, default 20
+cursor?: uuid, pagination cursor from the previous response
+sort?: "newest" | "oldest", default "newest"
+mode?: "all" | "web" | "deep-research", default "all"
+q?: string, trimmed title search
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "threadId": "uuid",
+      "title": "What changed in Next.js 15?",
+      "status": "completed",
+      "mode": "web",
+      "answerPreview": "Short answer preview...",
+      "totalSourceCount": 3,
+      "turnCount": 1,
+      "createdAt": "2026-06-04T00:00:00.000Z",
+      "updatedAt": "2026-06-04T00:00:00.000Z"
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+Note: `mode=deep-research` currently returns an empty list because V1 only
+persists `web` threads. The frontend uses this endpoint as the source of truth
+for `/history` and sidebar recents, with local history retained only as an
+optimistic/offline fallback.
+
 ## GET /perplexity/threads/:threadId
 
 Loads a full research session with all turns, sources, and citations.
