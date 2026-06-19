@@ -133,6 +133,59 @@ body {
   background: var(--color-text-faint);
 }
 
+.sidebar-thread-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.sidebar-thread-scrollbar:hover {
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.sidebar-thread-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-thread-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-thread-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.sidebar-thread-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+}
+
+.sidebar-mask-both {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 12px,
+    black calc(100% - 12px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black 12px,
+    black calc(100% - 12px),
+    transparent 100%
+  );
+}
+
+.sidebar-mask-top {
+  mask-image: linear-gradient(to bottom, transparent 0, black 12px, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 12px, black 100%);
+}
+
+.sidebar-mask-bottom {
+  mask-image: linear-gradient(to bottom, black 0, black calc(100% - 12px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0, black calc(100% - 12px), transparent 100%);
+}
+
 /* ─── Utilities ─────────────────────────────────────────────────────────────── */
 @utility content-width {
   @apply w-full max-w-[720px] mx-auto px-4 md:px-6;
