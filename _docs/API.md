@@ -21,7 +21,6 @@ Response:
   "thread": {
     "threadId": "uuid",
     "title": "What changed in Next.js 15?",
-    "link": "/search/uuid",
     "status": "completed",
     "mode": "web",
     "answerPreview": "Short answer preview...",
@@ -128,7 +127,6 @@ Response:
 {
   "threadId": "uuid",
   "title": "What changed in Next.js 15?",
-  "link": "/search/uuid",
   "status": "completed",
   "mode": "web",
   "answerPreview": "Short answer preview...",

@@ -1,37 +1,63 @@
 import { useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import type { TurnItem, SourcesResponse, TurnSourceGroup } from '@/types/api.types';
+import { useQueries } from '@tanstack/react-query';
+import { getSources } from '@/lib/api';
+import type {
+  SourcesResponse,
+  TurnItem,
+  TurnSourceGroup,
+} from '@/types/api.types';
 
-// Reads per-turn sources from the TanStack Query cache (newest first). Falls back to inline turn.sources on cache miss.
+// Fetches canonical per-turn source lists while using thread-detail sources as the instant fallback.
 export function useThreadSources(
   threadId: string,
   turns: TurnItem[],
 ): TurnSourceGroup[] {
-  const queryClient = useQueryClient();
+  const completedTurns = useMemo(
+    () => turns.filter((turn) => turn.status === 'completed'),
+    [turns],
+  );
+
+  const sourceQueries = useQueries({
+    queries: completedTurns.map((turn) => ({
+      queryKey: ['sources', threadId, turn.turnId],
+      queryFn: () => getSources({ turnId: turn.turnId }),
+      enabled: Boolean(threadId),
+      placeholderData: createFallbackSourcesResponse(threadId, turn),
+      staleTime: 60_000,
+    })),
+  });
 
   return useMemo(() => {
-    const groups: TurnSourceGroup[] = [];
-
-    for (const turn of turns) {
-      if (turn.status !== 'completed') continue;
-
-      // Prefer cached sources (prefetched by useAskSubmit); fall back to inline.
-      const cached = queryClient.getQueryData<SourcesResponse>([
-        'sources',
-        threadId,
-        turn.turnId,
-      ]);
-
-      const sources = cached?.items ?? turn.sources;
-
-      groups.push({
+    return completedTurns
+      .map((turn, index) => ({
         turnId: turn.turnId,
         question: turn.question,
         searchQuery: turn.searchQuery,
-        sources,
-      });
-    }
+        sources: sourceQueries[index]?.data?.items ?? turn.sources,
+      }))
+      .reverse();
+  }, [completedTurns, sourceQueries]);
+}
 
-    return [...groups].reverse(); // spread to avoid in-place mutation
-  }, [threadId, turns, queryClient]);
+function createFallbackSourcesResponse(
+  threadId: string,
+  turn: TurnItem,
+): SourcesResponse {
+  return {
+    items: turn.sources.map((source) => ({
+      sourceId: source.sourceId,
+      turnId: turn.turnId,
+      threadId,
+      threadTitle: '',
+      question: turn.question,
+      citationNumber: source.citationNumber,
+      title: source.title,
+      url: source.url,
+      domain: source.domain,
+      snippet: source.snippet,
+      publishedAt: source.publishedAt,
+      createdAt: source.createdAt,
+    })),
+    nextCursor: null,
+  };
 }

@@ -41,7 +41,7 @@ The following describes the end-to-end data flow when a user submits a question.
 
 1.  **Input (Frontend)**: User types into the `AskInput` component.
 2.  **Submission (Frontend)**: Submitting triggers a `POST /perplexity/ask` request (see [`API.md`](API.md)).
-3.  **Routing (Frontend)**: The Next.js router navigates the user to `/search/[threadId]`.
+3.  **Routing (Frontend)**: The Next.js router navigates the user to `/thread/[threadId]`.
 4.  **Backend Ask Module**: The `AskController` receives the request and passes it to the `AskService`.
 5.  **Thread/Turn Creation**: The `AskService` creates a new Thread (if needed) and a new Turn in the database to track the interaction.
 6.  **Search Context Generation**: 
