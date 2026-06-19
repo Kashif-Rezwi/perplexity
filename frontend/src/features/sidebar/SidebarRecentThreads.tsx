@@ -3,21 +3,33 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import { useMounted } from '@/hooks/useMounted';
+import { getThreads } from '@/lib/api';
+import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import { useHistoryStore } from '@/store/historyStore';
 import { useThreadMutations } from './hooks/useThreadMutations';
-import { Modal } from '@/components/ui/Modal';
 
 type Props = {
   isOpen: boolean;
 };
 
 export function SidebarRecentThreads({ isOpen }: Props) {
-  const threads = useHistoryStore((state) => state.threads);
+  const localThreads = useHistoryStore((state) => state.threads);
   const mounted = useMounted();
   const pathname = usePathname();
   const { deleteThread, isDeleting } = useThreadMutations();
+  const threadListQuery = useQuery({
+    queryKey: ['threads', 'sidebar', { limit: 20 }],
+    queryFn: () => getThreads({ limit: 20, mode: 'all', sort: 'newest' }),
+    enabled: isOpen,
+    retry: 1,
+  });
+  const serverThreads =
+    threadListQuery.data?.items.map(mapThreadSummaryToHistoryItem) ?? [];
+  const threads = threadListQuery.data ? serverThreads : localThreads;
 
   // State for Delete Modal
   const [deleteModalId, setDeleteModalId] = useState<string | null>(null);
@@ -76,7 +88,9 @@ export function SidebarRecentThreads({ isOpen }: Props) {
                 className={[
                   'absolute right-1.5 rounded p-0.5 text-[var(--color-text-muted)] transition-all duration-150',
                   'hover:text-[var(--color-error)] disabled:opacity-50',
-                  isModalOpen ? 'opacity-100 text-[var(--color-error)]' : 'opacity-0 group-hover:opacity-100'
+                  isModalOpen
+                    ? 'opacity-100 text-[var(--color-error)]'
+                    : 'opacity-0 group-hover:opacity-100',
                 ].join(' ')}
               >
                 <Trash2 size={12} strokeWidth={1.5} />
