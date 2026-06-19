@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
-import { deleteThread, deleteThreads, renameThread } from '@/lib/api';
+import { deleteThread, deleteThreads, renameThread, toggleThreadPin } from '@/lib/api';
 import {
-  removeThreadFromThreadListCaches,
-  removeThreadsFromThreadListCaches,
+  invalidateUnpinnedThreadListCaches,
+  removeThreadsFromManagedCaches,
+  restoreThreadCaches,
+  snapshotThreadCaches,
+  shouldRefetchUnpinnedThreadLists,
   updateThreadDetailCacheTitle,
   updateThreadInThreadListCaches,
+  updateThreadPinInCaches,
+  updateThreadPinOptimistically,
 } from '@/lib/api/threadListCache';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import { useHistoryStore } from '@/store/historyStore';
@@ -13,47 +18,59 @@ import { useHistoryStore } from '@/store/historyStore';
 export function useThreadMutations() {
   const queryClient = useQueryClient();
   const addThreadToStore = useHistoryStore((state) => state.addThread);
-  const removeThreadFromStore = useHistoryStore((state) => state.removeThread);
   const removeThreadsFromStore = useHistoryStore((state) => state.removeThreads);
   const router = useRouter();
   const pathname = usePathname();
 
+  const removeDeletedThreads = (threadIds: string[]) => {
+    removeThreadsFromStore(threadIds);
+    removeThreadsFromManagedCaches(queryClient, threadIds);
+  };
+
+  const navigateAwayFromDeletedThread = (threadIds: string[]) => {
+    const currentThreadId = pathname.startsWith('/thread/')
+      ? pathname.replace('/thread/', '')
+      : null;
+
+    if (currentThreadId && threadIds.includes(currentThreadId)) {
+      router.push('/');
+    }
+  };
+
+  const applyRenamedThread = (thread: Awaited<ReturnType<typeof renameThread>>) => {
+    addThreadToStore(mapThreadSummaryToHistoryItem(thread));
+    updateThreadInThreadListCaches(queryClient, thread);
+    updateThreadDetailCacheTitle(queryClient, thread.threadId, thread.title);
+  };
+
+  const applyPinnedThread = async (
+    thread: Awaited<ReturnType<typeof toggleThreadPin>>,
+  ) => {
+    const shouldRefetchUnpinned =
+      !thread.isPinned &&
+      shouldRefetchUnpinnedThreadLists(queryClient, thread.threadId);
+
+    addThreadToStore(mapThreadSummaryToHistoryItem(thread));
+    updateThreadPinInCaches(queryClient, thread);
+
+    if (shouldRefetchUnpinned) {
+      await invalidateUnpinnedThreadListCaches(queryClient);
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: (threadId: string) => deleteThread(threadId),
     onSuccess: (_, threadId) => {
-      // Remove from local storage
-      removeThreadFromStore(threadId);
-
-      // Clear from cache
-      queryClient.removeQueries({ queryKey: ['thread', threadId] });
-      queryClient.removeQueries({ queryKey: ['sources', threadId] });
-      removeThreadFromThreadListCaches(queryClient, threadId);
-
-      // Navigate away if we are on the deleted thread's page
-      if (pathname === `/thread/${threadId}`) {
-        router.push('/');
-      }
+      removeDeletedThreads([threadId]);
+      navigateAwayFromDeletedThread([threadId]);
     },
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: (threadIds: string[]) => deleteThreads(threadIds),
     onSuccess: (_result, threadIds) => {
-      removeThreadsFromStore(threadIds);
-      removeThreadsFromThreadListCaches(queryClient, threadIds);
-
-      for (const threadId of threadIds) {
-        queryClient.removeQueries({ queryKey: ['thread', threadId] });
-        queryClient.removeQueries({ queryKey: ['sources', threadId] });
-      }
-
-      const currentThreadId = pathname.startsWith('/thread/')
-        ? pathname.replace('/thread/', '')
-        : null;
-
-      if (currentThreadId && threadIds.includes(currentThreadId)) {
-        router.push('/');
-      }
+      removeDeletedThreads(threadIds);
+      navigateAwayFromDeletedThread(threadIds);
     },
   });
 
@@ -61,9 +78,30 @@ export function useThreadMutations() {
     mutationFn: ({ threadId, title }: { threadId: string; title: string }) =>
       renameThread(threadId, title),
     onSuccess: (thread) => {
-      addThreadToStore(mapThreadSummaryToHistoryItem(thread));
-      updateThreadInThreadListCaches(queryClient, thread);
-      updateThreadDetailCacheTitle(queryClient, thread.threadId, thread.title);
+      applyRenamedThread(thread);
+    },
+  });
+
+  const pinMutation = useMutation({
+    mutationFn: ({ threadId, isPinned }: { threadId: string; isPinned: boolean }) =>
+      toggleThreadPin(threadId, isPinned),
+    onMutate: async ({ threadId, isPinned }) => {
+      await queryClient.cancelQueries({ queryKey: ['threads'] });
+
+      const previousThreadCaches = snapshotThreadCaches(queryClient);
+      updateThreadPinOptimistically(queryClient, threadId, isPinned);
+
+      return { previousThreadCaches };
+    },
+    onError: (_err, _newPin, context) => {
+      if (context?.previousThreadCaches) {
+        restoreThreadCaches(queryClient, context.previousThreadCaches);
+      }
+    },
+    onSuccess: async (thread) => {
+      if (thread) {
+        await applyPinnedThread(thread);
+      }
     },
   });
 
@@ -74,7 +112,13 @@ export function useThreadMutations() {
     deleteThreadsAsync: bulkDeleteMutation.mutateAsync,
     renameThread: renameMutation.mutate,
     renameThreadAsync: renameMutation.mutateAsync,
+    togglePin: pinMutation.mutate,
+    togglePinAsync: pinMutation.mutateAsync,
     isDeleting: deleteMutation.isPending || bulkDeleteMutation.isPending,
     isRenaming: renameMutation.isPending,
+    isPinning: pinMutation.isPending,
+    deletingThreadId: deleteMutation.variables,
+    renamingThreadId: renameMutation.variables?.threadId,
+    pinningThreadId: pinMutation.variables?.threadId,
   };
 }

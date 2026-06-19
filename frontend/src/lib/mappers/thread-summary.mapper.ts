@@ -8,6 +8,7 @@ export function mapThreadSummaryToHistoryItem(
     id: thread.threadId,
     title: thread.title,
     mode: thread.mode,
+    isPinned: thread.isPinned,
     updatedAt: thread.updatedAt,
   };
 }

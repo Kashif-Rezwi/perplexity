@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import type {
   AskResponse,
   BulkDeleteThreadsResponse,
+  PinnedThreadListQueryInput,
   SourcesResponse,
   ThreadDetailResponse,
   ThreadListQueryInput,
@@ -21,6 +22,7 @@ export async function getThreads({
   sort,
   mode,
   q,
+  excludePinned,
 }: ThreadListQueryInput = {}): Promise<ThreadListResponse> {
   const params = new URLSearchParams();
 
@@ -43,6 +45,10 @@ export async function getThreads({
   const trimmedQuery = q?.trim();
   if (trimmedQuery) {
     params.set('q', trimmedQuery);
+  }
+
+  if (excludePinned) {
+    params.set('excludePinned', 'true');
   }
 
   const query = params.toString();
@@ -115,4 +121,30 @@ export async function renameThread(
     method: 'PATCH',
     body: JSON.stringify({ title }),
   });
+}
+
+export async function toggleThreadPin(
+  threadId: string,
+  isPinned: boolean,
+): Promise<ThreadSummaryItem> {
+  return apiClient<ThreadSummaryItem>(`/threads/${threadId}/pin`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isPinned }),
+  });
+}
+
+export async function getPinnedThreads({
+  limit,
+}: PinnedThreadListQueryInput = {}): Promise<ThreadSummaryItem[]> {
+  const params = new URLSearchParams();
+
+  if (limit) {
+    params.set('limit', String(limit));
+  }
+
+  const query = params.toString();
+
+  return apiClient<ThreadSummaryItem[]>(
+    `/threads/pinned${query ? `?${query}` : ''}`,
+  );
 }

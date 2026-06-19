@@ -5,6 +5,7 @@ export type ThreadHistoryItem = {
   id: string;
   title: string;
   mode?: 'web' | 'deep-research';
+  isPinned?: boolean;
   updatedAt?: string;
 };
 
@@ -27,6 +28,7 @@ function upsertThreadHistoryItem(
     existingIndex === 0 &&
     threads[0].title === thread.title &&
     threads[0].mode === thread.mode &&
+    threads[0].isPinned === thread.isPinned &&
     threads[0].updatedAt === thread.updatedAt
   ) {
     return threads;
@@ -37,6 +39,7 @@ function upsertThreadHistoryItem(
     if (
       existingThread.title === thread.title &&
       existingThread.mode === thread.mode &&
+      existingThread.isPinned === thread.isPinned &&
       existingThread.updatedAt === thread.updatedAt
     ) {
       return threads;

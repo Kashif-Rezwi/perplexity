@@ -8,6 +8,8 @@ export type ThreadSummaryItem = {
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
+  isPinned: boolean;
+  pinnedAt: string | null;
   totalSourceCount: number;
   turnCount: number;
   createdAt: string;
@@ -23,6 +25,11 @@ export type ThreadListQueryInput = {
   sort?: ThreadListSort;
   mode?: ThreadListModeFilter;
   q?: string;
+  excludePinned?: boolean;
+};
+
+export type PinnedThreadListQueryInput = {
+  limit?: number;
 };
 
 export type ThreadListResponse = {
