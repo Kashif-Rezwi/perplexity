@@ -30,6 +30,11 @@ export type ThreadListResponse = {
   nextCursor: string | null;
 };
 
+export type BulkDeleteThreadsResponse = {
+  requestedCount: number;
+  deletedCount: number;
+};
+
 export type AskCitationReference = {
   citationId: string;
   citationNumber: number;

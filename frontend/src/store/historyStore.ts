@@ -14,6 +14,7 @@ type HistoryStore = {
   threads: ThreadHistoryItem[];
   addThread: (thread: ThreadHistoryItem) => void;
   removeThread: (id: string) => void;
+  removeThreads: (ids: string[]) => void;
 };
 
 function upsertThreadHistoryItem(
@@ -67,6 +68,13 @@ export const useHistoryStore = create<HistoryStore>()(
         set((state) => ({
           threads: state.threads.filter((t) => t.id !== id),
         })),
+      removeThreads: (ids) =>
+        set((state) => {
+          const idsToRemove = new Set(ids);
+          return {
+            threads: state.threads.filter((t) => !idsToRemove.has(t.id)),
+          };
+        }),
     }),
     {
       name: 'perplexity-history-storage',

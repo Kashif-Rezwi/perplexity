@@ -1,10 +1,12 @@
 import { apiClient } from './client';
 import type {
   AskResponse,
+  BulkDeleteThreadsResponse,
   SourcesResponse,
   ThreadDetailResponse,
   ThreadListQueryInput,
   ThreadListResponse,
+  ThreadSummaryItem,
 } from '@/types/api.types';
 
 export async function getThread(
@@ -93,5 +95,24 @@ export async function deleteThread(
 ): Promise<void> {
   return apiClient<void>(`/threads/${threadId}`, {
     method: 'DELETE',
+  });
+}
+
+export async function deleteThreads(
+  threadIds: string[],
+): Promise<BulkDeleteThreadsResponse> {
+  return apiClient<BulkDeleteThreadsResponse>('/threads', {
+    method: 'DELETE',
+    body: JSON.stringify({ threadIds }),
+  });
+}
+
+export async function renameThread(
+  threadId: string,
+  title: string,
+): Promise<ThreadSummaryItem> {
+  return apiClient<ThreadSummaryItem>(`/threads/${threadId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ title }),
   });
 }
