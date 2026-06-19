@@ -5,13 +5,33 @@ type HistoryListProps = {
   threads: ThreadHistoryItem[];
   selectedThreadIds: Set<string>;
   onToggleSelection: (threadId: string) => void;
+  isLoading?: boolean;
+  isError?: boolean;
 };
 
 export function HistoryList({
   threads,
   selectedThreadIds,
   onToggleSelection,
+  isLoading = false,
+  isError = false,
 }: HistoryListProps) {
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
+        Loading history...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
+        Could not load server history.
+      </div>
+    );
+  }
+
   if (threads.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-muted)]">
@@ -33,4 +53,3 @@ export function HistoryList({
     </ul>
   );
 }
-
