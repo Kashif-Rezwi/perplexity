@@ -20,6 +20,8 @@ function createThreadDetailRecord() {
     answerPreview: 'A concise preview',
     status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
+    isPinned: false,
+    pinnedAt: null,
     createdAt,
     updatedAt,
     _count: { turns: 1 },
@@ -105,6 +107,7 @@ test('ThreadsService lists threads with defaults and nextCursor', async () => {
         sort: 'newest',
         mode: 'all',
         q: undefined,
+        excludePinned: undefined,
       });
 
       return [
@@ -132,6 +135,7 @@ test('ThreadsService passes list filters through to the repository', async () =>
         sort: 'oldest',
         mode: 'web',
         q: 'Next.js',
+        excludePinned: undefined,
       });
 
       return [];
@@ -203,6 +207,46 @@ test('ThreadsService throws NotFoundException when renaming a missing thread', a
   );
 });
 
+test('ThreadsService toggles pin and returns the summary contract', async () => {
+  const service = new ThreadsService({
+    async togglePin(input) {
+      assert.deepEqual(input, {
+        threadId,
+        isPinned: true,
+      });
+
+      return createThreadListRecord({
+        id: threadId,
+        title: 'Pinned thread',
+        isPinned: true,
+        pinnedAt: new Date('2026-06-04T00:06:00.000Z'),
+      });
+    },
+  });
+
+  const response = await service.togglePin({
+    threadId,
+    isPinned: true,
+  });
+
+  assert.equal(response.threadId, threadId);
+  assert.equal(response.isPinned, true);
+  assert.equal(response.totalSourceCount, 3);
+});
+
+test('ThreadsService bounds pinned thread list limit', async () => {
+  const service = new ThreadsService({
+    async findPinnedThreads(limit) {
+      assert.equal(limit, 50);
+      return [];
+    },
+  });
+
+  const response = await service.listPinnedThreads(500);
+
+  assert.deepEqual(response, []);
+});
+
 test('ThreadsService de-dupes bulk delete ids before delegating', async () => {
   const service = new ThreadsService({
     async deleteThreads(ids) {
@@ -239,12 +283,11 @@ function createThreadListRecord(overrides = {}) {
     answerPreview: 'A concise preview',
     status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
+    isPinned: overrides.isPinned ?? false,
+    pinnedAt: overrides.pinnedAt ?? null,
     createdAt,
     updatedAt,
     _count: { turns: 2 },
-    turns: [
-      { _count: { sources: 1 } },
-      { _count: { sources: 2 } },
-    ],
+    totalSourceCount: 3,
   };
 }

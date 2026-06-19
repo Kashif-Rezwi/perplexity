@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import type {
   ThreadListModeFilter,
   ThreadListSort,
@@ -27,6 +27,16 @@ export class ThreadListQueryDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsIn(['all', 'web', 'deep-research'])
   mode?: ThreadListModeFilter;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  excludePinned?: boolean;
 
   @IsOptional()
   @Transform(({ value }) => {

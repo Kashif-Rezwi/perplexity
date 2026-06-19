@@ -6,6 +6,7 @@ import type {
   FailTurnInput,
   ListThreadsOptions,
   RenameThreadInput,
+  TogglePinInput,
 } from './types/threads.types';
 import type {
   BulkDeleteThreadsResult,
@@ -24,11 +25,13 @@ import {
 import { ThreadsRepository } from './repositories/threads.repository';
 
 const DEFAULT_THREAD_LIST_LIMIT = 20;
+const DEFAULT_PINNED_THREAD_LIMIT = 20;
+const MAX_PINNED_THREAD_LIMIT = 50;
 
 /** Service boundary for all thread and turn operations. */
 @Injectable()
 export class ThreadsService {
-  constructor(private readonly threadsRepository: ThreadsRepository) { }
+  constructor(private readonly threadsRepository: ThreadsRepository) {}
 
   findThreadDetailById(
     threadId: string,
@@ -50,6 +53,7 @@ export class ThreadsService {
       sort: options.sort ?? 'newest',
       mode: options.mode ?? 'all',
       q: options.q,
+      excludePinned: options.excludePinned,
     });
 
     const hasNextPage = threads.length > limit;
@@ -98,6 +102,24 @@ export class ThreadsService {
     }
 
     return mapThreadSummary(thread);
+  }
+
+  async togglePin(
+    input: TogglePinInput,
+  ): Promise<ThreadSummaryItem> {
+    const thread = await this.threadsRepository.togglePin(input);
+
+    if (!thread) {
+      throw new NotFoundException(`Thread ${input.threadId} was not found`);
+    }
+
+    return mapThreadSummary(thread);
+  }
+
+  async listPinnedThreads(limit = DEFAULT_PINNED_THREAD_LIMIT): Promise<ThreadSummaryItem[]> {
+    const boundedLimit = Math.min(Math.max(limit, 1), MAX_PINNED_THREAD_LIMIT);
+    const threads = await this.threadsRepository.findPinnedThreads(boundedLimit);
+    return threads.map(mapThreadSummary);
   }
 
   findThreadWithSingleTurn(

@@ -8,14 +8,16 @@ import type {
   FailTurnInput,
   ListThreadsOptions,
   RenameThreadInput,
+  TogglePinInput,
 } from '../types/threads.types';
 import {
   threadDetailInclude,
   ThreadDetailRecord,
+  ThreadListBaseRecord,
   threadListInclude,
   ThreadListRecord,
   ThreadWithSingleTurnRecord,
-  turnDetailInclude
+  turnDetailInclude,
 } from '../types/threads.types';
 
 type RepositoryTransaction = Prisma.TransactionClient;
@@ -28,7 +30,7 @@ type FindThreadsOptions = ListThreadsOptions & {
 
 @Injectable()
 export class ThreadsRepository {
-  constructor(private readonly database: DatabaseService) { }
+  constructor(private readonly database: DatabaseService) {}
 
   createThreadWithPendingTurn(
     input: CreateThreadWithPendingTurnInput,
@@ -105,7 +107,7 @@ export class ThreadsRepository {
     });
   }
 
-  findThreads(options: FindThreadsOptions): Promise<ThreadListRecord[]> {
+  async findThreads(options: FindThreadsOptions): Promise<ThreadListRecord[]> {
     const where: Prisma.ThreadWhereInput = {};
 
     if (options.mode === 'web') {
@@ -119,9 +121,13 @@ export class ThreadsRepository {
       };
     }
 
+    if (options.excludePinned) {
+      where.isPinned = false;
+    }
+
     const orderDirection = options.sort === 'oldest' ? 'asc' : 'desc';
 
-    return this.database.thread.findMany({
+    const threads = await this.database.thread.findMany({
       take: options.limit + 1,
       skip: options.cursor ? 1 : undefined,
       cursor: options.cursor ? { id: options.cursor } : undefined,
@@ -132,10 +138,12 @@ export class ThreadsRepository {
       ],
       include: threadListInclude,
     });
+
+    return this.attachTotalSourceCounts(threads);
   }
 
   async deleteThread(threadId: string): Promise<void> {
-    await this.database.thread.delete({
+    await this.database.thread.deleteMany({
       where: { id: threadId },
     });
   }
@@ -167,11 +175,50 @@ export class ThreadsRepository {
         return null;
       }
 
-      return tx.thread.findUnique({
+      const thread = await tx.thread.findUnique({
         where: { id: input.threadId },
         include: threadListInclude,
       });
+
+      return thread ? this.attachTotalSourceCount(tx, thread) : null;
     });
+  }
+
+  async togglePin(
+    input: TogglePinInput,
+  ): Promise<ThreadListRecord | null> {
+    return this.database.$transaction(async (tx) => {
+      const updated = await tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE "Thread"
+        SET
+          "isPinned" = ${input.isPinned},
+          "pinnedAt" = ${input.isPinned ? new Date() : null}
+        WHERE "id" = CAST(${input.threadId} AS uuid)
+        RETURNING "id"
+      `;
+
+      if (updated.length === 0) {
+        return null;
+      }
+
+      const thread = await tx.thread.findUnique({
+        where: { id: input.threadId },
+        include: threadListInclude,
+      });
+
+      return thread ? this.attachTotalSourceCount(tx, thread) : null;
+    });
+  }
+
+  async findPinnedThreads(limit: number): Promise<ThreadListRecord[]> {
+    const threads = await this.database.thread.findMany({
+      where: { isPinned: true },
+      take: limit,
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      include: threadListInclude,
+    });
+
+    return this.attachTotalSourceCounts(threads);
   }
 
   async findThreadWithSingleTurn(
@@ -225,6 +272,54 @@ export class ThreadsRepository {
     }
 
     return sourceIdsByCitationNumber;
+  }
+
+  private async attachTotalSourceCount(
+    tx: RepositoryTransaction,
+    thread: ThreadListBaseRecord,
+  ): Promise<ThreadListRecord> {
+    const [threadWithCount] = await this.attachTotalSourceCounts([thread], tx);
+    return threadWithCount;
+  }
+
+  private async attachTotalSourceCounts(
+    threads: ThreadListBaseRecord[],
+    tx: RepositoryTransaction | DatabaseService = this.database,
+  ): Promise<ThreadListRecord[]> {
+    if (threads.length === 0) {
+      return [];
+    }
+
+    const threadIds = threads.map((thread) => thread.id);
+    const sourceCounts = await this.countSourcesByThreadId(tx, threadIds);
+
+    return threads.map((thread) => ({
+      ...thread,
+      totalSourceCount: sourceCounts.get(thread.id) ?? 0,
+    }));
+  }
+
+  private async countSourcesByThreadId(
+    tx: RepositoryTransaction | DatabaseService,
+    threadIds: string[],
+  ): Promise<Map<string, number>> {
+    const rows = await tx.$queryRaw<
+      Array<{ threadId: string; totalSourceCount: number }>
+    >`
+      SELECT
+        "Turn"."threadId"::text AS "threadId",
+        COUNT("Source"."id")::int AS "totalSourceCount"
+      FROM "Turn"
+      LEFT JOIN "Source" ON "Source"."turnId" = "Turn"."id"
+      WHERE "Turn"."threadId" IN (${Prisma.join(
+        threadIds.map((threadId) => Prisma.sql`CAST(${threadId} AS uuid)`),
+      )})
+      GROUP BY "Turn"."threadId"
+    `;
+
+    return new Map(
+      rows.map((row) => [row.threadId, Number(row.totalSourceCount)]),
+    );
   }
 
   private async createTurnCitations(

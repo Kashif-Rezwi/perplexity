@@ -38,6 +38,11 @@ export type RenameThreadInput = {
   title: string;
 };
 
+export type TogglePinInput = {
+  threadId: string;
+  isPinned: boolean;
+};
+
 export type BulkDeleteThreadsResult = {
   requestedCount: number;
   deletedCount: number;
@@ -52,6 +57,7 @@ export type ListThreadsOptions = {
   sort?: ThreadListSort;
   mode?: ThreadListModeFilter;
   q?: string;
+  excludePinned?: boolean;
 };
 
 // ==========================================
@@ -86,16 +92,15 @@ export type ThreadWithSingleTurnRecord = {
 
 export const threadListInclude = {
   _count: { select: { turns: true } },
-  turns: {
-    select: {
-      _count: { select: { sources: true } },
-    },
-  },
 } satisfies Prisma.ThreadInclude;
 
-export type ThreadListRecord = Prisma.ThreadGetPayload<{
+export type ThreadListBaseRecord = Prisma.ThreadGetPayload<{
   include: typeof threadListInclude;
 }>;
+
+export type ThreadListRecord = ThreadListBaseRecord & {
+  totalSourceCount: number;
+};
 
 export type ThreadHeaderRecord = {
   id: string;
@@ -103,6 +108,8 @@ export type ThreadHeaderRecord = {
   answerPreview: string | null;
   status: ThreadStatus;
   mode: ThreadMode;
+  isPinned: boolean;
+  pinnedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   _count: { turns: number };
@@ -121,6 +128,8 @@ export type ThreadSummaryItem = {
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
+  isPinned: boolean;
+  pinnedAt: string | null;
   totalSourceCount: number;
   turnCount: number;
   createdAt: string;

@@ -137,6 +137,23 @@ test('GET /perplexity/threads/:threadId route is registered', async () => {
   }
 });
 
+test('GET /perplexity/threads/pinned route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'GET' && r.path === '/perplexity/threads/pinned',
+    );
+    assert.ok(
+      found,
+      `GET /perplexity/threads/pinned not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('PATCH /perplexity/threads/:threadId route is registered', async () => {
   const app = await createRoutedApp();
 
@@ -166,6 +183,24 @@ test('DELETE /perplexity/threads route is registered', async () => {
     assert.ok(
       found,
       `DELETE /perplexity/threads not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('PATCH /perplexity/threads/:threadId/pin route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) =>
+        r.method === 'PATCH' && r.path === '/perplexity/threads/:threadId/pin',
+    );
+    assert.ok(
+      found,
+      `PATCH /perplexity/threads/:threadId/pin not found in routes: ${JSON.stringify(routes)}`,
     );
   } finally {
     await app.close();

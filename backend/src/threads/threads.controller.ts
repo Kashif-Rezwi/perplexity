@@ -12,6 +12,7 @@ import { IsUUID } from 'class-validator';
 import { BulkDeleteThreadsDto } from './dto/bulk-delete-threads.dto';
 import { RenameThreadDto } from './dto/rename-thread.dto';
 import { ThreadListQueryDto } from './dto/thread-list-query.dto';
+import { TogglePinDto } from './dto/toggle-pin.dto';
 import { ThreadsService } from './threads.service';
 
 export class ThreadParamsDto {
@@ -33,6 +34,11 @@ export class ThreadsController {
     return this.threadsService.deleteThreads(body.threadIds);
   }
 
+  @Get('pinned')
+  listPinnedThreads(@Query() query: ThreadListQueryDto) {
+    return this.threadsService.listPinnedThreads(query.limit);
+  }
+
   @Get(':threadId')
   getThreadDetail(@Param() params: ThreadParamsDto) {
     return this.threadsService.getThreadDetail(params.threadId);
@@ -46,6 +52,17 @@ export class ThreadsController {
     return this.threadsService.renameThread({
       threadId: params.threadId,
       title: body.title,
+    });
+  }
+
+  @Patch(':threadId/pin')
+  togglePin(
+    @Param() params: ThreadParamsDto,
+    @Body() body: TogglePinDto,
+  ) {
+    return this.threadsService.togglePin({
+      threadId: params.threadId,
+      isPinned: body.isPinned,
     });
   }
 
