@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeft, User } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSidebarStore } from '@/store/sidebarStore';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { useMounted } from '@/hooks/useMounted';
@@ -15,6 +15,14 @@ export function Sidebar() {
   const { isOpen, setOpen } = useSidebarStore();
   const pathname = usePathname();
   const mounted = useMounted();
+  // True while the sidebar is mid-collapse — suppresses hover icon
+  const [isCollapsing, setIsCollapsing] = useState(false);
+
+  const handleCollapse = () => {
+    setIsCollapsing(true);
+    setOpen(false);
+  };
+
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1023px)');
@@ -44,6 +52,9 @@ export function Sidebar() {
 
       <aside
         aria-label="Sidebar navigation"
+        onTransitionEnd={() => {
+          if (isCollapsing) setIsCollapsing(false);
+        }}
         style={{
           width: isOpen ? 'var(--sidebar-width-expanded)' : 'var(--sidebar-width-collapsed)',
           transition: 'width var(--transition-sidebar), transform var(--transition-sidebar)',
@@ -71,12 +82,25 @@ export function Sidebar() {
             <button
               onClick={() => setOpen(true)}
               aria-label="Expand sidebar"
-              className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100 group-hover/sidebar:bg-[var(--color-surface-hover)]"
+              className={[
+                'relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text)] transition-colors duration-100',
+                !isCollapsing ? 'group-hover/sidebar:bg-[var(--color-surface-hover)]' : '',
+              ].join(' ')}
             >
-              <span className="absolute inset-0 grid place-items-center transition-opacity duration-100 group-hover/sidebar:opacity-0">
+              <span
+                className={[
+                  'absolute inset-0 grid place-items-center transition-opacity duration-100',
+                  !isCollapsing ? 'group-hover/sidebar:opacity-0' : '',
+                ].join(' ')}
+              >
                 <PerplexityLogo size={20} />
               </span>
-              <span className="absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100 group-hover/sidebar:opacity-100">
+              <span
+                className={[
+                  'absolute inset-0 grid place-items-center text-[var(--color-text-muted)] opacity-0 transition-opacity duration-100',
+                  !isCollapsing ? 'group-hover/sidebar:opacity-100' : '',
+                ].join(' ')}
+              >
                 <PanelLeft size={18} strokeWidth={1.75} />
               </span>
             </button>
@@ -84,7 +108,7 @@ export function Sidebar() {
 
           {isOpen && (
             <button
-              onClick={() => setOpen(false)}
+              onClick={handleCollapse}
               aria-label="Collapse sidebar"
               className="ml-auto flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--color-text-muted)] transition-colors duration-100 hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
             >
