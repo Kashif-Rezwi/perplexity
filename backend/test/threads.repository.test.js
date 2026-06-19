@@ -214,3 +214,90 @@ test('ThreadsRepository.findThreads defaults to newest ordering without optional
     include: response.include,
   });
 });
+
+test('ThreadsRepository.renameThread updates title without a normal Prisma update', async () => {
+  const calls = [];
+  const previousUpdatedAt = new Date('2026-06-04T00:05:00.000Z');
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        async $queryRaw(strings, title, id) {
+          calls.push(['queryRaw', String.raw(strings), title, id]);
+          return [{ id }];
+        },
+        thread: {
+          async findUnique(args) {
+            calls.push(['thread.findUnique', args]);
+            return {
+              id: threadId,
+              title: 'Renamed thread',
+              answerPreview: 'Preview',
+              status: ThreadStatus.COMPLETED,
+              mode: ThreadMode.WEB,
+              createdAt: new Date('2026-06-04T00:00:00.000Z'),
+              updatedAt: previousUpdatedAt,
+              _count: { turns: 1 },
+              turns: [{ _count: { sources: 0 } }],
+            };
+          },
+        },
+      });
+    },
+  });
+
+  const response = await repository.renameThread({
+    threadId,
+    title: 'Renamed thread',
+  });
+
+  assert.equal(response.title, 'Renamed thread');
+  assert.equal(response.updatedAt, previousUpdatedAt);
+  assert.equal(calls[0][0], 'queryRaw');
+  assert.match(calls[0][1], /UPDATE "Thread"/);
+  assert.match(calls[0][1], /SET "title"/);
+  assert.equal(calls[0][2], 'Renamed thread');
+  assert.equal(calls[0][3], threadId);
+  assert.deepEqual(calls[1], [
+    'thread.findUnique',
+    {
+      where: { id: threadId },
+      include: calls[1][1].include,
+    },
+  ]);
+});
+
+test('ThreadsRepository.renameThread returns null for missing threads', async () => {
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        async $queryRaw() {
+          return [];
+        },
+      });
+    },
+  });
+
+  const response = await repository.renameThread({
+    threadId,
+    title: 'Missing thread',
+  });
+
+  assert.equal(response, null);
+});
+
+test('ThreadsRepository.deleteThreads uses deleteMany and returns count', async () => {
+  const repository = new ThreadsRepository({
+    thread: {
+      async deleteMany(args) {
+        assert.deepEqual(args, {
+          where: { id: { in: [threadId] } },
+        });
+        return { count: 1 };
+      },
+    },
+  });
+
+  const response = await repository.deleteThreads([threadId]);
+
+  assert.equal(response, 1);
+});

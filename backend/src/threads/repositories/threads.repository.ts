@@ -7,6 +7,7 @@ import type {
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
   ListThreadsOptions,
+  RenameThreadInput,
 } from '../types/threads.types';
 import {
   threadDetailInclude,
@@ -136,6 +137,40 @@ export class ThreadsRepository {
   async deleteThread(threadId: string): Promise<void> {
     await this.database.thread.delete({
       where: { id: threadId },
+    });
+  }
+
+  async deleteThreads(threadIds: string[]): Promise<number> {
+    if (threadIds.length === 0) {
+      return 0;
+    }
+
+    const result = await this.database.thread.deleteMany({
+      where: { id: { in: threadIds } },
+    });
+
+    return result.count;
+  }
+
+  async renameThread(
+    input: RenameThreadInput,
+  ): Promise<ThreadListRecord | null> {
+    return this.database.$transaction(async (tx) => {
+      const updated = await tx.$queryRaw<Array<{ id: string }>>`
+        UPDATE "Thread"
+        SET "title" = ${input.title}
+        WHERE "id" = CAST(${input.threadId} AS uuid)
+        RETURNING "id"
+      `;
+
+      if (updated.length === 0) {
+        return null;
+      }
+
+      return tx.thread.findUnique({
+        where: { id: input.threadId },
+        include: threadListInclude,
+      });
     });
   }
 

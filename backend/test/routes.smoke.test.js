@@ -137,6 +137,41 @@ test('GET /perplexity/threads/:threadId route is registered', async () => {
   }
 });
 
+test('PATCH /perplexity/threads/:threadId route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) =>
+        r.method === 'PATCH' && r.path === '/perplexity/threads/:threadId',
+    );
+    assert.ok(
+      found,
+      `PATCH /perplexity/threads/:threadId not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('DELETE /perplexity/threads route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'DELETE' && r.path === '/perplexity/threads',
+    );
+    assert.ok(
+      found,
+      `DELETE /perplexity/threads not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('DELETE /perplexity/threads/:threadId route is registered', async () => {
   const app = await createRoutedApp();
 

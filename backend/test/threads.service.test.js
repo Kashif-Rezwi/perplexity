@@ -161,6 +161,64 @@ test('ThreadsService returns an empty list for deep research mode', async () => 
   assert.deepEqual(response, { items: [], nextCursor: null });
 });
 
+test('ThreadsService renames a thread and returns the summary contract', async () => {
+  const service = new ThreadsService({
+    async renameThread(input) {
+      assert.deepEqual(input, {
+        threadId,
+        title: 'Renamed thread',
+      });
+
+      return createThreadListRecord({
+        id: threadId,
+        title: 'Renamed thread',
+      });
+    },
+  });
+
+  const response = await service.renameThread({
+    threadId,
+    title: 'Renamed thread',
+  });
+
+  assert.equal(response.threadId, threadId);
+  assert.equal(response.title, 'Renamed thread');
+  assert.equal(response.totalSourceCount, 3);
+});
+
+test('ThreadsService throws NotFoundException when renaming a missing thread', async () => {
+  const service = new ThreadsService({
+    async renameThread() {
+      return null;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.renameThread({
+        threadId,
+        title: 'Renamed thread',
+      }),
+    (error) => error instanceof NotFoundException,
+  );
+});
+
+test('ThreadsService de-dupes bulk delete ids before delegating', async () => {
+  const service = new ThreadsService({
+    async deleteThreads(ids) {
+      assert.deepEqual(ids, [threadId]);
+      return 1;
+    },
+  });
+
+  const response = await service.deleteThreads([threadId, threadId]);
+
+  assert.deepEqual(response, {
+    requestedCount: 1,
+    deletedCount: 1,
+  });
+});
+
 test('ThreadsService throws NotFoundException for missing threads', async () => {
   const service = new ThreadsService({
     async findThreadDetailById() {

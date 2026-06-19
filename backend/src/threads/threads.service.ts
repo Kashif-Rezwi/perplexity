@@ -5,14 +5,17 @@ import type {
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
   ListThreadsOptions,
+  RenameThreadInput,
 } from './types/threads.types';
 import type {
+  BulkDeleteThreadsResult,
   ThreadDetailRecord,
   ThreadListResponse,
   ThreadWithSingleTurnRecord,
 } from './types/threads.types';
 import type {
   ThreadDetailResponse,
+  ThreadSummaryItem,
 } from './types/threads.types';
 import {
   mapThreadDetail,
@@ -71,6 +74,30 @@ export class ThreadsService {
 
   async deleteThread(threadId: string): Promise<void> {
     await this.threadsRepository.deleteThread(threadId);
+  }
+
+  async deleteThreads(
+    threadIds: string[],
+  ): Promise<BulkDeleteThreadsResult> {
+    const uniqueThreadIds = Array.from(new Set(threadIds));
+    const deletedCount = await this.threadsRepository.deleteThreads(uniqueThreadIds);
+
+    return {
+      requestedCount: uniqueThreadIds.length,
+      deletedCount,
+    };
+  }
+
+  async renameThread(
+    input: RenameThreadInput,
+  ): Promise<ThreadSummaryItem> {
+    const thread = await this.threadsRepository.renameThread(input);
+
+    if (!thread) {
+      throw new NotFoundException(`Thread ${input.threadId} was not found`);
+    }
+
+    return mapThreadSummary(thread);
   }
 
   findThreadWithSingleTurn(

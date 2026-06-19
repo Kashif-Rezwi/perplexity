@@ -33,6 +33,16 @@ export type FailTurnInput = {
   errorMessage: string;
 };
 
+export type RenameThreadInput = {
+  threadId: string;
+  title: string;
+};
+
+export type BulkDeleteThreadsResult = {
+  requestedCount: number;
+  deletedCount: number;
+};
+
 export type ThreadListSort = 'newest' | 'oldest';
 export type ThreadListModeFilter = 'all' | 'web' | 'deep-research';
 
