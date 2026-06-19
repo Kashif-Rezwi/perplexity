@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { deleteThread } from '@/lib/api';
-import { useHistoryStore } from '@/store/historyStore';
 import { useRouter, usePathname } from 'next/navigation';
+import { deleteThread } from '@/lib/api';
+import { removeThreadFromThreadListCaches } from '@/lib/api/threadListCache';
+import { useHistoryStore } from '@/store/historyStore';
 
 export function useThreadMutations() {
   const queryClient = useQueryClient();
@@ -18,6 +19,7 @@ export function useThreadMutations() {
       // Clear from cache
       queryClient.removeQueries({ queryKey: ['thread', threadId] });
       queryClient.removeQueries({ queryKey: ['sources', threadId] });
+      removeThreadFromThreadListCaches(queryClient, threadId);
 
       // Navigate away if we are on the deleted thread's page
       if (pathname === `/thread/${threadId}`) {
@@ -28,6 +30,7 @@ export function useThreadMutations() {
 
   return {
     deleteThread: deleteMutation.mutate,
+    deleteThreadAsync: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
   };
 }

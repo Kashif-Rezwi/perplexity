@@ -61,6 +61,7 @@ export function useAskSubmit({
           queryFn: () => getSources({ turnId: data.turn.turnId }),
         });
 
+        void queryClient.invalidateQueries({ queryKey: ['threads'] });
         router.push(`/thread/${data.thread.threadId}`);
         return;
       }
@@ -98,6 +99,7 @@ export function useAskSubmit({
       });
 
       void queryClient.invalidateQueries({ queryKey: ['thread', activeThreadId] });
+      void queryClient.invalidateQueries({ queryKey: ['threads'] });
     },
     onError: async (_error, variables) => {
       const activeThreadId = variables.threadId ?? threadId;
