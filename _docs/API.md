@@ -157,6 +157,62 @@ persists `web` threads. The frontend uses this endpoint as the source of truth
 for `/history` and sidebar recents, with local history retained only as an
 optimistic/offline fallback.
 
+## PATCH /perplexity/threads/:threadId
+
+Renames a thread without changing its sort position.
+
+Request:
+
+```json
+{
+  "title": "Renamed thread title"
+}
+```
+
+Response:
+
+```json
+{
+  "threadId": "uuid",
+  "title": "Renamed thread title",
+  "status": "completed",
+  "mode": "web",
+  "answerPreview": "Short answer preview...",
+  "totalSourceCount": 3,
+  "turnCount": 1,
+  "createdAt": "2026-06-04T00:00:00.000Z",
+  "updatedAt": "2026-06-04T00:00:00.000Z"
+}
+```
+
+Note: `title` is trimmed and must be 1-80 characters. Rename intentionally
+preserves the thread's existing `updatedAt`, so a rename does not move the row
+to the top of a newest-first history list.
+
+## DELETE /perplexity/threads
+
+Bulk-deletes threads and their associated turns, sources, and citations.
+
+Request:
+
+```json
+{
+  "threadIds": ["uuid-1", "uuid-2"]
+}
+```
+
+Response:
+
+```json
+{
+  "requestedCount": 2,
+  "deletedCount": 2
+}
+```
+
+Note: `threadIds` accepts 1-50 UUIDs. Duplicate IDs are de-duped server-side.
+Missing or already-deleted IDs are ignored so bulk delete is idempotent.
+
 ## GET /perplexity/threads/:threadId
 
 Loads a full research session with all turns, sources, and citations.
