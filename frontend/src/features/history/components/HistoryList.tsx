@@ -5,6 +5,8 @@ type HistoryListProps = {
   threads: ThreadHistoryItem[];
   selectedThreadIds: Set<string>;
   onToggleSelection: (threadId: string) => void;
+  onRenameThread: (thread: ThreadHistoryItem) => void;
+  onDeleteThread: (thread: ThreadHistoryItem) => void;
   isLoading?: boolean;
   isError?: boolean;
 };
@@ -13,6 +15,8 @@ export function HistoryList({
   threads,
   selectedThreadIds,
   onToggleSelection,
+  onRenameThread,
+  onDeleteThread,
   isLoading = false,
   isError = false,
 }: HistoryListProps) {
@@ -47,7 +51,10 @@ export function HistoryList({
           key={thread.id}
           thread={thread}
           isSelected={selectedThreadIds.has(thread.id)}
+          hasSelection={selectedThreadIds.size > 0}
           onToggleSelection={onToggleSelection}
+          onRenameThread={onRenameThread}
+          onDeleteThread={onDeleteThread}
         />
       ))}
     </ul>
