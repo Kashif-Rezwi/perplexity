@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
-const { ThreadStatus, TurnStatus } = require('@prisma/client');
+const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const {
   ThreadsRepository,
 } = require('../src/threads/repositories/threads.repository.ts');
@@ -147,4 +147,70 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
       },
     },
   ]);
+});
+
+test('ThreadsRepository.findThreads builds stable filtered pagination query', async () => {
+  const repository = new ThreadsRepository({
+    thread: {
+      async findMany(args) {
+        return args;
+      },
+    },
+  });
+
+  const response = await repository.findThreads({
+    limit: 10,
+    cursor: threadId,
+    sort: 'oldest',
+    mode: 'web',
+    q: 'Next.js',
+  });
+
+  assert.deepEqual(response, {
+    take: 11,
+    skip: 1,
+    cursor: { id: threadId },
+    where: {
+      mode: ThreadMode.WEB,
+      title: {
+        contains: 'Next.js',
+        mode: 'insensitive',
+      },
+    },
+    orderBy: [
+      { updatedAt: 'asc' },
+      { id: 'asc' },
+    ],
+    include: response.include,
+  });
+  assert(response.include._count);
+  assert(response.include.turns);
+});
+
+test('ThreadsRepository.findThreads defaults to newest ordering without optional filters', async () => {
+  const repository = new ThreadsRepository({
+    thread: {
+      async findMany(args) {
+        return args;
+      },
+    },
+  });
+
+  const response = await repository.findThreads({
+    limit: 20,
+    sort: 'newest',
+    mode: 'all',
+  });
+
+  assert.deepEqual(response, {
+    take: 21,
+    skip: undefined,
+    cursor: undefined,
+    where: {},
+    orderBy: [
+      { updatedAt: 'desc' },
+      { id: 'desc' },
+    ],
+    include: response.include,
+  });
 });

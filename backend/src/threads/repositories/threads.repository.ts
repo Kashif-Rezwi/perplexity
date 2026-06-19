@@ -1,21 +1,29 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, ThreadStatus, TurnStatus } from '@prisma/client';
+import { Prisma, ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import type {
   AppendPendingTurnToThreadInput,
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
+  ListThreadsOptions,
 } from '../types/threads.types';
 import {
   threadDetailInclude,
   ThreadDetailRecord,
+  threadListInclude,
+  ThreadListRecord,
   ThreadWithSingleTurnRecord,
   turnDetailInclude
 } from '../types/threads.types';
 
 type RepositoryTransaction = Prisma.TransactionClient;
 type SourceIdsByCitationNumber = Map<number, string>;
+type FindThreadsOptions = ListThreadsOptions & {
+  limit: number;
+  sort: NonNullable<ListThreadsOptions['sort']>;
+  mode: NonNullable<ListThreadsOptions['mode']>;
+};
 
 @Injectable()
 export class ThreadsRepository {
@@ -96,6 +104,34 @@ export class ThreadsRepository {
     });
   }
 
+  findThreads(options: FindThreadsOptions): Promise<ThreadListRecord[]> {
+    const where: Prisma.ThreadWhereInput = {};
+
+    if (options.mode === 'web') {
+      where.mode = ThreadMode.WEB;
+    }
+
+    if (options.q) {
+      where.title = {
+        contains: options.q,
+        mode: 'insensitive',
+      };
+    }
+
+    const orderDirection = options.sort === 'oldest' ? 'asc' : 'desc';
+
+    return this.database.thread.findMany({
+      take: options.limit + 1,
+      skip: options.cursor ? 1 : undefined,
+      cursor: options.cursor ? { id: options.cursor } : undefined,
+      where,
+      orderBy: [
+        { updatedAt: orderDirection },
+        { id: orderDirection },
+      ],
+      include: threadListInclude,
+    });
+  }
 
   async deleteThread(threadId: string): Promise<void> {
     await this.database.thread.delete({

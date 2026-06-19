@@ -33,6 +33,17 @@ export type FailTurnInput = {
   errorMessage: string;
 };
 
+export type ThreadListSort = 'newest' | 'oldest';
+export type ThreadListModeFilter = 'all' | 'web' | 'deep-research';
+
+export type ListThreadsOptions = {
+  limit?: number;
+  cursor?: string;
+  sort?: ThreadListSort;
+  mode?: ThreadListModeFilter;
+  q?: string;
+};
+
 // ==========================================
 // Record Types
 // ==========================================
@@ -62,6 +73,19 @@ export type ThreadWithSingleTurnRecord = {
   turn: TurnDetailRecord;
   totalSourceCount: number;
 };
+
+export const threadListInclude = {
+  _count: { select: { turns: true } },
+  turns: {
+    select: {
+      _count: { select: { sources: true } },
+    },
+  },
+} satisfies Prisma.ThreadInclude;
+
+export type ThreadListRecord = Prisma.ThreadGetPayload<{
+  include: typeof threadListInclude;
+}>;
 
 export type ThreadHeaderRecord = {
   id: string;
@@ -129,6 +153,11 @@ export type TurnItem = {
 
 export type ThreadDetailResponse = ThreadSummaryItem & {
   turns: TurnItem[];
+};
+
+export type ThreadListResponse = {
+  items: ThreadSummaryItem[];
+  nextCursor: string | null;
 };
 
 // Shared enum lookup tables to map Prisma types to API response types.

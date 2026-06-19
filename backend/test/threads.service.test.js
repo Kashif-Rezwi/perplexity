@@ -95,6 +95,72 @@ test('ThreadsService returns thread detail through the repository', async () => 
   assert.equal(response.turns[0].turnId, turnId);
 });
 
+test('ThreadsService lists threads with defaults and nextCursor', async () => {
+  const secondThreadId = '55555555-5555-4555-8555-555555555555';
+  const service = new ThreadsService({
+    async findThreads(options) {
+      assert.deepEqual(options, {
+        limit: 1,
+        cursor: undefined,
+        sort: 'newest',
+        mode: 'all',
+        q: undefined,
+      });
+
+      return [
+        createThreadListRecord({ id: threadId, title: 'Newest thread' }),
+        createThreadListRecord({ id: secondThreadId, title: 'Next page thread' }),
+      ];
+    },
+  });
+
+  const response = await service.listThreads({ limit: 1 });
+
+  assert.equal(response.items.length, 1);
+  assert.equal(response.items[0].threadId, threadId);
+  assert.equal(response.items[0].title, 'Newest thread');
+  assert.equal(response.items[0].totalSourceCount, 3);
+  assert.equal(response.nextCursor, threadId);
+});
+
+test('ThreadsService passes list filters through to the repository', async () => {
+  const service = new ThreadsService({
+    async findThreads(options) {
+      assert.deepEqual(options, {
+        limit: 10,
+        cursor: threadId,
+        sort: 'oldest',
+        mode: 'web',
+        q: 'Next.js',
+      });
+
+      return [];
+    },
+  });
+
+  const response = await service.listThreads({
+    limit: 10,
+    cursor: threadId,
+    sort: 'oldest',
+    mode: 'web',
+    q: 'Next.js',
+  });
+
+  assert.deepEqual(response, { items: [], nextCursor: null });
+});
+
+test('ThreadsService returns an empty list for deep research mode', async () => {
+  const service = new ThreadsService({
+    async findThreads() {
+      throw new Error('Repository should not be called for deep research mode');
+    },
+  });
+
+  const response = await service.listThreads({ mode: 'deep-research' });
+
+  assert.deepEqual(response, { items: [], nextCursor: null });
+});
+
 test('ThreadsService throws NotFoundException for missing threads', async () => {
   const service = new ThreadsService({
     async findThreadDetailById() {
@@ -107,3 +173,20 @@ test('ThreadsService throws NotFoundException for missing threads', async () => 
     (error) => error instanceof NotFoundException,
   );
 });
+
+function createThreadListRecord(overrides = {}) {
+  return {
+    id: overrides.id ?? threadId,
+    title: overrides.title ?? 'What changed in Next.js 15?',
+    answerPreview: 'A concise preview',
+    status: ThreadStatus.COMPLETED,
+    mode: ThreadMode.WEB,
+    createdAt,
+    updatedAt,
+    _count: { turns: 2 },
+    turns: [
+      { _count: { sources: 1 } },
+      { _count: { sources: 2 } },
+    ],
+  };
+}

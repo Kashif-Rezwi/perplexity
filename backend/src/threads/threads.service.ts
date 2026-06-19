@@ -4,16 +4,23 @@ import type {
   CompleteTurnInput,
   CreateThreadWithPendingTurnInput,
   FailTurnInput,
+  ListThreadsOptions,
 } from './types/threads.types';
 import type {
   ThreadDetailRecord,
+  ThreadListResponse,
   ThreadWithSingleTurnRecord,
 } from './types/threads.types';
 import type {
   ThreadDetailResponse,
 } from './types/threads.types';
-import { mapThreadDetail } from './mappers/thread-response.mapper';
+import {
+  mapThreadDetail,
+  mapThreadSummary,
+} from './mappers/thread-response.mapper';
 import { ThreadsRepository } from './repositories/threads.repository';
+
+const DEFAULT_THREAD_LIST_LIMIT = 20;
 
 /** Service boundary for all thread and turn operations. */
 @Injectable()
@@ -24,6 +31,32 @@ export class ThreadsService {
     threadId: string,
   ): Promise<ThreadDetailRecord | null> {
     return this.threadsRepository.findThreadDetailById(threadId);
+  }
+
+  async listThreads(
+    options: ListThreadsOptions = {},
+  ): Promise<ThreadListResponse> {
+    if (options.mode === 'deep-research') {
+      return { items: [], nextCursor: null };
+    }
+
+    const limit = options.limit ?? DEFAULT_THREAD_LIST_LIMIT;
+    const threads = await this.threadsRepository.findThreads({
+      limit,
+      cursor: options.cursor,
+      sort: options.sort ?? 'newest',
+      mode: options.mode ?? 'all',
+      q: options.q,
+    });
+
+    const hasNextPage = threads.length > limit;
+    const items = hasNextPage ? threads.slice(0, limit) : threads;
+    const nextCursor = hasNextPage ? items[items.length - 1].id : null;
+
+    return {
+      items: items.map(mapThreadSummary),
+      nextCursor,
+    };
   }
 
   async getThreadDetail(threadId: string): Promise<ThreadDetailResponse> {

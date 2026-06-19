@@ -5,6 +5,7 @@ import type {
 import type {
   ThreadDetailResponse,
   ThreadHeaderRecord,
+  ThreadListRecord,
   ThreadSummaryItem,
   TurnItem,
 } from '../types/threads.types';
@@ -20,6 +21,15 @@ export function mapThreadDetail(thread: ThreadDetailRecord): ThreadDetailRespons
     ...mapHeader(thread, totalSourceCount),
     turns: thread.turns.map(mapTurnDetail),
   };
+}
+
+export function mapThreadSummary(thread: ThreadListRecord): ThreadSummaryItem {
+  const totalSourceCount = thread.turns.reduce(
+    (count, turn) => count + turn._count.sources,
+    0,
+  );
+
+  return mapHeader(thread, totalSourceCount);
 }
 
 export function mapTurnDetail(turn: TurnDetailRecord): TurnItem {

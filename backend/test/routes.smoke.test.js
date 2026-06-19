@@ -102,6 +102,23 @@ test('GET /perplexity/sources route is registered', async () => {
   }
 });
 
+test('GET /perplexity/threads route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'GET' && r.path === '/perplexity/threads',
+    );
+    assert.ok(
+      found,
+      `GET /perplexity/threads not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('GET /perplexity/threads/:threadId route is registered', async () => {
   const app = await createRoutedApp();
 
