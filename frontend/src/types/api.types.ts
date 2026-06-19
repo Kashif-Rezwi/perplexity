@@ -14,6 +14,22 @@ export type ThreadSummaryItem = {
   updatedAt: string;
 };
 
+export type ThreadListSort = 'newest' | 'oldest';
+export type ThreadListModeFilter = 'all' | ApiThreadMode | 'deep-research';
+
+export type ThreadListQueryInput = {
+  limit?: number;
+  cursor?: string;
+  sort?: ThreadListSort;
+  mode?: ThreadListModeFilter;
+  q?: string;
+};
+
+export type ThreadListResponse = {
+  items: ThreadSummaryItem[];
+  nextCursor: string | null;
+};
+
 export type AskCitationReference = {
   citationId: string;
   citationNumber: number;
