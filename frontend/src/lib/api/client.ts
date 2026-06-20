@@ -23,13 +23,18 @@ export class NetworkError extends Error {
   }
 }
 
+export function getApiUrl(path: string): string {
+  const isServer = typeof window === 'undefined';
+  const baseUrl = isServer ? `${BACKEND_URL}/perplexity` : '/api/perplexity';
+
+  return `${baseUrl}${path}`;
+}
+
 export async function apiClient<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const isServer = typeof window === 'undefined';
-  const baseUrl = isServer ? `${BACKEND_URL}/perplexity` : '/api/perplexity';
-  const url = `${baseUrl}${path}`;
+  const url = getApiUrl(path);
 
   try {
     const response = await fetch(url, {

@@ -73,6 +73,21 @@ export type AskResponse = {
   turn: AskTurnSummary;
 };
 
+export type AskStreamStartEvent = {
+  threadId: string;
+  turnId: string;
+  question: string;
+  searchQuery: string;
+};
+
+export type AskStreamHandlers = {
+  onStart?: (event: AskStreamStartEvent) => void;
+  onDelta?: (text: string) => void;
+  onFinal?: (response: AskResponse) => void;
+  onError?: (message: string) => void;
+  onDone?: () => void;
+};
+
 export type SourcePreviewItem = {
   sourceId: string;
   citationNumber: number;

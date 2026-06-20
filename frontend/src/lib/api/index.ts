@@ -1,6 +1,9 @@
-import { apiClient } from './client';
+import { ApiError, NetworkError, apiClient, getApiUrl } from './client';
+import { createSseParser } from './sse';
 import type {
   AskResponse,
+  AskStreamHandlers,
+  AskStreamStartEvent,
   BulkDeleteThreadsResponse,
   PinnedThreadListQueryInput,
   SourcesResponse,
@@ -94,6 +97,93 @@ export async function postAsk(
     method: 'POST',
     body: JSON.stringify({ question, threadId }),
   });
+}
+
+export async function streamAsk(
+  question: string,
+  threadId: string | undefined,
+  handlers: AskStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(getApiUrl('/ask/stream'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify({ question, threadId }),
+    signal,
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'An unexpected error occurred';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorMessage;
+    } catch {
+      errorMessage = (await response.text()) || response.statusText || errorMessage;
+    }
+
+    throw new ApiError(response.status, errorMessage);
+  }
+
+  if (!response.body) {
+    throw new NetworkError('Streaming response was empty');
+  }
+
+  const decoder = new TextDecoder();
+  const reader = response.body.getReader();
+  let streamErrorMessage: string | null = null;
+  const parser = createSseParser((event) => {
+    const data = JSON.parse(event.data);
+
+    if (event.event === 'start') {
+      handlers.onStart?.(data as AskStreamStartEvent);
+      return;
+    }
+
+    if (event.event === 'delta') {
+      handlers.onDelta?.(String(data.text ?? ''));
+      return;
+    }
+
+    if (event.event === 'final') {
+      handlers.onFinal?.(data as AskResponse);
+      return;
+    }
+
+    if (event.event === 'error') {
+      streamErrorMessage = String(data.message ?? 'Ask failed');
+      handlers.onError?.(streamErrorMessage);
+      return;
+    }
+
+    if (event.event === 'done') {
+      handlers.onDone?.();
+    }
+  });
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      parser.feed(decoder.decode(value, { stream: true }));
+    }
+
+    parser.feed(decoder.decode());
+    parser.end();
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new NetworkError(error.message);
+    }
+
+    throw new NetworkError('Streaming request failed');
+  }
+
+  if (streamErrorMessage) {
+    throw new ApiError(503, streamErrorMessage);
+  }
 }
 
 export async function deleteThread(
