@@ -85,6 +85,23 @@ test('POST /perplexity/ask route is registered', async () => {
   }
 });
 
+test('POST /perplexity/ask/stream route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'POST' && r.path === '/perplexity/ask/stream',
+    );
+    assert.ok(
+      found,
+      `POST /perplexity/ask/stream not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('GET /perplexity/sources route is registered', async () => {
   const app = await createRoutedApp();
 
