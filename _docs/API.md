@@ -65,8 +65,7 @@ Note: `threadId` is optional. When present, ask appends a new turn to that
 thread and uses the last 5 completed prior turns as AI context. For follow-ups,
 `searchQuery` may differ from `question` because the backend rewrites contextual
 questions into standalone web-search queries before calling the web search provider.
-Streaming is intentionally deferred to a later chunk. The `citations` array
-contains lightweight previews only for citation markers (`[n]`) that actually
+The `citations` array contains lightweight previews only for citation markers (`[n]`) that actually
 appear in `answerMarkdown`; sources without a matching marker are not included.
 `citationCount` always equals `citations.length` — both reflect the filtered set.
 Load the full source list for the returned turn with
@@ -78,8 +77,58 @@ best-effort; if generation fails or times out, the API returns an empty array.
 ### AI Output Formatting Strategy
 - **Markdown Format**: `answerMarkdown` strictly uses GitHub Flavored Markdown (GFM). The frontend must use a compatible parser to render it.
 - **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
-- **Streaming Context**: While the API currently returns a full JSON object synchronously, it is designed with an event-streaming transition in mind. The frontend data models should be robust to future NDJSON or Server-Sent Events (SSE) updates.
+- **Streaming Context**: `POST /perplexity/ask` remains the synchronous JSON fallback. New clients can use `POST /perplexity/ask/stream` to render answer text progressively and receive the same final response shape.
 
+## POST /perplexity/ask/stream
+
+Streams a new ask or follow-up ask with Server-Sent Events. The request body is
+the same as `POST /perplexity/ask`.
+
+Request:
+
+```json
+{
+  "question": "What changed in Next.js 15?",
+  "threadId": "optional-existing-thread-uuid"
+}
+```
+
+Response content type:
+
+```txt
+text/event-stream
+```
+
+Events:
+
+```txt
+event: start
+data: {"threadId":"uuid","turnId":"uuid","question":"What changed in Next.js 15?","searchQuery":"What changed in Next.js 15?"}
+
+event: delta
+data: {"text":"Partial answer text"}
+
+event: final
+data: {"thread":{...},"turn":{...}}
+
+event: error
+data: {"message":"Ask failed"}
+
+event: done
+data: {}
+```
+
+Notes:
+
+- The backend creates the pending turn before emitting `start`.
+- `delta` events contain answer text only; citations and source previews are
+  finalized in the `final` event.
+- The `final` event uses the exact same `{ thread, turn }` shape as
+  `POST /perplexity/ask`.
+- The backend persists the final answer, sources, citations, and suggested
+  follow-up questions after answer streaming completes.
+- Validation errors and missing `threadId` targets return normal HTTP errors
+  before the event stream starts.
 
 
 ## GET /perplexity/sources

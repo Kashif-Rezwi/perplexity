@@ -40,30 +40,31 @@ We utilize the standard NestJS layered architecture to maintain clear separation
 The following describes the end-to-end data flow when a user submits a question.
 
 1.  **Input (Frontend)**: User types into the `AskInput` component.
-2.  **Submission (Frontend)**: Submitting triggers a `POST /perplexity/ask` request (see [`API.md`](API.md)).
+2.  **Submission (Frontend)**: Submitting triggers `POST /perplexity/ask/stream` for progressive rendering, with `POST /perplexity/ask` retained as a synchronous JSON fallback (see [`API.md`](API.md)).
 3.  **Routing (Frontend)**: The Next.js router navigates the user to `/thread/[threadId]`.
 4.  **Backend Ask Module**: The `AskController` receives the request and passes it to the `AskService`.
 5.  **Thread/Turn Creation**: The `AskService` creates a new Thread (if needed) and a new Turn in the database to track the interaction.
 6.  **Search Context Generation**: 
     *   The question is passed to the AI provider to rewrite it into an optimized web search query.
     *   The `SearchService` executes the query against Tavily to fetch relevant external sources.
-7.  **Source Persistence**: The `SourcesService` saves the retrieved web sources into the database, associating them with the current turn.
+7.  **Source Preparation**: The retrieved web results are normalized into source inputs for answer context and later persistence.
 8.  **AI Answer Generation**:
-    *   The `AiService` uses the fetched sources as context to generate an answer.
+    *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.
     *   The AI Service is provider-agnostic, supporting OpenAI and Groq based on environment variables.
-9.  **Citation Linking**: As the AI generates the answer with markdown citations (e.g., `[1]`), the backend maps these numbers to the persisted sources to construct `citations` objects.
-10. **Finalization (Backend)**: The final answer, sources, and citations are persisted, and the `AskController` returns the mapped response to the frontend.
-11. **Hydration (Frontend)**: 
+9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence.
+10. **Citation Linking**: After streaming completes, the backend maps markdown citations (e.g., `[1]`) to the persisted sources to construct `citations` objects.
+11. **Finalization (Backend)**: The final answer, sources, citations, and suggested follow-up questions are persisted, and the stream emits the same `{ thread, turn }` response shape used by the synchronous endpoint.
+12. **Hydration (Frontend)**:
     *   If the ask was a new thread, the initial turn data is passed into React Query's cache.
     *   If the user navigates directly to a URL, `useThreadPage` fetches the full thread via `GET /perplexity/threads/:threadId` (see [`API.md`](API.md)).
-12. **Server History (Frontend)**:
+13. **Server History (Frontend)**:
     *   The sidebar and `/history` prefer `GET /perplexity/threads` for persisted thread summaries.
     *   Local history remains as an optimistic/offline fallback so newly-created threads appear quickly before the server list reconciles.
-13. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
+14. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
 
 ---
 
 ## 3. Future Architectural Considerations
 
-*   **Streaming**: The current V1 workflow is synchronous. Transitioning to Server-Sent Events (SSE) will require the AI Service to yield tokens to the controller while simultaneously buffering the full response for database persistence.
+*   **Streaming**: The streaming ask endpoint uses SSE over `fetch()` with a POST body. Provider services yield text deltas, while the Ask service buffers the final response and persists one completed turn after the stream finishes.
 *   **Authentication Flow**: Future authentication will introduce Guards at the controller level to scope database queries by user ID.
