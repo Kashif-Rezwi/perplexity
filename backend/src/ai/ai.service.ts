@@ -71,6 +71,20 @@ export class AiService {
     );
   }
 
+  streamAnswer(
+    question: string,
+    priorTurns: PriorTurn[],
+    sources: CreateTurnSourceInput[],
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    const { provider } = this.resolveProvider();
+
+    return provider.streamAnswer(
+      { question, priorTurns, sources },
+      abortSignal,
+    );
+  }
+
   async resolveSearchQuery(
     question: string,
     priorTurns: PriorTurn[],
