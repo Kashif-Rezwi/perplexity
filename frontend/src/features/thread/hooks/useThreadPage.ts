@@ -5,10 +5,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useHistoryStore } from '@/store/historyStore';
 import type { ThreadDetailResponse } from '@/types/api.types';
 import { getThread } from '@/lib/api';
-import { getSources } from '@/lib/api';
 import type { AskInputRef } from '@/features/home/components/AskInput';
 import { useThreadAutoScroll } from './useThreadAutoScroll';
-import { useThreadSourceSelection } from './useThreadSourceSelection';
+import { useThreadSources } from './useThreadSources';
 
 export type ThreadTab = 'answer' | 'links';
 
@@ -35,30 +34,8 @@ export function useThreadPage(threadId: string) {
     ? thread?.turns[turnsCount - 1]?.turnId ?? null
     : null;
 
-  const {
-    selectedTurn: selectedTurnForLinks,
-    selectSourceTurn,
-    clearSourceTurnSelection,
-  } = useThreadSourceSelection(threadId, thread?.turns ?? []);
-
-  const selectedTurnIdForLinks = selectedTurnForLinks?.turnId;
-
-  const {
-    data: selectedSources,
-    isFetching: isFetchingSources,
-    error: sourcesError,
-  } = useQuery({
-    queryKey: ['sources', threadId, selectedTurnIdForLinks],
-    queryFn: () => getSources({ turnId: selectedTurnIdForLinks }),
-    enabled:
-      Boolean(selectedTurnIdForLinks) &&
-      selectedTurnForLinks?.status === 'completed' &&
-      selectedTurnForLinks.sources.length === 0,
-    retry: 1,
-  });
-
-  // Prefer freshly fetched sources; fall back to inline sources already on the turn.
-  const linksSources = selectedSources ?? selectedTurnForLinks?.sources ?? [];
+  // Assemble grouped sources from the cache — no new fetches.
+  const turnSourceGroups = useThreadSources(threadId, thread?.turns ?? []);
 
   useThreadHistoryRegistration(thread);
   useThreadAutoScroll({
@@ -72,19 +49,16 @@ export function useThreadPage(threadId: string) {
     pendingTurnRef,
   });
 
-  function handleSelectSourceTurn(turnId: string) {
-    selectSourceTurn(turnId);
+  function handleSelectSourceTurn() {
     setActiveTab('links');
   }
 
-  function handleCitationClick(turnId: string, num: number) {
-    selectSourceTurn(turnId);
+  function handleCitationClick(num: number) {
     setActiveTab('links');
     setHighlightedSourceNum(num);
   }
 
   function handleSubmitStart(q: string) {
-    clearSourceTurnSelection();
     setPendingQuestion(q);
   }
 
@@ -99,13 +73,10 @@ export function useThreadPage(threadId: string) {
   return {
     // Data
     thread,
-    linksSources,
-    selectedTurnForLinks,
+    turnSourceGroups,
     // Status
     isPending,
     error,
-    isFetchingSources,
-    sourcesError,
     // UI state
     activeTab,
     setActiveTab,

@@ -22,10 +22,23 @@ const DEFAULT_AI_TIMEOUTS = {
 function createTestAskService(aiMock, searchMock, threadsMock) {
   // Pass aiMock as the active provider via stubbed ConfigService fallback.
   const stubConfigService = { get() { return undefined; } };
+  const providerMock = {
+    ...DEFAULT_AI_TIMEOUTS,
+    async generateSuggestedFollowUpQuestions() { return []; },
+    async generateAnswer() { return 'Prisma relations connect rows.'; },
+    ...aiMock,
+  };
+
+  if (!providerMock.streamAnswer) {
+    providerMock.streamAnswer = async function* streamAnswer(input) {
+      yield await providerMock.generateAnswer(input);
+    };
+  }
+
   const aiService = new AiService(
-    { ...DEFAULT_AI_TIMEOUTS, async generateSuggestedFollowUpQuestions() { return []; }, ...aiMock },
+    providerMock,
     stubConfigService,
-    { ...DEFAULT_AI_TIMEOUTS, async generateSuggestedFollowUpQuestions() { return []; }, ...aiMock },
+    providerMock,
   );
 
   return new AskService(aiService, searchMock, threadsMock);

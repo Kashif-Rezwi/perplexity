@@ -8,10 +8,38 @@ export type ThreadSummaryItem = {
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
+  isPinned: boolean;
+  pinnedAt: string | null;
   totalSourceCount: number;
   turnCount: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ThreadListSort = 'newest' | 'oldest';
+export type ThreadListModeFilter = 'all' | ApiThreadMode | 'deep-research';
+
+export type ThreadListQueryInput = {
+  limit?: number;
+  cursor?: string;
+  sort?: ThreadListSort;
+  mode?: ThreadListModeFilter;
+  q?: string;
+  excludePinned?: boolean;
+};
+
+export type PinnedThreadListQueryInput = {
+  limit?: number;
+};
+
+export type ThreadListResponse = {
+  items: ThreadSummaryItem[];
+  nextCursor: string | null;
+};
+
+export type BulkDeleteThreadsResponse = {
+  requestedCount: number;
+  deletedCount: number;
 };
 
 export type AskCitationReference = {
@@ -45,6 +73,21 @@ export type AskResponse = {
   turn: AskTurnSummary;
 };
 
+export type AskStreamStartEvent = {
+  threadId: string;
+  turnId: string;
+  question: string;
+  searchQuery: string;
+};
+
+export type AskStreamHandlers = {
+  onStart?: (event: AskStreamStartEvent) => void;
+  onDelta?: (text: string) => void;
+  onFinal?: (response: AskResponse) => void;
+  onError?: (message: string) => void;
+  onDone?: () => void;
+};
+
 export type SourcePreviewItem = {
   sourceId: string;
   citationNumber: number;
@@ -70,7 +113,18 @@ export type SourceListItem = SourcePreviewItem & {
 };
 
 // Response list returned by GET /sources.
-export type SourcesResponse = SourceListItem[];
+export type SourcesResponse = {
+  items: SourceListItem[];
+  nextCursor: string | null;
+};
+
+// A single turn's sources assembled for the thread-level Links tab.
+export type TurnSourceGroup = {
+  turnId: string;
+  question: string;
+  searchQuery: string;
+  sources: SourcePreviewItem[];
+};
 
 export type CitationItem = {
   citationId: string;

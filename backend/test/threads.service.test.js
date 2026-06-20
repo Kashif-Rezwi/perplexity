@@ -20,6 +20,8 @@ function createThreadDetailRecord() {
     answerPreview: 'A concise preview',
     status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
+    isPinned: false,
+    pinnedAt: null,
     createdAt,
     updatedAt,
     _count: { turns: 1 },
@@ -95,6 +97,172 @@ test('ThreadsService returns thread detail through the repository', async () => 
   assert.equal(response.turns[0].turnId, turnId);
 });
 
+test('ThreadsService lists threads with defaults and nextCursor', async () => {
+  const secondThreadId = '55555555-5555-4555-8555-555555555555';
+  const service = new ThreadsService({
+    async findThreads(options) {
+      assert.deepEqual(options, {
+        limit: 1,
+        cursor: undefined,
+        sort: 'newest',
+        mode: 'all',
+        q: undefined,
+        excludePinned: undefined,
+      });
+
+      return [
+        createThreadListRecord({ id: threadId, title: 'Newest thread' }),
+        createThreadListRecord({ id: secondThreadId, title: 'Next page thread' }),
+      ];
+    },
+  });
+
+  const response = await service.listThreads({ limit: 1 });
+
+  assert.equal(response.items.length, 1);
+  assert.equal(response.items[0].threadId, threadId);
+  assert.equal(response.items[0].title, 'Newest thread');
+  assert.equal(response.items[0].totalSourceCount, 3);
+  assert.equal(response.nextCursor, threadId);
+});
+
+test('ThreadsService passes list filters through to the repository', async () => {
+  const service = new ThreadsService({
+    async findThreads(options) {
+      assert.deepEqual(options, {
+        limit: 10,
+        cursor: threadId,
+        sort: 'oldest',
+        mode: 'web',
+        q: 'Next.js',
+        excludePinned: undefined,
+      });
+
+      return [];
+    },
+  });
+
+  const response = await service.listThreads({
+    limit: 10,
+    cursor: threadId,
+    sort: 'oldest',
+    mode: 'web',
+    q: 'Next.js',
+  });
+
+  assert.deepEqual(response, { items: [], nextCursor: null });
+});
+
+test('ThreadsService returns an empty list for deep research mode', async () => {
+  const service = new ThreadsService({
+    async findThreads() {
+      throw new Error('Repository should not be called for deep research mode');
+    },
+  });
+
+  const response = await service.listThreads({ mode: 'deep-research' });
+
+  assert.deepEqual(response, { items: [], nextCursor: null });
+});
+
+test('ThreadsService renames a thread and returns the summary contract', async () => {
+  const service = new ThreadsService({
+    async renameThread(input) {
+      assert.deepEqual(input, {
+        threadId,
+        title: 'Renamed thread',
+      });
+
+      return createThreadListRecord({
+        id: threadId,
+        title: 'Renamed thread',
+      });
+    },
+  });
+
+  const response = await service.renameThread({
+    threadId,
+    title: 'Renamed thread',
+  });
+
+  assert.equal(response.threadId, threadId);
+  assert.equal(response.title, 'Renamed thread');
+  assert.equal(response.totalSourceCount, 3);
+});
+
+test('ThreadsService throws NotFoundException when renaming a missing thread', async () => {
+  const service = new ThreadsService({
+    async renameThread() {
+      return null;
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      service.renameThread({
+        threadId,
+        title: 'Renamed thread',
+      }),
+    (error) => error instanceof NotFoundException,
+  );
+});
+
+test('ThreadsService toggles pin and returns the summary contract', async () => {
+  const service = new ThreadsService({
+    async togglePin(input) {
+      assert.deepEqual(input, {
+        threadId,
+        isPinned: true,
+      });
+
+      return createThreadListRecord({
+        id: threadId,
+        title: 'Pinned thread',
+        isPinned: true,
+        pinnedAt: new Date('2026-06-04T00:06:00.000Z'),
+      });
+    },
+  });
+
+  const response = await service.togglePin({
+    threadId,
+    isPinned: true,
+  });
+
+  assert.equal(response.threadId, threadId);
+  assert.equal(response.isPinned, true);
+  assert.equal(response.totalSourceCount, 3);
+});
+
+test('ThreadsService bounds pinned thread list limit', async () => {
+  const service = new ThreadsService({
+    async findPinnedThreads(limit) {
+      assert.equal(limit, 50);
+      return [];
+    },
+  });
+
+  const response = await service.listPinnedThreads(500);
+
+  assert.deepEqual(response, []);
+});
+
+test('ThreadsService de-dupes bulk delete ids before delegating', async () => {
+  const service = new ThreadsService({
+    async deleteThreads(ids) {
+      assert.deepEqual(ids, [threadId]);
+      return 1;
+    },
+  });
+
+  const response = await service.deleteThreads([threadId, threadId]);
+
+  assert.deepEqual(response, {
+    requestedCount: 1,
+    deletedCount: 1,
+  });
+});
+
 test('ThreadsService throws NotFoundException for missing threads', async () => {
   const service = new ThreadsService({
     async findThreadDetailById() {
@@ -107,3 +275,19 @@ test('ThreadsService throws NotFoundException for missing threads', async () => 
     (error) => error instanceof NotFoundException,
   );
 });
+
+function createThreadListRecord(overrides = {}) {
+  return {
+    id: overrides.id ?? threadId,
+    title: overrides.title ?? 'What changed in Next.js 15?',
+    answerPreview: 'A concise preview',
+    status: ThreadStatus.COMPLETED,
+    mode: ThreadMode.WEB,
+    isPinned: overrides.isPinned ?? false,
+    pinnedAt: overrides.pinnedAt ?? null,
+    createdAt,
+    updatedAt,
+    _count: { turns: 2 },
+    totalSourceCount: 3,
+  };
+}

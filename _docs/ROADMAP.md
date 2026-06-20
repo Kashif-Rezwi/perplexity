@@ -15,11 +15,20 @@ Core capabilities required to make the first complete product loop work.
 |---|---|---|
 | **Backend** | Database persistence | Store threads, turns, sources, and citations (via PostgreSQL) |
 | **Backend** | Web search & LLM | Retrieve external sources and generate answers (Tavily, OpenAI/Groq) |
-| **Backend** | Core API endpoints | Ask a question, retrieve thread details, load recent sources |
+| **Backend** | Core API endpoints | Ask a question, retrieve thread details, load per-turn sources, and delete threads |
 | **Frontend** | Layout & design system | Two-column shell, styling tokens, typography, animations |
 | **Frontend** | Core Thread UI | Submit questions, render markdown answers, render citation badges |
-| **Frontend** | Sidebar & History | Local storage-based thread history and navigation |
+| **Frontend** | Sidebar & History | Local fallback thread history, navigation, and basic thread deletion |
 | **Frontend** | UX Polish | Loading states, error handling, suggested follow-ups chips |
+
+### V1 Verification Checklist
+
+- Submit a new ask and confirm navigation to `/thread/:threadId`.
+- Ask a follow-up and confirm the same thread receives a new turn.
+- Click a citation and confirm the Links tab opens and highlights the matching source.
+- Open the Links tab and confirm sources load from `GET /perplexity/sources?turnId=...`.
+- Delete a thread and confirm the sidebar/cache history updates.
+- Open `/history`, select a thread, and confirm the conversation loads.
 
 ## V2 - Usability Improvements
 
@@ -28,8 +37,9 @@ Enhancements that improve the client experience once the core flow is stable.
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend/Frontend** | Streaming responses | Return and render answer tokens progressively via SSE |
-| **Backend** | Pagination support | Load large lists such as recents in stable chunks |
-| **Frontend** | Thread Management | Rename threads, delete threads |
+| **Backend/Frontend** | Server-backed history | Load sidebar and `/history` from `GET /perplexity/threads`, with local history as an optimistic fallback |
+| **Backend** | Pagination support | Load large lists such as thread history and source lists in stable chunks |
+| **Backend/Frontend** | Expanded Thread Management | History-page delete, bulk delete, rename, archive/pin candidates, and richer server-backed history controls |
 
 ## V3 - Deployment Readiness
 

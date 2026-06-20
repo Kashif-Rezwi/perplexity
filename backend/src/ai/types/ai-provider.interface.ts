@@ -10,6 +10,11 @@ export interface AiProvider {
     abortSignal?: AbortSignal,
   ): Promise<string>;
 
+  streamAnswer(
+    input: GenerateAnswerInput,
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string>;
+
   generateSuggestedFollowUpQuestions(
     input: GenerateSuggestedFollowUpQuestionsInput,
     abortSignal?: AbortSignal,

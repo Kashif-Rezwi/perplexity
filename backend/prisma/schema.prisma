@@ -23,13 +23,16 @@ model Thread {
   answerPreview String?  @db.VarChar(300)
   status        ThreadStatus @default(RUNNING)
   mode          ThreadMode   @default(WEB)
+  isPinned      Boolean  @default(false)
+  pinnedAt      DateTime? @db.Timestamp(6)
 
   createdAt     DateTime @default(now()) @db.Timestamp(6)
   updatedAt     DateTime @updatedAt @db.Timestamp(6)
 
   turns          Turn[]
 
-  @@index([updatedAt])
+  @@index([updatedAt, id])
+  @@index([isPinned, pinnedAt, id])
 }
 
 enum TurnStatus {

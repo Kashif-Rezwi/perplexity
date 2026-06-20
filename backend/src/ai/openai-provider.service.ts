@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, jsonSchema, Output } from 'ai';
+import { generateText, jsonSchema, Output, streamText } from 'ai';
 import {
   getOptionalTrimmedConfig,
   getPositiveIntegerConfig,
@@ -98,6 +98,42 @@ export class OpenAiProviderService implements AiProvider {
       );
 
       throw new ServiceUnavailableException('OpenAI answer generation failed');
+    }
+  }
+
+  async *streamAnswer(
+    input: GenerateAnswerInput,
+    abortSignal?: AbortSignal,
+  ): AsyncIterable<string> {
+    try {
+      const result = streamText({
+        model: this.client(this.model),
+        abortSignal,
+        timeout: this.answerTimeoutMs,
+        system: ANSWER_SYSTEM_PROMPT,
+        prompt: createAnswerPrompt(input),
+      });
+      let hasOutput = false;
+
+      for await (const textPart of result.textStream) {
+        hasOutput = true;
+        yield textPart;
+      }
+
+      if (!hasOutput) {
+        throw new InternalServerErrorException('OpenAI returned an empty answer');
+      }
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `OpenAI answer streaming failed: ${getErrorMessage(error)}`,
+        getErrorStack(error),
+      );
+
+      throw new ServiceUnavailableException('OpenAI answer streaming failed');
     }
   }
 

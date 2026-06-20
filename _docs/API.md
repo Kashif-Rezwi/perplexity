@@ -21,7 +21,6 @@ Response:
   "thread": {
     "threadId": "uuid",
     "title": "What changed in Next.js 15?",
-    "link": "/search/uuid",
     "status": "completed",
     "mode": "web",
     "answerPreview": "Short answer preview...",
@@ -66,8 +65,7 @@ Note: `threadId` is optional. When present, ask appends a new turn to that
 thread and uses the last 5 completed prior turns as AI context. For follow-ups,
 `searchQuery` may differ from `question` because the backend rewrites contextual
 questions into standalone web-search queries before calling the web search provider.
-Streaming is intentionally deferred to a later chunk. The `citations` array
-contains lightweight previews only for citation markers (`[n]`) that actually
+The `citations` array contains lightweight previews only for citation markers (`[n]`) that actually
 appear in `answerMarkdown`; sources without a matching marker are not included.
 `citationCount` always equals `citations.length` — both reflect the filtered set.
 Load the full source list for the returned turn with
@@ -79,8 +77,58 @@ best-effort; if generation fails or times out, the API returns an empty array.
 ### AI Output Formatting Strategy
 - **Markdown Format**: `answerMarkdown` strictly uses GitHub Flavored Markdown (GFM). The frontend must use a compatible parser to render it.
 - **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
-- **Streaming Context**: While the API currently returns a full JSON object synchronously, it is designed with an event-streaming transition in mind. The frontend data models should be robust to future NDJSON or Server-Sent Events (SSE) updates.
+- **Streaming Context**: `POST /perplexity/ask` remains the synchronous JSON fallback. New clients can use `POST /perplexity/ask/stream` to render answer text progressively and receive the same final response shape.
 
+## POST /perplexity/ask/stream
+
+Streams a new ask or follow-up ask with Server-Sent Events. The request body is
+the same as `POST /perplexity/ask`.
+
+Request:
+
+```json
+{
+  "question": "What changed in Next.js 15?",
+  "threadId": "optional-existing-thread-uuid"
+}
+```
+
+Response content type:
+
+```txt
+text/event-stream
+```
+
+Events:
+
+```txt
+event: start
+data: {"threadId":"uuid","turnId":"uuid","question":"What changed in Next.js 15?","searchQuery":"What changed in Next.js 15?"}
+
+event: delta
+data: {"text":"Partial answer text"}
+
+event: final
+data: {"thread":{...},"turn":{...}}
+
+event: error
+data: {"message":"Ask failed"}
+
+event: done
+data: {}
+```
+
+Notes:
+
+- The backend creates the pending turn before emitting `start`.
+- `delta` events contain answer text only; citations and source previews are
+  finalized in the `final` event.
+- The `final` event uses the exact same `{ thread, turn }` shape as
+  `POST /perplexity/ask`.
+- The backend persists the final answer, sources, citations, and suggested
+  follow-up questions after answer streaming completes.
+- Validation errors and missing `threadId` targets return normal HTTP errors
+  before the event stream starts.
 
 
 ## GET /perplexity/sources
@@ -118,6 +166,102 @@ Response:
 }
 ```
 
+## GET /perplexity/threads
+
+Lists persisted thread summaries for server-backed sidebar and history views.
+
+Query:
+
+```text
+limit?: number, 1-50, default 20
+cursor?: uuid, pagination cursor from the previous response
+sort?: "newest" | "oldest", default "newest"
+mode?: "all" | "web" | "deep-research", default "all"
+q?: string, trimmed title search
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "threadId": "uuid",
+      "title": "What changed in Next.js 15?",
+      "status": "completed",
+      "mode": "web",
+      "answerPreview": "Short answer preview...",
+      "totalSourceCount": 3,
+      "turnCount": 1,
+      "createdAt": "2026-06-04T00:00:00.000Z",
+      "updatedAt": "2026-06-04T00:00:00.000Z"
+    }
+  ],
+  "nextCursor": null
+}
+```
+
+Note: `mode=deep-research` currently returns an empty list because V1 only
+persists `web` threads. The frontend uses this endpoint as the source of truth
+for `/history` and sidebar recents, with local history retained only as an
+optimistic/offline fallback.
+
+## PATCH /perplexity/threads/:threadId
+
+Renames a thread without changing its sort position.
+
+Request:
+
+```json
+{
+  "title": "Renamed thread title"
+}
+```
+
+Response:
+
+```json
+{
+  "threadId": "uuid",
+  "title": "Renamed thread title",
+  "status": "completed",
+  "mode": "web",
+  "answerPreview": "Short answer preview...",
+  "totalSourceCount": 3,
+  "turnCount": 1,
+  "createdAt": "2026-06-04T00:00:00.000Z",
+  "updatedAt": "2026-06-04T00:00:00.000Z"
+}
+```
+
+Note: `title` is trimmed and must be 1-80 characters. Rename intentionally
+preserves the thread's existing `updatedAt`, so a rename does not move the row
+to the top of a newest-first history list.
+
+## DELETE /perplexity/threads
+
+Bulk-deletes threads and their associated turns, sources, and citations.
+
+Request:
+
+```json
+{
+  "threadIds": ["uuid-1", "uuid-2"]
+}
+```
+
+Response:
+
+```json
+{
+  "requestedCount": 2,
+  "deletedCount": 2
+}
+```
+
+Note: `threadIds` accepts 1-50 UUIDs. Duplicate IDs are de-duped server-side.
+Missing or already-deleted IDs are ignored so bulk delete is idempotent.
+
 ## GET /perplexity/threads/:threadId
 
 Loads a full research session with all turns, sources, and citations.
@@ -128,7 +272,6 @@ Response:
 {
   "threadId": "uuid",
   "title": "What changed in Next.js 15?",
-  "link": "/search/uuid",
   "status": "completed",
   "mode": "web",
   "answerPreview": "Short answer preview...",
@@ -177,6 +320,12 @@ Response:
   ]
 }
 ```
+
+## DELETE /perplexity/threads/:threadId
+
+Deletes a thread and all associated turns, sources, and citations.
+
+Response: `204 No Content`
 
 ## GET /health
 

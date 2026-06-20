@@ -5,6 +5,7 @@ export type ThreadHistoryItem = {
   id: string;
   title: string;
   mode?: 'web' | 'deep-research';
+  isPinned?: boolean;
   updatedAt?: string;
 };
 
@@ -14,6 +15,7 @@ type HistoryStore = {
   threads: ThreadHistoryItem[];
   addThread: (thread: ThreadHistoryItem) => void;
   removeThread: (id: string) => void;
+  removeThreads: (ids: string[]) => void;
 };
 
 function upsertThreadHistoryItem(
@@ -26,6 +28,7 @@ function upsertThreadHistoryItem(
     existingIndex === 0 &&
     threads[0].title === thread.title &&
     threads[0].mode === thread.mode &&
+    threads[0].isPinned === thread.isPinned &&
     threads[0].updatedAt === thread.updatedAt
   ) {
     return threads;
@@ -36,6 +39,7 @@ function upsertThreadHistoryItem(
     if (
       existingThread.title === thread.title &&
       existingThread.mode === thread.mode &&
+      existingThread.isPinned === thread.isPinned &&
       existingThread.updatedAt === thread.updatedAt
     ) {
       return threads;
@@ -67,6 +71,13 @@ export const useHistoryStore = create<HistoryStore>()(
         set((state) => ({
           threads: state.threads.filter((t) => t.id !== id),
         })),
+      removeThreads: (ids) =>
+        set((state) => {
+          const idsToRemove = new Set(ids);
+          return {
+            threads: state.threads.filter((t) => !idsToRemove.has(t.id)),
+          };
+        }),
     }),
     {
       name: 'perplexity-history-storage',
