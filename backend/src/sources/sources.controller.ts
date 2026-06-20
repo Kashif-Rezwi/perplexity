@@ -11,11 +11,20 @@ export class SourcesController {
 
   @Get()
   async listSources(@Query() query: SourcesQueryDto) {
+    const limit = query.limit ?? DEFAULT_SOURCES_LIMIT;
     const sources = await this.sourcesRepository.findSources({
-      limit: query.limit ?? DEFAULT_SOURCES_LIMIT,
+      limit,
       turnId: query.turnId,
+      cursor: query.cursor,
     });
 
-    return sources.map(mapSource);
+    const hasNextPage = sources.length > limit;
+    const items = hasNextPage ? sources.slice(0, limit) : sources;
+    const nextCursor = hasNextPage ? items[items.length - 1].id : null;
+
+    return {
+      items: items.map(mapSource),
+      nextCursor,
+    };
   }
 }

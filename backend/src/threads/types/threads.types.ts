@@ -33,6 +33,33 @@ export type FailTurnInput = {
   errorMessage: string;
 };
 
+export type RenameThreadInput = {
+  threadId: string;
+  title: string;
+};
+
+export type TogglePinInput = {
+  threadId: string;
+  isPinned: boolean;
+};
+
+export type BulkDeleteThreadsResult = {
+  requestedCount: number;
+  deletedCount: number;
+};
+
+export type ThreadListSort = 'newest' | 'oldest';
+export type ThreadListModeFilter = 'all' | 'web' | 'deep-research';
+
+export type ListThreadsOptions = {
+  limit?: number;
+  cursor?: string;
+  sort?: ThreadListSort;
+  mode?: ThreadListModeFilter;
+  q?: string;
+  excludePinned?: boolean;
+};
+
 // ==========================================
 // Record Types
 // ==========================================
@@ -63,12 +90,26 @@ export type ThreadWithSingleTurnRecord = {
   totalSourceCount: number;
 };
 
+export const threadListInclude = {
+  _count: { select: { turns: true } },
+} satisfies Prisma.ThreadInclude;
+
+export type ThreadListBaseRecord = Prisma.ThreadGetPayload<{
+  include: typeof threadListInclude;
+}>;
+
+export type ThreadListRecord = ThreadListBaseRecord & {
+  totalSourceCount: number;
+};
+
 export type ThreadHeaderRecord = {
   id: string;
   title: string;
   answerPreview: string | null;
   status: ThreadStatus;
   mode: ThreadMode;
+  isPinned: boolean;
+  pinnedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   _count: { turns: number };
@@ -87,6 +128,8 @@ export type ThreadSummaryItem = {
   status: ApiThreadStatus;
   mode: ApiThreadMode;
   answerPreview: string | null;
+  isPinned: boolean;
+  pinnedAt: string | null;
   totalSourceCount: number;
   turnCount: number;
   createdAt: string;
@@ -129,6 +172,11 @@ export type TurnItem = {
 
 export type ThreadDetailResponse = ThreadSummaryItem & {
   turns: TurnItem[];
+};
+
+export type ThreadListResponse = {
+  items: ThreadSummaryItem[];
+  nextCursor: string | null;
 };
 
 // Shared enum lookup tables to map Prisma types to API response types.

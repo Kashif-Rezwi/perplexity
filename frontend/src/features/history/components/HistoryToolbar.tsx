@@ -11,8 +11,9 @@ type HistoryToolbarProps = {
   onOpenSearch: () => void;
   onCloseSearch: () => void;
   onSearchQueryChange: (value: string) => void;
-  onDeleteSelected: () => void;
+  onDeleteSelected: () => void | Promise<void>;
   onClearSelection: () => void;
+  isDeleting?: boolean;
 };
 
 export function HistoryToolbar({
@@ -26,6 +27,7 @@ export function HistoryToolbar({
   onSearchQueryChange,
   onDeleteSelected,
   onClearSelection,
+  isDeleting = false,
 }: HistoryToolbarProps) {
   const hasSelection = selectedCount > 0;
 
@@ -40,7 +42,8 @@ export function HistoryToolbar({
           <>
             <button
               type="button"
-              onClick={onDeleteSelected}
+              onClick={() => void onDeleteSelected()}
+              disabled={isDeleting}
               className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
               <Trash2 size={14} strokeWidth={1.75} />
@@ -50,6 +53,7 @@ export function HistoryToolbar({
             <button
               type="button"
               onClick={onClearSelection}
+              disabled={isDeleting}
               className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg bg-[var(--color-text)] px-2.5 text-xs font-medium text-[var(--color-bg)] transition-opacity hover:opacity-90"
             >
               <X size={14} strokeWidth={1.75} />
@@ -111,4 +115,3 @@ export function HistoryToolbar({
     </header>
   );
 }
-

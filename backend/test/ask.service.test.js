@@ -171,6 +171,203 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   ]);
 });
 
+test('AskService streams answer deltas, persists the final turn, and emits final data', async () => {
+  const calls = [];
+  const searchResults = [
+    {
+      title: 'Prisma relations',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      content: 'Relations describe connections between records.',
+      score: 0.91,
+      publishedAt: publishedAt.toISOString(),
+    },
+  ];
+  const sourceInputs = [
+    {
+      citationNumber: 1,
+      title: 'Prisma relations',
+      url: 'https://www.prisma.io/docs/orm/prisma-schema/data-model/relations',
+      domain: 'prisma.io',
+      snippet: 'Relations describe connections between records.',
+      provider: 'tavily',
+      providerScore: 0.91,
+      publishedAt,
+    },
+  ];
+  const answerMarkdown = 'Prisma relations connect rows. [1]';
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async *streamAnswer(input) {
+        calls.push(['streamAnswer', input]);
+        yield 'Prisma relations ';
+        yield 'connect rows. [1]';
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return searchResults;
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          turn: createTurnRecord({
+            answerMarkdown,
+            sources: [createSourceRecord()],
+            citations: [createCitationRecord()],
+          }),
+          totalSourceCount: 1,
+        };
+      },
+    },
+  );
+
+  const stream = await service.askStream({ question: 'Explain Prisma relations' });
+  const events = [];
+  for await (const event of stream) {
+    events.push(event);
+  }
+
+  assert.deepEqual(events.map((event) => event.event), [
+    'start',
+    'delta',
+    'delta',
+    'final',
+    'done',
+  ]);
+  assert.deepEqual(events[0].data, {
+    threadId,
+    turnId,
+    question: 'Explain Prisma relations',
+    searchQuery: 'Explain Prisma relations',
+  });
+  assert.equal(events[1].data.text, 'Prisma relations ');
+  assert.equal(events[2].data.text, 'connect rows. [1]');
+  assert.equal(events[3].data.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'streamAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: sourceInputs,
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: sourceInputs,
+        citationNumbers: [1],
+        suggestedFollowUpQuestions: [],
+      },
+    ],
+    ['findThreadWithSingleTurn', threadId, turnId],
+  ]);
+});
+
+test('AskService streaming failure marks the pending turn failed and emits an error event', async () => {
+  const error = new ServiceUnavailableException('Streaming failed');
+  const calls = [];
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async *streamAnswer(input) {
+        calls.push(['streamAnswer', input]);
+        throw error;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  const stream = await service.askStream({ question: 'Explain Prisma relations' });
+  const events = [];
+  for await (const event of stream) {
+    events.push(event);
+  }
+
+  assert.deepEqual(events.map((event) => event.event), [
+    'start',
+    'error',
+    'done',
+  ]);
+  assert.equal(events[1].data.message, 'Streaming failed');
+  assert.deepEqual(calls, [
+    [
+      'createThreadWithPendingTurn',
+      {
+        title: 'Explain Prisma relations',
+        question: 'Explain Prisma relations',
+        searchQuery: 'Explain Prisma relations',
+      },
+    ],
+    ['search', { query: 'Explain Prisma relations' }],
+    [
+      'streamAnswer',
+      {
+        question: 'Explain Prisma relations',
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'failTurn',
+      {
+        threadId,
+        turnId,
+        errorMessage: 'Streaming failed',
+      },
+    ],
+  ]);
+});
+
 test('AskService completes with empty suggestions when suggestion generation fails', async () => {
   const answerMarkdown = 'Prisma relations connect rows across tables.';
   const error = new ServiceUnavailableException('Suggestion generation failed');

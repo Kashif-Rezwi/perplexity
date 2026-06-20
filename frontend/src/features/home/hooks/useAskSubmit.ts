@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { postAsk } from '@/lib/api';
 import { getSources } from '@/lib/api';
+import { streamAsk } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
 import { useHistoryStore } from '@/store/historyStore';
-import type { ThreadDetailResponse } from '@/types/api.types';
+import type {
+  AskResponse,
+  AskStreamStartEvent,
+  ThreadDetailResponse,
+  TurnItem,
+} from '@/types/api.types';
 
 type AskMutationInput = {
   question: string;
@@ -25,6 +30,45 @@ function getErrorMessage(error: unknown): string {
   return 'Failed to connect to the server.';
 }
 
+function createStreamingTurn(event: AskStreamStartEvent): TurnItem {
+  const now = new Date().toISOString();
+
+  return {
+    turnId: event.turnId,
+    question: event.question,
+    searchQuery: event.searchQuery,
+    answerMarkdown: '',
+    suggestedFollowUpQuestions: [],
+    status: 'pending',
+    errorMessage: null,
+    sourceCount: 0,
+    citationCount: 0,
+    sources: [],
+    citations: [],
+    createdAt: now,
+    completedAt: null,
+  };
+}
+
+function createStreamingThread(event: AskStreamStartEvent): ThreadDetailResponse {
+  const now = new Date().toISOString();
+
+  return {
+    threadId: event.threadId,
+    title: event.question,
+    status: 'running',
+    mode: 'web',
+    answerPreview: null,
+    isPinned: false,
+    pinnedAt: null,
+    totalSourceCount: 0,
+    turnCount: 1,
+    createdAt: now,
+    updatedAt: now,
+    turns: [createStreamingTurn(event)],
+  };
+}
+
 export function useAskSubmit({
   threadId,
   onSubmitStart,
@@ -34,70 +78,157 @@ export function useAskSubmit({
   const queryClient = useQueryClient();
   const addThread = useHistoryStore((state) => state.addThread);
 
-  const mutation = useMutation({
-    mutationFn: ({ question, threadId: overrideThreadId }: AskMutationInput) =>
-      postAsk(question, overrideThreadId ?? threadId),
-    onSuccess: (data, variables) => {
-      const activeThreadId = variables.threadId ?? threadId;
+  function applyFinalResponse(data: AskResponse) {
+    const targetThreadId = data.thread.threadId;
+    const completedTurn = mapAskTurnToTurnItem(data.turn);
 
-      if (!activeThreadId) {
-        addThread({
-          id: data.thread.threadId,
-          title: data.thread.title,
-          mode: data.thread.mode,
-          updatedAt: data.thread.updatedAt,
-        });
+    addThread({
+      id: data.thread.threadId,
+      title: data.thread.title,
+      mode: data.thread.mode,
+      updatedAt: data.thread.updatedAt,
+      isPinned: data.thread.isPinned,
+    });
 
-        queryClient.setQueryData<ThreadDetailResponse>(
-          ['thread', data.thread.threadId],
-          {
+    queryClient.setQueryData<ThreadDetailResponse>(
+      ['thread', targetThreadId],
+      (existing) => {
+        if (!existing) {
+          return {
             ...data.thread,
-            turns: [mapAskTurnToTurnItem(data.turn)],
-          },
+            turns: [completedTurn],
+          };
+        }
+
+        const turnAlreadyPresent = existing.turns.some(
+          (turn) => turn.turnId === completedTurn.turnId,
         );
 
-        void queryClient.prefetchQuery({
-          queryKey: ['sources', data.thread.threadId, data.turn.turnId],
-          queryFn: () => getSources({ turnId: data.turn.turnId }),
-        });
+        return {
+          ...existing,
+          title: data.thread.title,
+          status: data.thread.status,
+          answerPreview: data.thread.answerPreview,
+          totalSourceCount: data.thread.totalSourceCount,
+          turnCount: data.thread.turnCount,
+          updatedAt: data.thread.updatedAt,
+          turns: turnAlreadyPresent
+            ? existing.turns.map((turn) =>
+                turn.turnId === completedTurn.turnId ? completedTurn : turn,
+              )
+            : [...existing.turns, completedTurn],
+        };
+      },
+    );
 
-        router.push(`/thread/${data.thread.threadId}`);
-        return;
-      }
+    void queryClient.prefetchQuery({
+      queryKey: ['sources', targetThreadId, data.turn.turnId],
+      queryFn: () => getSources({ turnId: data.turn.turnId }),
+    });
 
-      queryClient.setQueryData<ThreadDetailResponse>(
-        ['thread', activeThreadId],
-        (existing) => {
-          if (!existing) return existing;
+    void queryClient.invalidateQueries({ queryKey: ['threads'] });
+  }
 
-          const newTurn = mapAskTurnToTurnItem(data.turn);
-          const turnAlreadyPresent = existing.turns.some(
-            (turn) => turn.turnId === newTurn.turnId,
+  const mutation = useMutation({
+    mutationFn: async (variables: AskMutationInput) => {
+      const { question, threadId: overrideThreadId } = variables;
+      const activeThreadId = overrideThreadId ?? threadId;
+      let streamThreadId = activeThreadId;
+      let streamTurnId: string | null = null;
+
+      await streamAsk(question, activeThreadId, {
+        onStart: (event) => {
+          streamThreadId = event.threadId;
+          streamTurnId = event.turnId;
+          onSettled?.();
+
+          if (!activeThreadId) {
+            addThread({
+              id: event.threadId,
+              title: event.question,
+              mode: 'web',
+              updatedAt: new Date().toISOString(),
+            });
+
+            queryClient.setQueryData<ThreadDetailResponse>(
+              ['thread', event.threadId],
+              createStreamingThread(event),
+            );
+            router.push(`/thread/${event.threadId}`);
+            return;
+          }
+
+          queryClient.setQueryData<ThreadDetailResponse>(
+            ['thread', activeThreadId],
+            (existing) => {
+              if (!existing) return existing;
+              const turnAlreadyPresent = existing.turns.some(
+                (turn) => turn.turnId === event.turnId,
+              );
+
+              return {
+                ...existing,
+                status: 'running',
+                turnCount: turnAlreadyPresent
+                  ? existing.turnCount
+                  : existing.turnCount + 1,
+                turns: turnAlreadyPresent
+                  ? existing.turns
+                  : [...existing.turns, createStreamingTurn(event)],
+              };
+            },
           );
-
-          return {
-            ...existing,
-            title: data.thread.title,
-            status: data.thread.status,
-            answerPreview: data.thread.answerPreview,
-            totalSourceCount: data.thread.totalSourceCount,
-            turnCount: data.thread.turnCount,
-            updatedAt: data.thread.updatedAt,
-            turns: turnAlreadyPresent
-              ? existing.turns.map((turn) =>
-                  turn.turnId === newTurn.turnId ? newTurn : turn,
-                )
-              : [...existing.turns, newTurn],
-          };
         },
-      );
+        onDelta: (text) => {
+          if (!streamThreadId || !streamTurnId) return;
 
-      void queryClient.prefetchQuery({
-        queryKey: ['sources', activeThreadId, data.turn.turnId],
-        queryFn: () => getSources({ turnId: data.turn.turnId }),
+          queryClient.setQueryData<ThreadDetailResponse>(
+            ['thread', streamThreadId],
+            (existing) => {
+              if (!existing) return existing;
+
+              return {
+                ...existing,
+                turns: existing.turns.map((turn) =>
+                  turn.turnId === streamTurnId
+                    ? {
+                        ...turn,
+                        answerMarkdown: `${turn.answerMarkdown ?? ''}${text}`,
+                      }
+                    : turn,
+                ),
+              };
+            },
+          );
+        },
+        onFinal: (data) => {
+          applyFinalResponse(data);
+        },
+        onError: (message) => {
+          if (!streamThreadId || !streamTurnId) return;
+
+          queryClient.setQueryData<ThreadDetailResponse>(
+            ['thread', streamThreadId],
+            (existing) => {
+              if (!existing) return existing;
+
+              return {
+                ...existing,
+                status: 'failed',
+                turns: existing.turns.map((turn) =>
+                  turn.turnId === streamTurnId
+                    ? {
+                        ...turn,
+                        status: 'failed',
+                        errorMessage: message,
+                      }
+                    : turn,
+                ),
+              };
+            },
+          );
+        },
       });
-
-      void queryClient.invalidateQueries({ queryKey: ['thread', activeThreadId] });
     },
     onError: async (_error, variables) => {
       const activeThreadId = variables.threadId ?? threadId;

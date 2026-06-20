@@ -49,7 +49,7 @@ export function ThreadTurn({
       <QuestionBlock question={turn.question} />
 
       <div className="flex flex-col gap-6">
-        {turn.status === 'pending' ? (
+        {turn.status === 'pending' && !turn.answerMarkdown ? (
           <PendingTurnBlock />
         ) : null}
 
@@ -61,7 +61,8 @@ export function ThreadTurn({
           />
         ) : null}
 
-        {turn.status === 'completed' && turn.answerMarkdown ? (
+        {(turn.status === 'completed' || turn.status === 'pending') &&
+        turn.answerMarkdown ? (
           <AnswerMarkdown
             markdown={turn.answerMarkdown}
             sources={sourcePreviewItems}

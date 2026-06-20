@@ -1,18 +1,31 @@
 import Link from 'next/link';
 import { Check, Search, Telescope } from 'lucide-react';
+import { ThreadActionMenu } from '@/features/thread-management/components/ThreadActionMenu';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { formatRelativeDate, getThreadMode } from '../utils/historyItems';
 
 type HistoryRowProps = {
   thread: ThreadHistoryItem;
   isSelected: boolean;
+  hasSelection: boolean;
   onToggleSelection: (threadId: string) => void;
+  onRenameThread: (thread: ThreadHistoryItem) => void;
+  onDeleteThread: (thread: ThreadHistoryItem) => void;
+  onTogglePinThread: (thread: ThreadHistoryItem) => void;
+  isActionMenuOpen: boolean;
+  onActionMenuOpenChange: (threadId: string, isOpen: boolean) => void;
 };
 
 export function HistoryRow({
   thread,
   isSelected,
+  hasSelection,
   onToggleSelection,
+  onRenameThread,
+  onDeleteThread,
+  onTogglePinThread,
+  isActionMenuOpen,
+  onActionMenuOpenChange,
 }: HistoryRowProps) {
   const mode = getThreadMode(thread);
   const ModeIcon = mode === 'deep-research' ? Telescope : Search;
@@ -20,7 +33,7 @@ export function HistoryRow({
   return (
     <li
       className={[
-        'group grid min-h-[46px] grid-cols-[112px_minmax(0,1fr)_max-content] items-center gap-4 rounded-[9px] border-b px-3.5 transition-colors',
+        'group grid min-h-[46px] grid-cols-[112px_minmax(0,1fr)_max-content_24px] items-center gap-4 rounded-[9px] border-b px-3.5 transition-colors',
         isSelected
           ? 'border-[var(--color-selection-border)] bg-[var(--color-selection-surface)] hover:bg-[var(--color-selection-surface)]'
           : 'border-transparent hover:bg-[var(--color-surface-hover)]',
@@ -43,7 +56,9 @@ export function HistoryRow({
                 ? `Deselect ${thread.title}`
                 : `Select ${thread.title}`
             }
-            onClick={() => onToggleSelection(thread.id)}
+            onClick={() => {
+              onToggleSelection(thread.id);
+            }}
             className={[
               'absolute left-1/2 top-1/2 grid size-[13px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[3px] border transition-opacity duration-100',
               isSelected
@@ -70,7 +85,21 @@ export function HistoryRow({
       <time className="justify-self-end whitespace-nowrap text-[12.5px] text-[var(--color-text-muted)]">
         {formatRelativeDate(thread)}
       </time>
+
+      {!hasSelection ? (
+        <ThreadActionMenu
+          threadTitle={thread.title}
+          isPinned={thread.isPinned ?? false}
+          isOpen={isActionMenuOpen}
+          onTogglePin={() => onTogglePinThread(thread)}
+          onRename={() => onRenameThread(thread)}
+          onDelete={() => onDeleteThread(thread)}
+          buttonClassName="opacity-0 group-hover:opacity-100"
+          onOpenChange={(isOpen) => onActionMenuOpenChange(thread.id, isOpen)}
+        />
+      ) : (
+        <div aria-hidden />
+      )}
     </li>
   );
 }
-

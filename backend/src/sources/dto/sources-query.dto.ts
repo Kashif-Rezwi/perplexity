@@ -13,4 +13,9 @@ export class SourcesQueryDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsUUID()
   turnId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsUUID()
+  cursor?: string;
 }
