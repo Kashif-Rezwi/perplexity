@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Res } from '@nestjs/common';
 import { AskService } from './ask.service';
 import { AskRequestDto } from './dto/ask-request.dto';
+import { RetryAskRequestDto } from './dto/retry-ask-request.dto';
 import type { AskStreamEvent } from './types/ask-stream.types';
 
 type SseResponse = {
@@ -35,6 +36,26 @@ export class AskController {
       threadId: body.threadId,
     });
 
+    await this.writeSseEvents(response, events);
+  }
+
+  @Post('retry')
+  async retryAskStream(
+    @Body() body: RetryAskRequestDto,
+    @Res() response: SseResponse,
+  ) {
+    const events = await this.askService.retryAskStream({
+      threadId: body.threadId,
+      turnId: body.turnId,
+    });
+
+    await this.writeSseEvents(response, events);
+  }
+
+  private async writeSseEvents(
+    response: SseResponse,
+    events: AsyncIterable<AskStreamEvent>,
+  ) {
     response.status(200);
     response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     response.setHeader('Cache-Control', 'no-cache, no-transform');
