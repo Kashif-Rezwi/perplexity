@@ -3,6 +3,8 @@ import { createSseParser } from './sse';
 import type {
   AskResponse,
   AskStreamHandlers,
+  AskStreamErrorEvent,
+  AskStreamProgressEvent,
   AskStreamStartEvent,
   BulkDeleteThreadsResponse,
   PinnedThreadListQueryInput,
@@ -105,13 +107,41 @@ export async function streamAsk(
   handlers: AskStreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(getApiUrl('/ask/stream'), {
+  return streamAskRequest(
+    '/ask/stream',
+    { question, threadId },
+    handlers,
+    signal,
+  );
+}
+
+export async function streamRetryAsk(
+  threadId: string,
+  turnId: string,
+  handlers: AskStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  return streamAskRequest(
+    '/ask/retry',
+    { threadId, turnId },
+    handlers,
+    signal,
+  );
+}
+
+async function streamAskRequest(
+  path: string,
+  body: Record<string, string | undefined>,
+  handlers: AskStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const response = await fetch(getApiUrl(path), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
     },
-    body: JSON.stringify({ question, threadId }),
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -133,7 +163,7 @@ export async function streamAsk(
 
   const decoder = new TextDecoder();
   const reader = response.body.getReader();
-  let streamErrorMessage: string | null = null;
+  let streamError: AskStreamErrorEvent | null = null;
   const parser = createSseParser((event) => {
     const data = JSON.parse(event.data);
 
@@ -147,14 +177,23 @@ export async function streamAsk(
       return;
     }
 
+    if (event.event === 'progress') {
+      handlers.onProgress?.(data as AskStreamProgressEvent);
+      return;
+    }
+
     if (event.event === 'final') {
       handlers.onFinal?.(data as AskResponse);
       return;
     }
 
     if (event.event === 'error') {
-      streamErrorMessage = String(data.message ?? 'Ask failed');
-      handlers.onError?.(streamErrorMessage);
+      streamError = {
+        message: String(data.message ?? 'Ask failed'),
+        code: data.code ?? 'ASK_FAILED',
+        retryable: Boolean(data.retryable),
+      };
+      handlers.onError?.(streamError);
       return;
     }
 
@@ -181,8 +220,9 @@ export async function streamAsk(
     throw new NetworkError('Streaming request failed');
   }
 
-  if (streamErrorMessage) {
-    throw new ApiError(503, streamErrorMessage);
+  const finalStreamError = streamError as AskStreamErrorEvent | null;
+  if (finalStreamError) {
+    throw new ApiError(503, finalStreamError.message);
   }
 }
 

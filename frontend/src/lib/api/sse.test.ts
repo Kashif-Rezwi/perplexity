@@ -36,4 +36,20 @@ describe('createSseParser', () => {
 
     expect(events).toEqual([{ event: 'done', data: '{}' }]);
   });
+
+  it('parses progress events like any other SSE event', () => {
+    const events: ParsedSseEvent[] = [];
+    const parser = createSseParser((event) => events.push(event));
+
+    parser.feed(
+      'event: progress\ndata: {"stage":"searching","message":"Searching the web..."}\n\n',
+    );
+
+    expect(events).toEqual([
+      {
+        event: 'progress',
+        data: '{"stage":"searching","message":"Searching the web..."}',
+      },
+    ]);
+  });
 });
