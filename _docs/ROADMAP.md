@@ -37,9 +37,12 @@ Enhancements that improve the client experience once the core flow is stable.
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend/Frontend** | Streaming responses | Return and render answer tokens progressively via SSE |
+| **Backend/Frontend** | Progress and recovery | Show ask lifecycle stages, structured stream errors, and retry failed turns by appending a new turn |
 | **Backend/Frontend** | Server-backed history | Load sidebar and `/history` from `GET /perplexity/threads`, with local history as an optimistic fallback |
 | **Backend** | Pagination support | Load large lists such as thread history and source lists in stable chunks |
-| **Backend/Frontend** | Expanded Thread Management | History-page delete, bulk delete, rename, archive/pin candidates, and richer server-backed history controls |
+| **Backend/Frontend** | Expanded Thread Management | History/sidebar rename, delete, bulk delete, pin/unpin, and richer server-backed history controls |
+| **Frontend** | Source and citation polish | Links tab source actions, cited-source emphasis, citation tooltip open/copy actions |
+| **Frontend** | Share/export basics | Copy response/thread URLs, Markdown, and plain text without public share records |
 
 ## V3 - Deployment Readiness
 
