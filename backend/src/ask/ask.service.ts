@@ -79,18 +79,26 @@ export class AskService {
     }
   }
 
-  async askStream(input: AskInput): Promise<AsyncIterable<AskStreamEvent>> {
+  async askStream(
+    input: AskInput,
+    abortSignal?: AbortSignal,
+  ): Promise<AsyncIterable<AskStreamEvent>> {
     const context = await this.preparePendingAsk(input);
 
-    return this.createAskStream(input, context);
+    return this.createAskStream(input, context, abortSignal);
   }
 
   async retryAskStream(
     input: RetryAskInput,
+    abortSignal?: AbortSignal,
   ): Promise<AsyncIterable<AskStreamEvent>> {
     const context = await this.preparePendingRetryAsk(input);
 
-    return this.createAskStream({ question: context.question }, context);
+    return this.createAskStream(
+      { question: context.question },
+      context,
+      abortSignal,
+    );
   }
 
   private async preparePendingAsk(input: AskInput) {
@@ -226,6 +234,7 @@ export class AskService {
   private async *createAskStream(
     input: AskInput,
     context: PendingAskContext,
+    abortSignal?: AbortSignal,
   ): AsyncIterable<AskStreamEvent> {
     const { thread, turn, priorTurns, searchQuery } = context;
     let failurePhase: AskStreamFailurePhase = 'answer';
@@ -253,6 +262,7 @@ export class AskService {
         input.question,
         priorTurns,
         sources,
+        abortSignal,
       )) {
         answerMarkdown += delta;
 
@@ -287,7 +297,18 @@ export class AskService {
         data: {},
       };
     } catch (error) {
-      await this.handleAskFailure(thread.id, turn.id, error);
+      try {
+        await this.handleAskFailure(thread.id, turn.id, error);
+      } catch (failureError) {
+        this.logger.error(
+          `Failed to mark streamed ask as failed for thread ${thread.id}, turn ${turn.id}: ${getErrorMessage(
+            failureError,
+            'Failure update failed',
+          )}`,
+          getErrorStack(failureError),
+        );
+      }
+
       yield {
         event: 'error',
         data: this.createStreamErrorData(error, failurePhase),
