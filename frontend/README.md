@@ -23,7 +23,7 @@ The frontend handles:
    npm install
    ```
 
-2. The frontend is configured to automatically proxy requests via Next.js `rewrites` to avoid CORS issues. If your backend is running on a different port, update the `next.config.ts`.
+2. The frontend is configured to automatically proxy requests via Next.js `rewrites` to avoid CORS issues. If your backend is running on a different port, set `BACKEND_URL` before starting the frontend.
 
 ### Running the Application
 
@@ -33,7 +33,8 @@ Start the development server:
 npm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser.
+The development and production start scripts both serve the app on
+[http://localhost:3001](http://localhost:3001).
 
 ## Documentation
 

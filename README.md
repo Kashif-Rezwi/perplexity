@@ -20,6 +20,10 @@ To run the application locally, you will need to start both the backend and fron
    cd backend
    ```
 2. Ensure your `.env` file is configured with the necessary API keys (OpenAI/Groq, Tavily, Database URL).
+   You can start from the example file:
+   ```bash
+   cp .env.example .env
+   ```
 3. Install dependencies and start the development server:
    ```bash
    npm install
@@ -38,7 +42,8 @@ To run the application locally, you will need to start both the backend and fron
    npm install
    npm run dev
    ```
-   The frontend runs on `http://localhost:3001`.
+   The frontend dev script runs on `http://localhost:3001` and proxies API
+   calls to the backend at `http://localhost:8080` by default.
 
 ### 3. Usage
 

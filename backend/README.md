@@ -58,24 +58,24 @@ The backend exposes endpoints that allow the frontend to:
 
 3. Run database migrations:
    ```bash
-   npx prisma db push
-   # or npx prisma migrate dev
+   npm run prisma:migrate
    ```
 
 ### Running the Application
 
 ```bash
-# development
-npm run start
-
-# watch mode (recommended)
+# development watch mode
 npm run dev
 
-# production mode
+# build
+npm run build
+
+# production mode after build
 npm run start:prod
 ```
 
-The server will start on `http://localhost:8080`.
+The server defaults to `http://localhost:8080`. Override it with `PORT` when
+needed.
 
 ## Documentation
 
