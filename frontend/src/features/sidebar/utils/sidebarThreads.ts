@@ -6,18 +6,13 @@ export type SidebarThreadGroups = {
 };
 
 export function getVisibleSidebarThreadGroups(
-  pinnedThreads: ThreadHistoryItem[],
-  recentThreads: ThreadHistoryItem[],
+  threads: ThreadHistoryItem[],
   limit: number,
 ): SidebarThreadGroups {
-  const visiblePinnedThreads = pinnedThreads.slice(0, limit);
-  const pinnedIds = new Set(visiblePinnedThreads.map((thread) => thread.id));
-  const visibleRecentThreads = recentThreads
-    .filter((thread) => !pinnedIds.has(thread.id))
-    .slice(0, Math.max(0, limit - visiblePinnedThreads.length));
+  const visibleThreads = threads.slice(0, limit);
 
   return {
-    pinnedThreads: visiblePinnedThreads,
-    recentThreads: visibleRecentThreads,
+    pinnedThreads: visibleThreads.filter((thread) => thread.isPinned === true),
+    recentThreads: visibleThreads.filter((thread) => thread.isPinned !== true),
   };
 }

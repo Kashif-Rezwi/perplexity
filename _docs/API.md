@@ -105,6 +105,9 @@ Events:
 event: start
 data: {"threadId":"uuid","turnId":"uuid","question":"What changed in Next.js 15?","searchQuery":"What changed in Next.js 15?"}
 
+event: progress
+data: {"stage":"searching","message":"Searching the web..."}
+
 event: delta
 data: {"text":"Partial answer text"}
 
@@ -112,7 +115,7 @@ event: final
 data: {"thread":{...},"turn":{...}}
 
 event: error
-data: {"message":"Ask failed"}
+data: {"message":"OpenAI answer generation failed","code":"ANSWER_FAILED","retryable":true}
 
 event: done
 data: {}
@@ -121,14 +124,43 @@ data: {}
 Notes:
 
 - The backend creates the pending turn before emitting `start`.
+- `progress` events describe lifecycle stages: `preparing`, `searching`,
+  `answering`, `saving`, and `completed`.
 - `delta` events contain answer text only; citations and source previews are
   finalized in the `final` event.
 - The `final` event uses the exact same `{ thread, turn }` shape as
   `POST /perplexity/ask`.
 - The backend persists the final answer, sources, citations, and suggested
   follow-up questions after answer streaming completes.
+- Stream `error` events use `{ message, code, retryable }`, where `code` is one
+  of `SEARCH_FAILED`, `ANSWER_TIMEOUT`, `ANSWER_FAILED`, `SAVE_FAILED`, or
+  `ASK_FAILED`.
 - Validation errors and missing `threadId` targets return normal HTTP errors
   before the event stream starts.
+
+## POST /perplexity/ask/retry
+
+Retries a failed turn by appending a new turn to the same thread and streaming
+the new attempt. The failed turn is preserved for auditability and UI context.
+
+Request:
+
+```json
+{
+  "threadId": "existing-thread-uuid",
+  "turnId": "failed-turn-uuid"
+}
+```
+
+Response:
+
+```txt
+text/event-stream
+```
+
+Events are identical to `POST /perplexity/ask/stream`. If the target turn does
+not exist, does not belong to the thread, or is not failed, the endpoint returns
+a normal HTTP error before the event stream starts.
 
 
 ## GET /perplexity/sources

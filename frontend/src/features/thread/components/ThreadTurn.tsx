@@ -23,7 +23,7 @@ interface ThreadTurnProps {
   onViewSources?: () => void;
   onSelectFollowUp?: (q: string) => void;
   onCitationClick?: (num: number) => void;
-  onRetry?: (q: string) => void;
+  onRetry?: (turnId: string, q: string) => void;
 }
 
 export function ThreadTurn({
@@ -50,14 +50,14 @@ export function ThreadTurn({
 
       <div className="flex flex-col gap-6">
         {turn.status === 'pending' && !turn.answerMarkdown ? (
-          <PendingTurnBlock />
+          <PendingTurnBlock message={turn.streamMessage} />
         ) : null}
 
         {turn.status === 'failed' ? (
           <FailedTurnBlock
             question={turn.question}
             errorMessage={turn.errorMessage}
-            onRetry={onRetry}
+            onRetry={onRetry ? (q) => onRetry(turn.turnId, q) : undefined}
           />
         ) : null}
 
@@ -72,7 +72,6 @@ export function ThreadTurn({
 
         {turn.status === 'completed' ? (
           <TurnResponseActions
-            answerMarkdown={turn.answerMarkdown}
             sourceCount={sourceCount}
             sourcePreviewItems={sourcePreviewItems}
             onViewSources={onViewSources}

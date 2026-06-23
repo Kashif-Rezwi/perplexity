@@ -246,9 +246,14 @@ test('AskService streams answer deltas, persists the final turn, and emits final
 
   assert.deepEqual(events.map((event) => event.event), [
     'start',
+    'progress',
+    'progress',
+    'progress',
     'delta',
     'delta',
+    'progress',
     'final',
+    'progress',
     'done',
   ]);
   assert.deepEqual(events[0].data, {
@@ -257,9 +262,15 @@ test('AskService streams answer deltas, persists the final turn, and emits final
     question: 'Explain Prisma relations',
     searchQuery: 'Explain Prisma relations',
   });
-  assert.equal(events[1].data.text, 'Prisma relations ');
-  assert.equal(events[2].data.text, 'connect rows. [1]');
-  assert.equal(events[3].data.turn.answerMarkdown, answerMarkdown);
+  assert.deepEqual(
+    events
+      .filter((event) => event.event === 'progress')
+      .map((event) => event.data.stage),
+    ['preparing', 'searching', 'answering', 'saving', 'completed'],
+  );
+  assert.equal(events[4].data.text, 'Prisma relations ');
+  assert.equal(events[5].data.text, 'connect rows. [1]');
+  assert.equal(events[7].data.turn.answerMarkdown, answerMarkdown);
   assert.deepEqual(calls, [
     [
       'createThreadWithPendingTurn',
@@ -287,6 +298,114 @@ test('AskService streams answer deltas, persists the final turn, and emits final
         answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
+        suggestedFollowUpQuestions: [],
+      },
+    ],
+    ['findThreadWithSingleTurn', threadId, turnId],
+  ]);
+});
+
+test('AskService retry stream appends a new turn from the failed question', async () => {
+  const failedQuestion = 'Explain failed Prisma relations';
+  const calls = [];
+  const answerMarkdown = 'Retried answer.';
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async *streamAnswer(input) {
+        calls.push(['streamAnswer', input]);
+        yield answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({
+          turns: [
+            createTurnRecord({
+              id: followUpTurnId,
+              question: failedQuestion,
+              searchQuery: failedQuestion,
+              answerMarkdown: null,
+              turnStatus: TurnStatus.FAILED,
+              errorMessage: 'Previous failure',
+              completedAt: null,
+            }),
+          ],
+        });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          question: failedQuestion,
+          searchQuery: failedQuestion,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 2 }) }),
+          turn: createTurnRecord({ answerMarkdown }),
+          totalSourceCount: 0,
+        };
+      },
+    },
+  );
+
+  const stream = await service.retryAskStream({
+    threadId,
+    turnId: followUpTurnId,
+  });
+  const events = [];
+  for await (const event of stream) {
+    events.push(event);
+  }
+
+  assert.equal(events[0].event, 'start');
+  assert.equal(events[0].data.question, failedQuestion);
+  assert.equal(events[0].data.turnId, turnId);
+  assert.equal(events.find((event) => event.event === 'final').data.turn.turnId, turnId);
+  assert.deepEqual(calls, [
+    ['findThreadDetailById', threadId],
+    [
+      'appendPendingTurnToThread',
+      {
+        threadId,
+        question: failedQuestion,
+        searchQuery: failedQuestion,
+      },
+    ],
+    ['search', { query: failedQuestion }],
+    [
+      'streamAnswer',
+      {
+        question: failedQuestion,
+        priorTurns: [],
+        sources: [],
+      },
+    ],
+    [
+      'completeTurn',
+      {
+        threadId,
+        turnId,
+        answerMarkdown,
+        answerPreview: answerMarkdown,
+        sources: [],
+        citationNumbers: [],
         suggestedFollowUpQuestions: [],
       },
     ],
@@ -335,10 +454,17 @@ test('AskService streaming failure marks the pending turn failed and emits an er
 
   assert.deepEqual(events.map((event) => event.event), [
     'start',
+    'progress',
+    'progress',
+    'progress',
     'error',
     'done',
   ]);
-  assert.equal(events[1].data.message, 'Streaming failed');
+  assert.deepEqual(events[4].data, {
+    message: 'Streaming failed',
+    code: 'ANSWER_FAILED',
+    retryable: true,
+  });
   assert.deepEqual(calls, [
     [
       'createThreadWithPendingTurn',

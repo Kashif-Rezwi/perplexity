@@ -17,15 +17,39 @@ export type AskStreamDeltaEvent = {
   };
 };
 
+export type AskStreamProgressStage =
+  | 'preparing'
+  | 'searching'
+  | 'answering'
+  | 'saving'
+  | 'completed';
+
+export type AskStreamProgressEvent = {
+  event: 'progress';
+  data: {
+    stage: AskStreamProgressStage;
+    message: string;
+  };
+};
+
 export type AskStreamFinalEvent = {
   event: 'final';
   data: AskResponse;
 };
 
+export type AskStreamErrorCode =
+  | 'ASK_FAILED'
+  | 'SEARCH_FAILED'
+  | 'ANSWER_TIMEOUT'
+  | 'ANSWER_FAILED'
+  | 'SAVE_FAILED';
+
 export type AskStreamErrorEvent = {
   event: 'error';
   data: {
     message: string;
+    code: AskStreamErrorCode;
+    retryable: boolean;
   };
 };
 
@@ -37,6 +61,7 @@ export type AskStreamDoneEvent = {
 export type AskStreamEvent =
   | AskStreamStartEvent
   | AskStreamDeltaEvent
+  | AskStreamProgressEvent
   | AskStreamFinalEvent
   | AskStreamErrorEvent
   | AskStreamDoneEvent;
