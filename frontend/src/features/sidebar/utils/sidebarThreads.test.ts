@@ -2,48 +2,62 @@ import { describe, expect, it } from 'vitest';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { getVisibleSidebarThreadGroups } from './sidebarThreads';
 
-function historyItem(id: string): ThreadHistoryItem {
+function historyItem(
+  id: string,
+  overrides: Partial<ThreadHistoryItem> = {},
+): ThreadHistoryItem {
   return {
     id,
     title: `Thread ${id}`,
     mode: 'web',
     updatedAt: '2026-06-01T00:00:00.000Z',
+    ...overrides,
   };
 }
 
 describe('getVisibleSidebarThreadGroups', () => {
-  it('returns pinned threads first and caps the total visible thread count', () => {
-    const pinnedThreads = Array.from({ length: 3 }, (_, index) =>
-      historyItem(`pinned-${index}`),
-    );
-    const recentThreads = Array.from({ length: 25 }, (_, index) =>
-      historyItem(`recent-${index}`),
-    );
-
-    const result = getVisibleSidebarThreadGroups(
-      pinnedThreads,
-      recentThreads,
-      20,
+  it('groups pinned rows from the same capped sidebar thread list', () => {
+    const threads = Array.from({ length: 25 }, (_, index) =>
+      historyItem(`thread-${index}`, {
+        isPinned: index === 0 || index === 3 || index === 21,
+      }),
     );
 
-    expect(result.pinnedThreads).toHaveLength(3);
-    expect(result.recentThreads).toHaveLength(17);
+    const result = getVisibleSidebarThreadGroups(threads, 20);
+
+    expect(result.pinnedThreads.map((thread) => thread.id)).toEqual([
+      'thread-0',
+      'thread-3',
+    ]);
+    expect(result.recentThreads).toHaveLength(18);
     expect([...result.pinnedThreads, ...result.recentThreads]).toHaveLength(20);
   });
 
-  it('does not duplicate a pinned thread that also appears in recent threads', () => {
-    const pinnedThread = historyItem('same-thread');
-    const result = getVisibleSidebarThreadGroups(
-      [pinnedThread],
-      [pinnedThread, historyItem('recent-thread')],
-      20,
-    );
+  it('shows all fetched rows when fewer than the sidebar limit are available', () => {
+    const threads = [
+      historyItem('pinned-thread', { isPinned: true }),
+      historyItem('recent-thread'),
+    ];
+
+    const result = getVisibleSidebarThreadGroups(threads, 20);
 
     expect(result.pinnedThreads.map((thread) => thread.id)).toEqual([
-      'same-thread',
+      'pinned-thread',
     ]);
+    expect(result.recentThreads).toHaveLength(1);
     expect(result.recentThreads.map((thread) => thread.id)).toEqual([
       'recent-thread',
     ]);
+  });
+
+  it('does not render rows outside the fetched sidebar limit', () => {
+    const threads = Array.from({ length: 21 }, (_, index) =>
+      historyItem(`thread-${index}`, { isPinned: index === 20 }),
+    );
+
+    const result = getVisibleSidebarThreadGroups(threads, 20);
+
+    expect(result.pinnedThreads).toHaveLength(0);
+    expect(result.recentThreads).toHaveLength(20);
   });
 });

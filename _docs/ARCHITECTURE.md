@@ -51,7 +51,7 @@ The following describes the end-to-end data flow when a user submits a question.
 8.  **AI Answer Generation**:
     *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.
     *   The AI Service is provider-agnostic, supporting OpenAI and Groq based on environment variables.
-9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence.
+9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence. The stream also emits lifecycle progress stages (`preparing`, `searching`, `answering`, `saving`, `completed`) so the UI can show specific status text.
 10. **Citation Linking**: After streaming completes, the backend maps markdown citations (e.g., `[1]`) to the persisted sources to construct `citations` objects.
 11. **Finalization (Backend)**: The final answer, sources, citations, and suggested follow-up questions are persisted, and the stream emits the same `{ thread, turn }` response shape used by the synchronous endpoint.
 12. **Hydration (Frontend)**:
@@ -61,10 +61,14 @@ The following describes the end-to-end data flow when a user submits a question.
     *   The sidebar and `/history` prefer `GET /perplexity/threads` for persisted thread summaries.
     *   Local history remains as an optimistic/offline fallback so newly-created threads appear quickly before the server list reconciles.
 14. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
+15. **Recovery (Frontend/Backend)**: Failed turns can be retried through `POST /perplexity/ask/retry`. Retry preserves the failed turn and appends a new streamed turn using the failed turn's original question.
+16. **Share/Export (Frontend)**: V2 sharing is frontend-only. The client can copy thread URLs, response URLs, Markdown, and plain text without creating public share records.
 
 ---
 
 ## 3. Future Architectural Considerations
 
 *   **Streaming**: The streaming ask endpoint uses SSE over `fetch()` with a POST body. Provider services yield text deltas, while the Ask service buffers the final response and persists one completed turn after the stream finishes.
+*   **Retry Semantics**: Retry appends a new turn instead of mutating a failed turn, preserving the conversation timeline and failure evidence.
+*   **Share/Export Scope**: Copy/share actions serialize existing thread and turn data client-side. Public share links, auth-scoped sharing, and downloadable files are deferred.
 *   **Authentication Flow**: Future authentication will introduce Guards at the controller level to scope database queries by user ID.

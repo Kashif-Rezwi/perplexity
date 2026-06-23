@@ -11,7 +11,7 @@ import {
 } from '@/features/thread-management/components/ThreadManagementDialogs';
 import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
 import { useMounted } from '@/hooks/useMounted';
-import { getPinnedThreads, getThreads } from '@/lib/api';
+import { getThreads } from '@/lib/api';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useHistoryStore } from '@/store/historyStore';
@@ -43,41 +43,20 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
       limit: SIDEBAR_THREAD_LIMIT,
       mode: 'all',
       sort: 'newest',
-      excludePinned: true,
     }),
     enabled: isOpen && !isCollapsed,
     staleTime: 30_000,
     retry: 1,
   });
 
-  const pinnedQuery = useQuery({
-    queryKey: ['threads', 'pinned', { limit: SIDEBAR_THREAD_LIMIT }],
-    queryFn: () => getPinnedThreads({ limit: SIDEBAR_THREAD_LIMIT }),
-    enabled: isOpen && !isCollapsed,
-    staleTime: 30_000,
-    retry: 1,
-    select: (data) => data.map(mapThreadSummaryToHistoryItem),
-  });
-
-  // Recent threads (unpinned)
-  const serverRecent = (threadListQuery.data?.items ?? [])
-    .map(mapThreadSummaryToHistoryItem)
-    .filter((t) => !t.isPinned);
-  const localRecent = localThreads.filter((t) => !t.isPinned);
-  const recentThreads = threadListQuery.data ? serverRecent : localRecent;
-
-  // Pinned threads
-  const serverPinned = pinnedQuery.data ?? null;
-  const localPinned = localThreads.filter((t) => t.isPinned === true);
-  const pinnedThreads = serverPinned ?? localPinned;
+  const serverThreads = (threadListQuery.data?.items ?? []).map(
+    mapThreadSummaryToHistoryItem,
+  );
+  const threads = threadListQuery.data ? serverThreads : localThreads;
   const {
     pinnedThreads: visiblePinnedThreads,
     recentThreads: visibleRecentThreads,
-  } = getVisibleSidebarThreadGroups(
-    pinnedThreads,
-    recentThreads,
-    SIDEBAR_THREAD_LIMIT,
-  );
+  } = getVisibleSidebarThreadGroups(threads, SIDEBAR_THREAD_LIMIT);
   const visibleThreadCount =
     visiblePinnedThreads.length + visibleRecentThreads.length;
 

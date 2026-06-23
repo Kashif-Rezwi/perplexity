@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
+import { TurnStatus } from '@prisma/client';
 import { AiService } from '../ai/ai.service';
 import { getErrorMessage, getErrorStack } from '../common/utils/error.util';
 import { TavilySearchService } from '../search/tavily-search.service';
@@ -17,11 +18,32 @@ import { prepareAnswerCitations } from './helpers/answer-citation.helper';
 import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
 import { mapAskResponse } from './mappers/ask-response.mapper';
 import type { AskInput, AskResponse } from './types/ask.types';
-import type { AskStreamEvent } from './types/ask-stream.types';
+import type {
+  AskStreamErrorCode,
+  AskStreamEvent,
+  AskStreamProgressStage,
+} from './types/ask-stream.types';
 import {
   createAnswerPreview,
   createThreadTitle,
 } from './utils/ask-text.util';
+
+type PendingAskContext = Awaited<ReturnType<AskService['preparePendingAsk']>>;
+
+type RetryAskInput = {
+  threadId: string;
+  turnId: string;
+};
+
+type AskStreamFailurePhase = 'search' | 'answer' | 'save';
+
+const PROGRESS_MESSAGES: Record<AskStreamProgressStage, string> = {
+  preparing: 'Preparing your question...',
+  searching: 'Searching the web...',
+  answering: 'Writing the answer...',
+  saving: 'Saving the result...',
+  completed: 'Answer complete.',
+};
 
 @Injectable()
 export class AskService {
@@ -57,10 +79,26 @@ export class AskService {
     }
   }
 
-  async askStream(input: AskInput): Promise<AsyncIterable<AskStreamEvent>> {
+  async askStream(
+    input: AskInput,
+    abortSignal?: AbortSignal,
+  ): Promise<AsyncIterable<AskStreamEvent>> {
     const context = await this.preparePendingAsk(input);
 
-    return this.createAskStream(input, context);
+    return this.createAskStream(input, context, abortSignal);
+  }
+
+  async retryAskStream(
+    input: RetryAskInput,
+    abortSignal?: AbortSignal,
+  ): Promise<AsyncIterable<AskStreamEvent>> {
+    const context = await this.preparePendingRetryAsk(input);
+
+    return this.createAskStream(
+      { question: context.question },
+      context,
+      abortSignal,
+    );
   }
 
   private async preparePendingAsk(input: AskInput) {
@@ -89,6 +127,44 @@ export class AskService {
     return {
       existingThread,
       priorTurns,
+      question: input.question,
+      searchQuery,
+      thread,
+      turn,
+    };
+  }
+
+  private async preparePendingRetryAsk(input: RetryAskInput) {
+    const existingThread = await this.loadExistingThreadOrThrow(input.threadId);
+    const failedTurn = existingThread.turns.find(
+      (turn) => turn.id === input.turnId,
+    );
+
+    if (!failedTurn) {
+      throw new NotFoundException(`Turn ${input.turnId} was not found`);
+    }
+
+    if (failedTurn.status !== TurnStatus.FAILED) {
+      throw new BadRequestException('Only failed turns can be retried');
+    }
+
+    const priorTurns = getPriorTurns(existingThread);
+    const searchQuery = await this.aiService.resolveSearchQuery(
+      failedTurn.question,
+      priorTurns,
+      existingThread.title,
+    );
+    const thread = await this.threadsService.appendPendingTurnToThread({
+      threadId: existingThread.id,
+      question: failedTurn.question,
+      searchQuery,
+    });
+    const turn = getLatestTurn(thread);
+
+    return {
+      existingThread,
+      priorTurns,
+      question: failedTurn.question,
       searchQuery,
       thread,
       turn,
@@ -104,7 +180,7 @@ export class AskService {
   }
 
   private async completeAskTurn(
-    context: Awaited<ReturnType<AskService['preparePendingAsk']>>,
+    context: PendingAskContext,
     question: string,
     rawAnswerMarkdown: string,
     sources: ReturnType<typeof mapSearchResultsToSourceInputs>,
@@ -157,9 +233,11 @@ export class AskService {
 
   private async *createAskStream(
     input: AskInput,
-    context: Awaited<ReturnType<AskService['preparePendingAsk']>>,
+    context: PendingAskContext,
+    abortSignal?: AbortSignal,
   ): AsyncIterable<AskStreamEvent> {
     const { thread, turn, priorTurns, searchQuery } = context;
+    let failurePhase: AskStreamFailurePhase = 'answer';
 
     yield {
       event: 'start',
@@ -170,15 +248,21 @@ export class AskService {
         searchQuery,
       },
     };
+    yield this.createProgressEvent('preparing');
 
     try {
+      yield this.createProgressEvent('searching');
+      failurePhase = 'search';
       const sources = await this.searchSources(searchQuery);
       let answerMarkdown = '';
 
+      yield this.createProgressEvent('answering');
+      failurePhase = 'answer';
       for await (const delta of this.aiService.streamAnswer(
         input.question,
         priorTurns,
         sources,
+        abortSignal,
       )) {
         answerMarkdown += delta;
 
@@ -194,6 +278,8 @@ export class AskService {
         throw new InternalServerErrorException('AI returned an empty answer');
       }
 
+      yield this.createProgressEvent('saving');
+      failurePhase = 'save';
       const response = await this.completeAskTurn(
         context,
         input.question,
@@ -205,17 +291,27 @@ export class AskService {
         event: 'final',
         data: response,
       };
+      yield this.createProgressEvent('completed');
       yield {
         event: 'done',
         data: {},
       };
     } catch (error) {
-      await this.handleAskFailure(thread.id, turn.id, error);
+      try {
+        await this.handleAskFailure(thread.id, turn.id, error);
+      } catch (failureError) {
+        this.logger.error(
+          `Failed to mark streamed ask as failed for thread ${thread.id}, turn ${turn.id}: ${getErrorMessage(
+            failureError,
+            'Failure update failed',
+          )}`,
+          getErrorStack(failureError),
+        );
+      }
+
       yield {
         event: 'error',
-        data: {
-          message: getErrorMessage(error, 'Ask failed'),
-        },
+        data: this.createStreamErrorData(error, failurePhase),
       };
       yield {
         event: 'done',
@@ -252,5 +348,34 @@ export class AskService {
     }
 
     return thread;
+  }
+
+  private createProgressEvent(stage: AskStreamProgressStage): AskStreamEvent {
+    return {
+      event: 'progress',
+      data: {
+        stage,
+        message: PROGRESS_MESSAGES[stage],
+      },
+    };
+  }
+
+  private createStreamErrorData(
+    error: unknown,
+    phase: AskStreamFailurePhase,
+  ): { message: string; code: AskStreamErrorCode; retryable: boolean } {
+    const message = getErrorMessage(error, 'Ask failed');
+    const isTimeout = message.toLowerCase().includes('timed out');
+    const codeByPhase: Record<AskStreamFailurePhase, AskStreamErrorCode> = {
+      search: 'SEARCH_FAILED',
+      answer: isTimeout ? 'ANSWER_TIMEOUT' : 'ANSWER_FAILED',
+      save: 'SAVE_FAILED',
+    };
+
+    return {
+      message,
+      code: codeByPhase[phase] ?? 'ASK_FAILED',
+      retryable: phase !== 'save',
+    };
   }
 }

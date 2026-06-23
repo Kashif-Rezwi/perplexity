@@ -71,7 +71,7 @@ export function Sidebar() {
         className={[
           'group/sidebar flex flex-col h-screen shrink-0 sticky top-0 overflow-hidden',
           'bg-[var(--color-sidebar)]',
-          isOpen ? 'border-r border-[var(--color-border-subtle)]' : '',
+          'border-r border-[var(--color-border-subtle)]',
           // Mobile responsive fixed drawer overrides
           'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50',
           isOpen && mounted
@@ -79,7 +79,7 @@ export function Sidebar() {
             : 'max-md:-translate-x-full max-md:border-none',
         ].join(' ')}
       >
-        <div className="flex h-[62px] shrink-0 items-center px-2">
+        <div className="flex h-[56px] shrink-0 items-center px-2">
           {isOpen ? (
             <Link
               href="/"

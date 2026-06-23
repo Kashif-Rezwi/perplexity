@@ -80,11 +80,37 @@ export type AskStreamStartEvent = {
   searchQuery: string;
 };
 
+export type AskStreamProgressStage =
+  | 'preparing'
+  | 'searching'
+  | 'answering'
+  | 'saving'
+  | 'completed';
+
+export type AskStreamProgressEvent = {
+  stage: AskStreamProgressStage;
+  message: string;
+};
+
+export type AskStreamErrorCode =
+  | 'ASK_FAILED'
+  | 'SEARCH_FAILED'
+  | 'ANSWER_TIMEOUT'
+  | 'ANSWER_FAILED'
+  | 'SAVE_FAILED';
+
+export type AskStreamErrorEvent = {
+  message: string;
+  code: AskStreamErrorCode;
+  retryable: boolean;
+};
+
 export type AskStreamHandlers = {
   onStart?: (event: AskStreamStartEvent) => void;
+  onProgress?: (event: AskStreamProgressEvent) => void;
   onDelta?: (text: string) => void;
   onFinal?: (response: AskResponse) => void;
-  onError?: (message: string) => void;
+  onError?: (error: AskStreamErrorEvent) => void;
   onDone?: () => void;
 };
 
@@ -123,7 +149,13 @@ export type TurnSourceGroup = {
   turnId: string;
   question: string;
   searchQuery: string;
+  citedCitationNumbers: number[];
   sources: SourcePreviewItem[];
+};
+
+export type SourceHighlightTarget = {
+  turnId: string;
+  citationNumber: number;
 };
 
 export type CitationItem = {
@@ -141,6 +173,8 @@ export type TurnItem = {
   suggestedFollowUpQuestions: string[];
   status: ApiTurnStatus;
   errorMessage: string | null;
+  streamStage?: AskStreamProgressStage | null;
+  streamMessage?: string | null;
   sourceCount: number;
   citationCount: number;
   sources: SourceItem[];

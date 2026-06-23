@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
+import type { AskStreamStartEvent } from '@/types/api.types';
 
 
 export interface AskInputRef {
@@ -16,6 +17,8 @@ interface AskInputProps {
   placeholder?: string;
   /** Called immediately before the mutation fires, with the trimmed question. */
   onSubmitStart?: (question: string) => void;
+  /** Called after the persisted streaming turn is available in the cache. */
+  onStreamStart?: (event: AskStreamStartEvent) => void;
   /** Called when the mutation settles (success or error). */
   onSettled?: () => void;
 }
@@ -26,6 +29,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     autoFocus = true,
     placeholder = 'Ask anything...',
     onSubmitStart,
+    onStreamStart,
     onSettled,
   }, ref) {
     const [question, setQuestion] = useState('');
@@ -33,6 +37,7 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
     const { submitAsk, isPending, errorMessage } = useAskSubmit({
       threadId,
       onSubmitStart,
+      onStreamStart,
       onSettled: () => {
         onSettled?.();
       },

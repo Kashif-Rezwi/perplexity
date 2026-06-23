@@ -22,7 +22,7 @@ export function ThreadTabButton({
       disabled={disabled}
       onClick={onClick}
       className={[
-        'flex items-center gap-2 pb-4 px-0 text-[15px] font-medium transition-colors relative',
+        'flex items-center gap-2 h-full px-0 text-[15px] font-medium transition-colors relative',
         disabled
           ? 'cursor-not-allowed text-[var(--color-text-faint)] opacity-70'
           : 'cursor-pointer',

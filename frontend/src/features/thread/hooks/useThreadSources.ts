@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { getSources } from '@/lib/api';
 import type {
+  SourceHighlightTarget,
   SourcesResponse,
   TurnItem,
   TurnSourceGroup,
@@ -11,6 +12,8 @@ import type {
 export function useThreadSources(
   threadId: string,
   turns: TurnItem[],
+  shouldFetchSources = true,
+  highlightedSourceTarget?: SourceHighlightTarget | null,
 ): TurnSourceGroup[] {
   const completedTurns = useMemo(
     () => turns.filter((turn) => turn.status === 'completed'),
@@ -21,7 +24,9 @@ export function useThreadSources(
     queries: completedTurns.map((turn) => ({
       queryKey: ['sources', threadId, turn.turnId],
       queryFn: () => getSources({ turnId: turn.turnId }),
-      enabled: Boolean(threadId),
+      enabled:
+        Boolean(threadId) &&
+        (shouldFetchSources || highlightedSourceTarget?.turnId === turn.turnId),
       placeholderData: createFallbackSourcesResponse(threadId, turn),
       staleTime: 60_000,
     })),
@@ -33,6 +38,9 @@ export function useThreadSources(
         turnId: turn.turnId,
         question: turn.question,
         searchQuery: turn.searchQuery,
+        citedCitationNumbers: turn.citations.map(
+          (citation) => citation.citationNumber,
+        ),
         sources: sourceQueries[index]?.data?.items ?? turn.sources,
       }))
       .reverse();
