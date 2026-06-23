@@ -20,7 +20,7 @@ Inside `frontend/src/features/`, you will find directories like `thread/`, `home
 2.  **Features**: The high-level orchestrators (e.g., `ThreadPage.tsx`).
 3.  **Components**: Dumb/presentational UI pieces (e.g., `ThreadTurn.tsx`, `CitationBadge.tsx`).
 4.  **Hooks**: Custom React hooks handling business logic or API data fetching (e.g., `useThreadPage.ts`).
-5.  **API Services**: Strongly typed wrapper functions around native `fetch` for communicating with the backend.
+5.  **API Services**: Strongly typed wrapper functions around native `fetch` for communicating with the backend. These wrappers are centralized in `frontend/src/lib/api` so route components, feature hooks, and cache helpers share one contract boundary.
 
 ### Backend Architectural Style
 
