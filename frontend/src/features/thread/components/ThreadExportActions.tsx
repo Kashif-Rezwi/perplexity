@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Copy, FileText, Link2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ThreadDetailResponse } from '@/types/api.types';
 import { useEffect, useRef, useState } from 'react';
 import { useThreadMutations } from '@/features/sidebar/hooks/useThreadMutations';
@@ -9,10 +9,18 @@ import {
   ThreadRenameDialog,
 } from '@/features/thread-management/components/ThreadManagementDialogs';
 import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
+import { copyTextToClipboard } from '@/lib/utils/clipboard';
+import {
+  createThreadUrl,
+  serializeThreadMarkdown,
+  serializeThreadPlainText,
+} from '../utils/threadExport';
 
 type ThreadExportActionsProps = {
   thread: ThreadDetailResponse;
 };
+
+type CopiedAction = 'url' | 'markdown' | 'text';
 
 function formatMenuDate(value?: string) {
   if (!value) return 'Just now';
@@ -30,6 +38,7 @@ function formatMenuDate(value?: string) {
 export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const copiedTimerRef = useRef<number | null>(null);
 
   const {
     deleteThreadAsync,
@@ -43,6 +52,7 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
   const [renameTitle, setRenameTitle] = useState(thread.title);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [copiedAction, setCopiedAction] = useState<CopiedAction | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -67,6 +77,32 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const copyValue = async (action: CopiedAction, value: string) => {
+    const didCopy = await copyTextToClipboard(value);
+
+    if (!didCopy) {
+      return;
+    }
+
+    setCopiedAction(action);
+
+    if (copiedTimerRef.current) {
+      window.clearTimeout(copiedTimerRef.current);
+    }
+
+    copiedTimerRef.current = window.setTimeout(() => {
+      setCopiedAction(null);
+    }, 1600);
+  };
 
   const submitRename = async () => {
     const title = renameTitle.trim();
@@ -145,16 +181,50 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
 
           <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
 
-          {/* Group 1: Spaces & Rename */}
+          {/* Copy actions */}
           <div className="flex flex-col">
             <button
               type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
+              onClick={() => void copyValue('url', createThreadUrl(thread.threadId))}
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
-              <Plus size={16} strokeWidth={1.75} className="shrink-0" />
-              Add to Space
+              <Link2 size={16} strokeWidth={1.75} className="shrink-0" />
+              Copy thread URL
             </button>
+            <button
+              type="button"
+              onClick={() =>
+                void copyValue('markdown', serializeThreadMarkdown(thread))
+              }
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+            >
+              <Copy size={16} strokeWidth={1.75} className="shrink-0" />
+              Copy Markdown
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                void copyValue('text', serializeThreadPlainText(thread))
+              }
+              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+            >
+              <FileText size={16} strokeWidth={1.75} className="shrink-0" />
+              Copy plain text
+            </button>
+            {copiedAction && (
+              <p
+                aria-live="polite"
+                className="px-2 pb-1 pt-1 text-xs font-medium text-[var(--color-accent)]"
+              >
+                Copied {copiedAction === 'url' ? 'URL' : copiedAction}
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
+
+          {/* Manage actions */}
+          <div className="flex flex-col">
             <button
               type="button"
               onClick={() => {
@@ -168,117 +238,6 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
               <Pencil size={16} strokeWidth={1.75} className="shrink-0" />
               Rename Session
             </button>
-          </div>
-
-          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
-
-          {/* Group 2: Exports */}
-          <div className="flex flex-col">
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="5"
-                  y="18"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  PDF
-                </text>
-              </svg>
-              Export as PDF
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="6"
-                  y="18"
-                  fontSize="6"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  M↓
-                </text>
-              </svg>
-              Export as Markdown
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="5"
-                  y="18"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  DOCX
-                </text>
-              </svg>
-              Export as DOCX
-            </button>
-          </div>
-
-          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
-
-          {/* Group 3: Delete */}
-          <div className="flex flex-col">
             <button
               type="button"
               onClick={() => {

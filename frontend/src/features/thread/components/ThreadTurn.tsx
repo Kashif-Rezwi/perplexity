@@ -18,6 +18,7 @@ function QuestionBlock({ question }: { question: string }) {
 }
 
 interface ThreadTurnProps {
+  threadId?: string;
   turn: TurnItem | TurnItemWithCache;
   isLast?: boolean;
   onViewSources?: () => void;
@@ -27,6 +28,7 @@ interface ThreadTurnProps {
 }
 
 export function ThreadTurn({
+  threadId,
   turn,
   isLast,
   onViewSources,
@@ -70,8 +72,12 @@ export function ThreadTurn({
           />
         ) : null}
 
-        {turn.status === 'completed' ? (
+        {turn.status === 'completed' && threadId ? (
           <TurnResponseActions
+            threadId={threadId}
+            turnId={turn.turnId}
+            question={turn.question}
+            answerMarkdown={turn.answerMarkdown}
             sourceCount={sourceCount}
             sourcePreviewItems={sourcePreviewItems}
             onViewSources={onViewSources}

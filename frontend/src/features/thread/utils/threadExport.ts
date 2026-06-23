@@ -10,6 +10,23 @@ type ExportTurnInput = {
   sources?: Array<SourceItem | SourcePreviewItem>;
 };
 
+export function createThreadUrl(
+  threadId: string,
+  origin = getCurrentOrigin(),
+): string {
+  return `${normalizeOrigin(origin)}/thread/${encodeURIComponent(threadId)}`;
+}
+
+export function createTurnUrl(
+  threadId: string,
+  turnId: string,
+  origin = getCurrentOrigin(),
+): string {
+  return `${createThreadUrl(threadId, origin)}#turn-${encodeURIComponent(
+    turnId,
+  )}`;
+}
+
 export function serializeTurnMarkdown(turn: ExportTurnInput): string {
   const parts = [`## ${turn.question.trim()}`];
 
@@ -79,4 +96,16 @@ function serializeSourcesMarkdown(
       return `${source.citationNumber}. [${title}](${source.url})`;
     }),
   ].join('\n');
+}
+
+function getCurrentOrigin(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return window.location.origin;
+}
+
+function normalizeOrigin(origin: string): string {
+  return origin.trim().replace(/\/+$/, '');
 }

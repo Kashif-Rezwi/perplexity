@@ -145,6 +145,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                     className="scroll-mt-8"
                   >
                     <ThreadTurn
+                      threadId={threadId}
                       turn={turn}
                       isLast={isLastTurn && !pendingQuestion}
                       onViewSources={handleSelectSourceTurn}
