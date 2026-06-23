@@ -6,11 +6,15 @@ type FailedTurnBlockProps = {
   onRetry?: (question: string) => void;
 };
 
-export function PendingTurnBlock() {
+export function PendingTurnBlock({
+  message = 'Thinking...',
+}: {
+  message?: string | null;
+}) {
   return (
     <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-[13.5px] font-medium leading-none py-1.5 select-none animate-in fade-in duration-300 font-sans">
       <Loader2 className="animate-spin" size={14} />
-      <span>Thinking...</span>
+      <span>{message || 'Thinking...'}</span>
     </div>
   );
 }
@@ -49,4 +53,3 @@ export function FailedTurnBlock({
     </div>
   );
 }
-

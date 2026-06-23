@@ -8,6 +8,7 @@ import { ApiError } from '@/lib/api/client';
 import { useThreadPage } from '../hooks/useThreadPage';
 import { ThreadTurn } from './ThreadTurn';
 import { LinksPanel } from './LinksPanel';
+import { ThreadExportActions } from './ThreadExportActions';
 import { ThreadLoadingState, ThreadStatusState } from './ThreadStates';
 import { ThreadTabButton } from './ThreadTabButton';
 
@@ -23,8 +24,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     error,
     activeTab,
     setActiveTab,
-    highlightedSourceNum,
-    setHighlightedSourceNum,
+    highlightedSourceTarget,
+    setHighlightedSourceTarget,
     pendingQuestion,
     askInputRef,
     lastTurnRef,
@@ -33,8 +34,10 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     handleSelectSourceTurn,
     handleCitationClick,
     handleSubmitStart,
+    handleStreamStart,
     handleSettled,
     retryThread,
+    retryTurn,
   } = useThreadPage(threadId);
 
   if (isPending) {
@@ -90,9 +93,9 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
       {/* Tab bar */}
-      <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full">
-        <div className="content-width flex items-center pt-5 pb-0 font-sans">
-          <div className="flex items-center gap-6">
+      <div className="flex-none z-20 bg-[var(--color-bg)] border-b border-[var(--color-border-subtle)] w-full h-[56px]">
+        <div className="content-width flex items-center h-full font-sans">
+          <div className="flex items-center gap-6 h-full">
             <ThreadTabButton
               label="Answer"
               icon={<PerplexityLogo size={16} className={activeTab === 'answer' ? 'text-[var(--color-text)]' : 'text-[var(--color-text-muted)]'} />}
@@ -113,6 +116,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               disabled
             />
           </div>
+          <ThreadExportActions thread={thread} />
         </div>
       </div>
 
@@ -136,6 +140,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                 return (
                   <div
                     key={turn.turnId}
+                    id={`turn-${turn.turnId}`}
                     ref={isLastTurn ? lastTurnRef : null}
                     className="scroll-mt-8"
                   >
@@ -144,8 +149,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                       isLast={isLastTurn && !pendingQuestion}
                       onViewSources={handleSelectSourceTurn}
                       onSelectFollowUp={(q) => askInputRef.current?.submitQuestion(q, threadId)}
-                      onCitationClick={(num) => handleCitationClick(num)}
-                      onRetry={(q) => askInputRef.current?.submitQuestion(q, threadId)}
+                      onCitationClick={(num) => handleCitationClick(turn.turnId, num)}
+                      onRetry={(turnId, q) => retryTurn(turnId, q)}
                     />
                   </div>
                 );
@@ -188,8 +193,8 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 groups={turnSourceGroups}
-                highlightedNumber={highlightedSourceNum}
-                onClearHighlight={() => setHighlightedSourceNum(null)}
+                highlightedTarget={highlightedSourceTarget}
+                onClearHighlight={() => setHighlightedSourceTarget(null)}
               />
             </div>
           </div>
@@ -206,6 +211,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               autoFocus={false}
               placeholder="Ask a follow-up"
               onSubmitStart={handleSubmitStart}
+              onStreamStart={handleStreamStart}
               onSettled={handleSettled}
             />
           </div>
