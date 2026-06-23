@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { getSources } from '@/lib/api';
-import { streamAsk } from '@/lib/api';
+import { getSources, streamAsk, streamRetryAsk } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
 import { useHistoryStore } from '@/store/historyStore';
 import type {
   AskResponse,
+  AskStreamErrorEvent,
+  AskStreamHandlers,
+  AskStreamProgressEvent,
   AskStreamStartEvent,
   ThreadDetailResponse,
   TurnItem,
@@ -15,11 +17,13 @@ import type {
 type AskMutationInput = {
   question: string;
   threadId?: string;
+  retryTurnId?: string;
 };
 
 type UseAskSubmitOptions = {
   threadId?: string;
   onSubmitStart?: (question: string) => void;
+  onStreamStart?: (event: AskStreamStartEvent) => void;
   onSettled?: () => void;
 };
 
@@ -45,6 +49,8 @@ function createStreamingTurn(event: AskStreamStartEvent): TurnItem {
     citationCount: 0,
     sources: [],
     citations: [],
+    streamStage: 'preparing',
+    streamMessage: 'Preparing your question...',
     createdAt: now,
     completedAt: null,
   };
@@ -72,6 +78,7 @@ function createStreamingThread(event: AskStreamStartEvent): ThreadDetailResponse
 export function useAskSubmit({
   threadId,
   onSubmitStart,
+  onStreamStart,
   onSettled,
 }: UseAskSubmitOptions = {}) {
   const router = useRouter();
@@ -129,18 +136,37 @@ export function useAskSubmit({
     void queryClient.invalidateQueries({ queryKey: ['threads'] });
   }
 
+  function updateStreamingTurn(
+    targetThreadId: string,
+    targetTurnId: string,
+    patch: Partial<TurnItem>,
+  ) {
+    queryClient.setQueryData<ThreadDetailResponse>(
+      ['thread', targetThreadId],
+      (existing) => {
+        if (!existing) return existing;
+
+        return {
+          ...existing,
+          turns: existing.turns.map((turn) =>
+            turn.turnId === targetTurnId ? { ...turn, ...patch } : turn,
+          ),
+        };
+      },
+    );
+  }
+
   const mutation = useMutation({
     mutationFn: async (variables: AskMutationInput) => {
-      const { question, threadId: overrideThreadId } = variables;
+      const { question, threadId: overrideThreadId, retryTurnId } = variables;
       const activeThreadId = overrideThreadId ?? threadId;
       let streamThreadId = activeThreadId;
       let streamTurnId: string | null = null;
 
-      await streamAsk(question, activeThreadId, {
+      const handlers: AskStreamHandlers = {
         onStart: (event) => {
           streamThreadId = event.threadId;
           streamTurnId = event.turnId;
-          onSettled?.();
 
           if (!activeThreadId) {
             addThread({
@@ -154,6 +180,7 @@ export function useAskSubmit({
               ['thread', event.threadId],
               createStreamingThread(event),
             );
+            onStreamStart?.(event);
             router.push(`/thread/${event.threadId}`);
             return;
           }
@@ -178,6 +205,15 @@ export function useAskSubmit({
               };
             },
           );
+          onStreamStart?.(event);
+        },
+        onProgress: (event: AskStreamProgressEvent) => {
+          if (!streamThreadId || !streamTurnId) return;
+
+          updateStreamingTurn(streamThreadId, streamTurnId, {
+            streamStage: event.stage,
+            streamMessage: event.message,
+          });
         },
         onDelta: (text) => {
           if (!streamThreadId || !streamTurnId) return;
@@ -193,6 +229,8 @@ export function useAskSubmit({
                   turn.turnId === streamTurnId
                     ? {
                         ...turn,
+                        streamStage: 'answering',
+                        streamMessage: 'Writing the answer...',
                         answerMarkdown: `${turn.answerMarkdown ?? ''}${text}`,
                       }
                     : turn,
@@ -204,7 +242,7 @@ export function useAskSubmit({
         onFinal: (data) => {
           applyFinalResponse(data);
         },
-        onError: (message) => {
+        onError: (error: AskStreamErrorEvent) => {
           if (!streamThreadId || !streamTurnId) return;
 
           queryClient.setQueryData<ThreadDetailResponse>(
@@ -220,7 +258,9 @@ export function useAskSubmit({
                     ? {
                         ...turn,
                         status: 'failed',
-                        errorMessage: message,
+                        streamStage: null,
+                        streamMessage: null,
+                        errorMessage: error.message,
                       }
                     : turn,
                 ),
@@ -228,7 +268,14 @@ export function useAskSubmit({
             },
           );
         },
-      });
+      };
+
+      if (retryTurnId && activeThreadId) {
+        await streamRetryAsk(activeThreadId, retryTurnId, handlers);
+        return;
+      }
+
+      await streamAsk(question, activeThreadId, handlers);
     },
     onError: async (_error, variables) => {
       const activeThreadId = variables.threadId ?? threadId;
@@ -260,8 +307,27 @@ export function useAskSubmit({
     return true;
   };
 
+  const retryFailedTurn = (
+    failedTurnId: string,
+    question: string,
+    overrideThreadId?: string,
+  ) => {
+    const activeThreadId = overrideThreadId ?? threadId;
+    if (!activeThreadId || mutation.isPending) return false;
+
+    mutation.reset();
+    onSubmitStart?.(question);
+    mutation.mutate({
+      question,
+      threadId: activeThreadId,
+      retryTurnId: failedTurnId,
+    });
+    return true;
+  };
+
   return {
     submitAsk,
+    retryFailedTurn,
     isPending: mutation.isPending,
     errorMessage: mutation.error ? getErrorMessage(mutation.error) : null,
     reset: mutation.reset,

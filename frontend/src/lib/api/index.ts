@@ -222,7 +222,12 @@ async function streamAskRequest(
 
   const finalStreamError = streamError as AskStreamErrorEvent | null;
   if (finalStreamError) {
-    throw new ApiError(503, finalStreamError.message);
+    throw new ApiError(
+      503,
+      finalStreamError.message,
+      finalStreamError.code,
+      finalStreamError.retryable,
+    );
   }
 }
 

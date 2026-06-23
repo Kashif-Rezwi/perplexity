@@ -153,6 +153,11 @@ export type TurnSourceGroup = {
   sources: SourcePreviewItem[];
 };
 
+export type SourceHighlightTarget = {
+  turnId: string;
+  citationNumber: number;
+};
+
 export type CitationItem = {
   citationId: string;
   sourceId: string;

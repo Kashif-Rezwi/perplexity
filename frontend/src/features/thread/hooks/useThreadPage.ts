@@ -3,9 +3,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useHistoryStore } from '@/store/historyStore';
-import type { ThreadDetailResponse } from '@/types/api.types';
+import type {
+  SourceHighlightTarget,
+  ThreadDetailResponse,
+} from '@/types/api.types';
 import { getThread } from '@/lib/api';
 import type { AskInputRef } from '@/features/home/components/AskInput';
+import { useAskSubmit } from '@/features/home/hooks/useAskSubmit';
 import { useThreadAutoScroll } from './useThreadAutoScroll';
 import { useThreadSources } from './useThreadSources';
 
@@ -13,7 +17,8 @@ export type ThreadTab = 'answer' | 'links';
 
 export function useThreadPage(threadId: string) {
   const [activeTab, setActiveTab] = useState<ThreadTab>('answer');
-  const [highlightedSourceNum, setHighlightedSourceNum] = useState<number | null>(null);
+  const [highlightedSourceTarget, setHighlightedSourceTarget] =
+    useState<SourceHighlightTarget | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
   const askInputRef = useRef<AskInputRef>(null);
@@ -22,6 +27,12 @@ export function useThreadPage(threadId: string) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const queryClient = useQueryClient();
+  const { retryFailedTurn } = useAskSubmit({
+    threadId,
+    onSubmitStart: handleSubmitStart,
+    onStreamStart: handleStreamStart,
+    onSettled: handleSettled,
+  });
 
   const { data: thread, isPending, error } = useQuery({
     queryKey: ['thread', threadId],
@@ -34,8 +45,13 @@ export function useThreadPage(threadId: string) {
     ? thread?.turns[turnsCount - 1]?.turnId ?? null
     : null;
 
-  // Assemble grouped sources from the cache — no new fetches.
-  const turnSourceGroups = useThreadSources(threadId, thread?.turns ?? []);
+  // Assemble grouped sources from thread fallback data and fetch canonical lists when Links needs them.
+  const turnSourceGroups = useThreadSources(
+    threadId,
+    thread?.turns ?? [],
+    activeTab === 'links',
+    highlightedSourceTarget,
+  );
 
   useThreadHistoryRegistration(thread);
   useThreadAutoScroll({
@@ -53,13 +69,17 @@ export function useThreadPage(threadId: string) {
     setActiveTab('links');
   }
 
-  function handleCitationClick(num: number) {
+  function handleCitationClick(turnId: string, citationNumber: number) {
     setActiveTab('links');
-    setHighlightedSourceNum(num);
+    setHighlightedSourceTarget({ turnId, citationNumber });
   }
 
   function handleSubmitStart(q: string) {
     setPendingQuestion(q);
+  }
+
+  function handleStreamStart() {
+    setPendingQuestion(null);
   }
 
   function handleSettled() {
@@ -68,6 +88,10 @@ export function useThreadPage(threadId: string) {
 
   function retryThread() {
     void queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+  }
+
+  function retryTurn(turnId: string, question: string) {
+    retryFailedTurn(turnId, question, threadId);
   }
 
   return {
@@ -80,8 +104,8 @@ export function useThreadPage(threadId: string) {
     // UI state
     activeTab,
     setActiveTab,
-    highlightedSourceNum,
-    setHighlightedSourceNum,
+    highlightedSourceTarget,
+    setHighlightedSourceTarget,
     pendingQuestion,
     // Refs
     askInputRef,
@@ -92,8 +116,10 @@ export function useThreadPage(threadId: string) {
     handleSelectSourceTurn,
     handleCitationClick,
     handleSubmitStart,
+    handleStreamStart,
     handleSettled,
     retryThread,
+    retryTurn,
   };
 }
 

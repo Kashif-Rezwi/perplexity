@@ -26,6 +26,36 @@ function scrollElementToTop(
   });
 }
 
+function scheduleScrollToTop(
+  getContainer: () => HTMLDivElement | null,
+  getTarget: () => HTMLDivElement | null,
+  delayMs: number,
+  onScrolled?: () => void,
+) {
+  let firstFrame = 0;
+  let secondFrame = 0;
+
+  const timer = window.setTimeout(() => {
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const container = getContainer();
+        const target = getTarget();
+
+        if (!container || !target) return;
+
+        scrollElementToTop(container, target);
+        onScrolled?.();
+      });
+    });
+  }, delayMs);
+
+  return () => {
+    window.clearTimeout(timer);
+    window.cancelAnimationFrame(firstFrame);
+    window.cancelAnimationFrame(secondFrame);
+  };
+}
+
 export function useThreadAutoScroll({
   threadId,
   activeTab,
@@ -61,14 +91,25 @@ export function useThreadAutoScroll({
       ? INITIAL_SCROLL_DELAY_MS
       : UPDATE_SCROLL_DELAY_MS;
 
-    const timer = setTimeout(() => {
-      if (scrollContainerRef.current && lastTurnRef.current) {
-        scrollElementToTop(scrollContainerRef.current, lastTurnRef.current);
-        lastScrolledRef.current = { threadId, turnsCount, latestTurnId };
-      }
-    }, delay);
+    return scheduleScrollToTop(
+      () => scrollContainerRef.current,
+      () => {
+        const hashTurnId = isInitialLoad
+          ? window.location.hash.replace('#turn-', '')
+          : '';
+        const hashTarget = hashTurnId
+          ? document.getElementById(`turn-${hashTurnId}`)
+          : null;
 
-    return () => clearTimeout(timer);
+        return hashTarget instanceof HTMLDivElement
+          ? hashTarget
+          : lastTurnRef.current;
+      },
+      delay,
+      () => {
+        lastScrolledRef.current = { threadId, turnsCount, latestTurnId };
+      },
+    );
   }, [
     activeTab,
     lastTurnRef,
@@ -81,12 +122,20 @@ export function useThreadAutoScroll({
   useEffect(() => {
     if (!pendingQuestion || activeTab !== 'answer') return;
 
-    const timer = setTimeout(() => {
-      if (scrollContainerRef.current && pendingTurnRef.current) {
-        scrollElementToTop(scrollContainerRef.current, pendingTurnRef.current);
-      }
-    }, UPDATE_SCROLL_DELAY_MS);
+    const cleanupImmediate = scheduleScrollToTop(
+      () => scrollContainerRef.current,
+      () => pendingTurnRef.current,
+      0,
+    );
+    const cleanupSettled = scheduleScrollToTop(
+      () => scrollContainerRef.current,
+      () => pendingTurnRef.current,
+      UPDATE_SCROLL_DELAY_MS,
+    );
 
-    return () => clearTimeout(timer);
+    return () => {
+      cleanupImmediate();
+      cleanupSettled();
+    };
   }, [activeTab, pendingQuestion, pendingTurnRef, scrollContainerRef]);
 }
