@@ -15,6 +15,7 @@ import {
 
 const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
 const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
+const SUPPORTED_AI_PROVIDERS = ['openai', 'groq'] as const;
 
 function truncateForQueryRewrite(value: string): string {
   const normalizedValue = value.replace(/\s+/g, ' ').trim();
@@ -49,6 +50,14 @@ export class AiService {
       AI_PROVIDER_CONFIG_KEY,
       DEFAULT_AI_PROVIDER,
     ).toLowerCase();
+
+    if (!SUPPORTED_AI_PROVIDERS.includes(type as (typeof SUPPORTED_AI_PROVIDERS)[number])) {
+      throw new ServiceUnavailableException(
+        `${AI_PROVIDER_CONFIG_KEY} must be one of: ${SUPPORTED_AI_PROVIDERS.join(
+          ', ',
+        )}`,
+      );
+    }
 
     if (type === 'groq') {
       return { provider: this.groqProviderService, name: 'Groq' };
