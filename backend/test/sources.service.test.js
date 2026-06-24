@@ -4,6 +4,10 @@ const {
   mapSearchResultsToSourceInputs,
 } = require('../src/ask/mappers/search-to-source.mapper.ts');
 const { mapSource } = require('../src/sources/mappers/source-response.mapper.ts');
+const {
+  SourcesRepository,
+} = require('../src/sources/repositories/sources.repository.ts');
+const { SourcesService } = require('../src/sources/sources.service.ts');
 
 const sourceId = '33333333-3333-4333-8333-333333333333';
 const turnId = '22222222-2222-4222-8222-222222222222';
@@ -49,6 +53,60 @@ test('mapSource returns the correct API contract shape', () => {
     publishedAt: null,
     createdAt: createdAt.toISOString(),
   });
+});
+
+test('SourcesService paginates and maps source list responses', async () => {
+  const secondSource = {
+    ...createSourceRecord(),
+    id: '55555555-5555-4555-8555-555555555555',
+    citationNumber: 2,
+  };
+  const service = new SourcesService({
+    async findSources(options) {
+      assert.deepEqual(options, {
+        limit: 1,
+        turnId,
+        cursor: undefined,
+      });
+
+      return [createSourceRecord(), secondSource];
+    },
+  });
+
+  const response = await service.listSources({ limit: 1, turnId });
+
+  assert.equal(response.items.length, 1);
+  assert.equal(response.items[0].sourceId, sourceId);
+  assert.equal(response.nextCursor, sourceId);
+});
+
+test('SourcesRepository.findSources builds deterministic cursor pagination query', async () => {
+  let findManyArgs;
+  const repository = new SourcesRepository({
+    source: {
+      async findMany(args) {
+        findManyArgs = args;
+        return [];
+      },
+    },
+  });
+
+  const response = await repository.findSources({
+    limit: 10,
+    turnId,
+    cursor: sourceId,
+  });
+
+  assert.deepEqual(findManyArgs, {
+    take: 11,
+    skip: 1,
+    cursor: { id: sourceId },
+    where: { turnId },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    include: findManyArgs.include,
+  });
+  assert(findManyArgs.include.turn);
+  assert.deepEqual(response, []);
 });
 
 test('mapSearchResultsToSourceInputs maps ordered unique source inputs', () => {
