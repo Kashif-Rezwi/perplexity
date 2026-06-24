@@ -6,8 +6,8 @@ import {
   ThreadDeleteDialog,
   ThreadRenameDialog,
 } from '@/features/thread-management/components/ThreadManagementDialogs';
+import { useThreadActionDialogs } from '@/features/thread-management/hooks/useThreadActionDialogs';
 import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
-import { useThreadMutations } from '@/features/sidebar/hooks/useThreadMutations';
 import { useHistoryStore } from '@/store/historyStore';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useMounted } from '@/hooks/useMounted';
@@ -24,22 +24,16 @@ export function HistoryPage() {
   const threads = useHistoryStore((state) => state.threads);
   const [typeFilter, setTypeFilter] = useState<HistoryTypeFilter>('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
-  const [threadToRename, setThreadToRename] =
-    useState<ThreadHistoryItem | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [threadToDelete, setThreadToDelete] =
-    useState<ThreadHistoryItem | null>(null);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const threadActions = useThreadActionDialogs({
+    renameInputId: 'rename-thread-title',
+  });
   const {
-    deleteThreadAsync,
     deleteThreadsAsync,
-    renameThreadAsync,
     togglePin,
     isDeleting,
-    isRenaming,
-  } = useThreadMutations();
+  } = threadActions;
   const {
     isSearchOpen,
     searchQuery,
@@ -85,48 +79,6 @@ export function HistoryPage() {
     togglePin({ threadId: thread.id, isPinned: !(thread.isPinned ?? false) });
   };
 
-  const openRenameDialog = (thread: ThreadHistoryItem) => {
-    setThreadToRename(thread);
-    setRenameTitle(thread.title);
-    setRenameError(null);
-  };
-
-  const closeRenameDialog = () => {
-    if (isRenaming) return;
-    setThreadToRename(null);
-    setRenameTitle('');
-    setRenameError(null);
-  };
-
-  const submitRename = async () => {
-    if (!threadToRename) return;
-
-    const title = renameTitle.trim();
-    if (title.length === 0) {
-      setRenameError('Title is required.');
-      return;
-    }
-
-    if (title.length > 80) {
-      setRenameError('Title must be 80 characters or fewer.');
-      return;
-    }
-
-    try {
-      setRenameError(null);
-      await renameThreadAsync({ threadId: threadToRename.id, title });
-      closeRenameDialog();
-    } catch (error) {
-      setRenameError(getThreadMutationErrorMessage(error));
-    }
-  };
-
-  const closeDeleteDialog = () => {
-    if (isDeleting) return;
-    setThreadToDelete(null);
-    setDeleteError(null);
-  };
-
   const openBulkDeleteDialog = () => {
     if (selectedCount === 0) return;
     setDeleteError(null);
@@ -137,18 +89,6 @@ export function HistoryPage() {
     if (isDeleting) return;
     setIsBulkDeleteDialogOpen(false);
     setDeleteError(null);
-  };
-
-  const confirmSingleDelete = async () => {
-    if (!threadToDelete) return;
-
-    try {
-      setDeleteError(null);
-      await deleteThreadAsync(threadToDelete.id);
-      setThreadToDelete(null);
-    } catch (error) {
-      setDeleteError(getThreadMutationErrorMessage(error));
-    }
   };
 
   if (!mounted) {
@@ -192,8 +132,8 @@ export function HistoryPage() {
             threads={historyThreads.threads}
             selectedThreadIds={selectedThreadIds}
             onToggleSelection={toggleThreadSelection}
-            onRenameThread={openRenameDialog}
-            onDeleteThread={setThreadToDelete}
+            onRenameThread={threadActions.openRenameDialog}
+            onDeleteThread={threadActions.openDeleteDialog}
             onTogglePinThread={handleTogglePinThread}
             isLoading={historyThreads.isLoading}
             isError={historyThreads.isError}
@@ -213,24 +153,9 @@ export function HistoryPage() {
         </section>
       </div>
 
-      <ThreadRenameDialog
-        thread={threadToRename}
-        titleValue={renameTitle}
-        error={renameError}
-        isSubmitting={isRenaming}
-        inputId="rename-thread-title"
-        onTitleChange={setRenameTitle}
-        onClose={closeRenameDialog}
-        onSubmit={() => void submitRename()}
-      />
+      <ThreadRenameDialog {...threadActions.renameDialogProps} />
 
-      <ThreadDeleteDialog
-        thread={threadToDelete}
-        error={deleteError}
-        isDeleting={isDeleting}
-        onClose={closeDeleteDialog}
-        onConfirm={() => void confirmSingleDelete()}
-      />
+      <ThreadDeleteDialog {...threadActions.deleteDialogProps} />
 
       <Modal
         isOpen={isBulkDeleteDialogOpen}

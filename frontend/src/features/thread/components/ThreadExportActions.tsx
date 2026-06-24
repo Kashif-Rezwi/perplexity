@@ -3,12 +3,11 @@
 import { Copy, FileText, Link2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ThreadDetailResponse } from '@/types/api.types';
 import { useEffect, useRef, useState } from 'react';
-import { useThreadMutations } from '@/features/sidebar/hooks/useThreadMutations';
 import {
   ThreadDeleteDialog,
   ThreadRenameDialog,
 } from '@/features/thread-management/components/ThreadManagementDialogs';
-import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
+import { useThreadActionDialogs } from '@/features/thread-management/hooks/useThreadActionDialogs';
 import { copyTextToClipboard } from '@/lib/utils/clipboard';
 import {
   createThreadUrl,
@@ -40,18 +39,9 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const copiedTimerRef = useRef<number | null>(null);
 
-  const {
-    deleteThreadAsync,
-    renameThreadAsync,
-    isDeleting,
-    isRenaming,
-  } = useThreadMutations();
-
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [renameTitle, setRenameTitle] = useState(thread.title);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const threadActions = useThreadActionDialogs({
+    renameInputId: 'topbar-rename-thread-title',
+  });
   const [copiedAction, setCopiedAction] = useState<CopiedAction | null>(null);
 
   useEffect(() => {
@@ -104,37 +94,6 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
     }, 1600);
   };
 
-  const submitRename = async () => {
-    const title = renameTitle.trim();
-    if (title.length === 0) {
-      setRenameError('Title is required.');
-      return;
-    }
-
-    if (title.length > 80) {
-      setRenameError('Title must be 80 characters or fewer.');
-      return;
-    }
-
-    try {
-      setRenameError(null);
-      await renameThreadAsync({ threadId: thread.threadId, title });
-      setIsRenameOpen(false);
-    } catch (err) {
-      setRenameError(getThreadMutationErrorMessage(err));
-    }
-  };
-
-  const confirmDelete = async () => {
-    try {
-      setDeleteError(null);
-      await deleteThreadAsync(thread.threadId);
-      setIsDeleteOpen(false);
-    } catch (err) {
-      setDeleteError(getThreadMutationErrorMessage(err));
-    }
-  };
-
   return (
     <div ref={menuRef} className="relative ml-auto hidden sm:block shrink-0">
       <button
@@ -164,12 +123,6 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
               {thread.title}
             </p>
             <div className="mt-2.5 flex flex-col gap-1.5 text-xs font-normal">
-              <div className="flex items-center justify-between gap-4 overflow-hidden">
-                <span className="flex-shrink-0 text-[var(--color-text-faint)]">Created by</span>
-                <span className="min-w-0 text-right text-[var(--color-text-muted)] truncate">
-                  kashifrezwi8210 (You)
-                </span>
-              </div>
               <div className="flex items-center justify-between gap-4 overflow-hidden">
                 <span className="flex-shrink-0 text-[var(--color-text-faint)]">Last Updated</span>
                 <span className="min-w-0 text-right text-[var(--color-text-muted)] truncate">
@@ -229,9 +182,10 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                setRenameTitle(thread.title);
-                setRenameError(null);
-                setIsRenameOpen(true);
+                threadActions.openRenameDialog({
+                  id: thread.threadId,
+                  title: thread.title,
+                });
               }}
               className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
@@ -242,7 +196,10 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                setIsDeleteOpen(true);
+                threadActions.openDeleteDialog({
+                  id: thread.threadId,
+                  title: thread.title,
+                });
               }}
               className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-error)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
@@ -253,24 +210,9 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
         </div>
       )}
 
-      <ThreadRenameDialog
-        thread={isRenameOpen ? { title: thread.title } : null}
-        titleValue={renameTitle}
-        error={renameError}
-        isSubmitting={isRenaming}
-        inputId="topbar-rename-thread-title"
-        onTitleChange={setRenameTitle}
-        onClose={() => setIsRenameOpen(false)}
-        onSubmit={() => void submitRename()}
-      />
+      <ThreadRenameDialog {...threadActions.renameDialogProps} />
 
-      <ThreadDeleteDialog
-        thread={isDeleteOpen ? { title: thread.title } : null}
-        error={deleteError}
-        isDeleting={isDeleting}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={() => void confirmDelete()}
-      />
+      <ThreadDeleteDialog {...threadActions.deleteDialogProps} />
     </div>
   );
 }

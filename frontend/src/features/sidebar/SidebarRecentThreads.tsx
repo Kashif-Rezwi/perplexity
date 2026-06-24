@@ -9,13 +9,13 @@ import {
   ThreadDeleteDialog,
   ThreadRenameDialog,
 } from '@/features/thread-management/components/ThreadManagementDialogs';
-import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
+import { useThreadActionDialogs } from '@/features/thread-management/hooks/useThreadActionDialogs';
 import { useMounted } from '@/hooks/useMounted';
 import { getThreads } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useHistoryStore } from '@/store/historyStore';
-import { useThreadMutations } from './hooks/useThreadMutations';
 import { getVisibleSidebarThreadGroups } from './utils/sidebarThreads';
 
 type Props = {
@@ -29,16 +29,17 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
   const localThreads = useHistoryStore((state) => state.threads);
   const mounted = useMounted();
   const pathname = usePathname();
+  const threadActions = useThreadActionDialogs({
+    renameInputId: 'sidebar-rename-thread-title',
+  });
   const {
-    deleteThreadAsync,
-    renameThreadAsync,
     togglePinAsync,
     deletingThreadId,
     renamingThreadId,
     pinningThreadId,
-  } = useThreadMutations();
+  } = threadActions;
   const threadListQuery = useQuery({
-    queryKey: ['threads', 'sidebar', { limit: SIDEBAR_THREAD_LIMIT }],
+    queryKey: queryKeys.threadsSidebar(SIDEBAR_THREAD_LIMIT),
     queryFn: () => getThreads({
       limit: SIDEBAR_THREAD_LIMIT,
       mode: 'all',
@@ -61,13 +62,6 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
     visiblePinnedThreads.length + visibleRecentThreads.length;
 
   const [openMenuThreadId, setOpenMenuThreadId] = useState<string | null>(null);
-  const [threadToRename, setThreadToRename] =
-    useState<ThreadHistoryItem | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [threadToDelete, setThreadToDelete] =
-    useState<ThreadHistoryItem | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
@@ -109,69 +103,12 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
     return <div className="min-h-0 flex-1" />;
   }
 
-  const isRenaming = renamingThreadId !== null;
-  const isDeleting = deletingThreadId !== null;
-
-  const openRenameDialog = (thread: ThreadHistoryItem) => {
-    setThreadToRename(thread);
-    setRenameTitle(thread.title);
-    setRenameError(null);
-  };
-
-  const closeRenameDialog = () => {
-    if (isRenaming) return;
-    setThreadToRename(null);
-    setRenameTitle('');
-    setRenameError(null);
-  };
-
-  const submitRename = async () => {
-    if (!threadToRename) return;
-
-    const title = renameTitle.trim();
-    if (title.length === 0) {
-      setRenameError('Title is required.');
-      return;
-    }
-
-    if (title.length > 80) {
-      setRenameError('Title must be 80 characters or fewer.');
-      return;
-    }
-
-    try {
-      setRenameError(null);
-      await renameThreadAsync({ threadId: threadToRename.id, title });
-      closeRenameDialog();
-    } catch (error) {
-      setRenameError(getThreadMutationErrorMessage(error));
-    }
-  };
-
-  const closeDeleteDialog = () => {
-    if (isDeleting) return;
-    setThreadToDelete(null);
-    setDeleteError(null);
-  };
-
-  const confirmDelete = async () => {
-    if (!threadToDelete) return;
-
-    try {
-      setDeleteError(null);
-      await deleteThreadAsync(threadToDelete.id);
-      setThreadToDelete(null);
-    } catch (error) {
-      setDeleteError(getThreadMutationErrorMessage(error));
-    }
-  };
-
   const renderThread = (thread: ThreadHistoryItem) => {
     const isActive = pathname === `/thread/${thread.id}`;
     const isDialogOpen =
       openMenuThreadId === thread.id ||
-      threadToRename?.id === thread.id ||
-      threadToDelete?.id === thread.id;
+      threadActions.renameDialogProps.thread?.id === thread.id ||
+      threadActions.deleteDialogProps.thread?.id === thread.id;
 
     return (
       <div
@@ -207,8 +144,8 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
             pinningThreadId === thread.id
           }
           onTogglePin={() => void togglePinAsync({ threadId: thread.id, isPinned: !(thread.isPinned ?? false) })}
-          onRename={() => openRenameDialog(thread)}
-          onDelete={() => setThreadToDelete(thread)}
+          onRename={() => threadActions.openRenameDialog(thread)}
+          onDelete={() => threadActions.openDeleteDialog(thread)}
           className="absolute right-1 top-1/2 z-20 flex -translate-y-1/2 justify-end"
           buttonClassName="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
           onOpenChange={(isMenuOpen) => {
@@ -258,24 +195,9 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
         </div>
       </div>
 
-      <ThreadRenameDialog
-        thread={threadToRename}
-        titleValue={renameTitle}
-        error={renameError}
-        isSubmitting={isRenaming}
-        inputId="sidebar-rename-thread-title"
-        onTitleChange={setRenameTitle}
-        onClose={closeRenameDialog}
-        onSubmit={() => void submitRename()}
-      />
+      <ThreadRenameDialog {...threadActions.renameDialogProps} />
 
-      <ThreadDeleteDialog
-        thread={threadToDelete}
-        error={deleteError}
-        isDeleting={isDeleting}
-        onClose={closeDeleteDialog}
-        onConfirm={() => void confirmDelete()}
-      />
+      <ThreadDeleteDialog {...threadActions.deleteDialogProps} />
     </div>
   );
 }
