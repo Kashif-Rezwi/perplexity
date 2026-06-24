@@ -1,9 +1,14 @@
 'use client';
 
 import type { SourcePreviewItem } from '@/types/api.types';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
 import { CitationTooltipCard } from './CitationTooltipCard';
+import {
+  getCitationSourceList,
+  getCitationSourceKey,
+  resolveCitationActiveIndexByKey,
+} from '../utils/citationSources';
 
 interface CitationBadgeProps {
   number: number;
@@ -18,26 +23,29 @@ export function CitationBadge({
   allSources,
   onCitationClick,
 }: CitationBadgeProps) {
-  // Resolve sources array. If allSources is provided, use it. Otherwise fall back to a single item list.
-  const sourcesList = allSources && allSources.length > 0
-    ? allSources
-    : source
-    ? [source]
-    : [];
-
-  // Find index of the badge's primary source in the list to initialize the active index.
-  const initialIndex = source
-    ? sourcesList.findIndex((s) => s.citationNumber === source.citationNumber)
-    : 0;
-
-  const [activeIndex, setActiveIndex] = useState(
-    initialIndex !== -1 ? initialIndex : 0
+  const sourcesList = useMemo(
+    () => getCitationSourceList(source, allSources),
+    [source, allSources],
   );
+  const primarySourceKey = source ? getCitationSourceKey(source) : null;
+  const [activeSourceState, setActiveSourceState] = useState(() => ({
+    citationNumber: number,
+    sourceKey: primarySourceKey,
+  }));
 
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   const showTooltip = isHovered || isFocused;
+  const activeSourceKey =
+    activeSourceState.citationNumber === number
+      ? activeSourceState.sourceKey
+      : primarySourceKey;
+  const safeActiveIndex = resolveCitationActiveIndexByKey(
+    sourcesList,
+    activeSourceKey,
+    source,
+  );
 
   // If there's no matching source, render a muted/disabled badge without interactivity
   if (!source) {
@@ -75,13 +83,21 @@ export function CitationBadge({
   const handlePrev = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setActiveIndex((prev) => (prev - 1 + sourcesList.length) % sourcesList.length);
+    const nextIndex = (safeActiveIndex - 1 + sourcesList.length) % sourcesList.length;
+    setActiveSourceState({
+      citationNumber: number,
+      sourceKey: getCitationSourceKey(sourcesList[nextIndex]),
+    });
   };
 
   const handleNext = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setActiveIndex((prev) => (prev + 1) % sourcesList.length);
+    const nextIndex = (safeActiveIndex + 1) % sourcesList.length;
+    setActiveSourceState({
+      citationNumber: number,
+      sourceKey: getCitationSourceKey(sourcesList[nextIndex]),
+    });
   };
 
   const handleFocus = () => {
@@ -125,7 +141,7 @@ export function CitationBadge({
       >
         <CitationTooltipCard
           sources={sourcesList}
-          activeIndex={activeIndex}
+          activeIndex={safeActiveIndex}
           onPrevious={handlePrev}
           onNext={handleNext}
         />

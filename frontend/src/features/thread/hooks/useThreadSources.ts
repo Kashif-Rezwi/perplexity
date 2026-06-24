@@ -8,6 +8,7 @@ import type {
   TurnItem,
   TurnSourceGroup,
 } from '@/types/api.types';
+import { sortSourcesForLinks } from '../utils/sourceOrdering';
 
 // Fetches canonical per-turn source lists while using thread-detail sources as the instant fallback.
 export function useThreadSources(
@@ -42,7 +43,9 @@ export function useThreadSources(
         citedCitationNumbers: turn.citations.map(
           (citation) => citation.citationNumber,
         ),
-        sources: sourceQueries[index]?.data?.items ?? turn.sources,
+        sources: sortSourcesForLinks(
+          sourceQueries[index]?.data?.items ?? turn.sources,
+        ),
       }))
       .reverse();
   }, [completedTurns, sourceQueries]);
@@ -53,7 +56,7 @@ function createFallbackSourcesResponse(
   turn: TurnItem,
 ): SourcesResponse {
   return {
-    items: turn.sources.map((source) => ({
+    items: sortSourcesForLinks(turn.sources).map((source) => ({
       sourceId: source.sourceId,
       turnId: turn.turnId,
       threadId,
