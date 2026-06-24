@@ -87,11 +87,14 @@ export class ThreadsRepository {
         sourceIdsByCitationNumber,
       );
       await this.completeTurnRecord(tx, input);
-      await this.completeThreadRecord(
-        tx,
-        input.threadId,
-        input.answerPreview,
-      );
+
+      if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
+        await this.completeThreadRecord(
+          tx,
+          input.threadId,
+          input.answerPreview,
+        );
+      }
     });
   }
 
@@ -99,7 +102,10 @@ export class ThreadsRepository {
     await this.database.$transaction(async (tx) => {
       await this.ensureTurnBelongsToThread(tx, input.threadId, input.turnId);
       await this.failTurnRecord(tx, input);
-      await this.failThreadRecord(tx, input.threadId);
+
+      if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
+        await this.failThreadRecord(tx, input.threadId);
+      }
     });
   }
 
@@ -292,6 +298,20 @@ export class ThreadsRepository {
         `Turn ${turnId} was not found in thread ${threadId}`,
       );
     }
+  }
+
+  private async isLatestTurn(
+    tx: RepositoryTransaction,
+    threadId: string,
+    turnId: string,
+  ): Promise<boolean> {
+    const latestTurn = await tx.turn.findFirst({
+      where: { threadId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+
+    return latestTurn?.id === turnId;
   }
 
   private async attachTotalSourceCount(
