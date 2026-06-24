@@ -10,6 +10,12 @@ The backend exposes endpoints that allow the frontend to:
 * Generate answers using AI (OpenAI or Groq) with citation markers.
 * Retrieve past threads, turns, and sources.
 
+## V2 Scope
+
+This backend is currently designed for local, single-user development. It does
+not enforce authentication, user ownership, rate limits, or billing limits. Do
+not expose it as a public multi-user service until those guardrails are added.
+
 ## Getting Started
 
 ### Prerequisites
@@ -42,8 +48,8 @@ The backend exposes endpoints that allow the frontend to:
 
    *OpenAI Options:*
    * `OPENAI_API_KEY`: (Required if `AI_PROVIDER` is `openai`)
-   * `OPENAI_MODEL`: (Optional) Used for answer generation. Defaults to `gpt-5-mini`.
-   * `OPENAI_UTILITY_MODEL`: (Optional) Used for query rewriting. Defaults to `gpt-5-mini`.
+   * `OPENAI_MODEL`: (Optional) Used for answer generation. Defaults to `gpt-4o-mini`.
+   * `OPENAI_UTILITY_MODEL`: (Optional) Used for query rewriting and follow-up suggestions. Defaults to `gpt-4o-mini`.
    * `OPENAI_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
    * `OPENAI_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
    * `OPENAI_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.

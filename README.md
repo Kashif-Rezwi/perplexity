@@ -4,6 +4,13 @@ This repository contains a vertical slice of a Perplexity-inspired AI answer eng
 
 The project is structured as a full-stack monorepo, consisting of a NestJS backend and a Next.js frontend.
 
+## V2 Scope
+
+V2 is intended for local, single-user use. It does not include authentication,
+user-scoped data access, rate limits, billing limits, or public multi-tenant
+deployment guardrails yet. Those concerns are tracked as later productization
+work in the roadmap.
+
 ## Architecture Overview
 
 *   **Backend (`/backend`)**: A modular monolith built with **NestJS**, **TypeScript**, and **PostgreSQL**. It handles API requests, database persistence via Prisma, web search integration (Tavily), and AI answer generation (provider-agnostic, supporting OpenAI and Groq).
