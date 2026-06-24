@@ -51,22 +51,9 @@ const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 @Injectable()
 export class OpenAiProviderService implements AiProvider {
   private readonly logger = new Logger(OpenAiProviderService.name);
-  private readonly client: ReturnType<typeof createOpenAI>;
-  private readonly model: string;
-  private readonly utilityModel: string;
-  private readonly answerTimeoutMs: number;
-  private readonly queryRewriteTimeoutMs: number;
-  private readonly suggestionTimeoutMs: number;
+  private client?: ReturnType<typeof createOpenAI>;
 
-  constructor(configService: ConfigService) {
-    const apiKey = getRequiredTrimmedConfig(configService, OPENAI_API_KEY_CONFIG_KEY);
-    this.client = createOpenAI({ apiKey });
-    this.model = getOptionalTrimmedConfig(configService, OPENAI_MODEL_CONFIG_KEY, DEFAULT_OPENAI_MODEL);
-    this.utilityModel = getOptionalTrimmedConfig(configService, OPENAI_UTILITY_MODEL_CONFIG_KEY, DEFAULT_OPENAI_UTILITY_MODEL);
-    this.answerTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_ANSWER_TIMEOUT_MS);
-    this.queryRewriteTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS);
-    this.suggestionTimeoutMs = getPositiveIntegerConfig(configService, OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY, DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS);
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   async generateAnswer(
     input: GenerateAnswerInput,
@@ -74,7 +61,7 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string> {
     try {
       const { text } = await generateText({
-        model: this.client(this.model),
+        model: this.getClient()(this.getModel()),
         abortSignal,
         system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
@@ -88,7 +75,10 @@ export class OpenAiProviderService implements AiProvider {
 
       return answerMarkdown;
     } catch (error) {
-      if (error instanceof InternalServerErrorException) {
+      if (
+        error instanceof InternalServerErrorException ||
+        error instanceof ServiceUnavailableException
+      ) {
         throw error;
       }
 
@@ -107,9 +97,9 @@ export class OpenAiProviderService implements AiProvider {
   ): AsyncIterable<string> {
     try {
       const result = streamText({
-        model: this.client(this.model),
+        model: this.getClient()(this.getModel()),
         abortSignal,
-        timeout: this.answerTimeoutMs,
+        timeout: this.getAnswerTimeoutMs(),
         system: ANSWER_SYSTEM_PROMPT,
         prompt: createAnswerPrompt(input),
       });
@@ -124,8 +114,15 @@ export class OpenAiProviderService implements AiProvider {
         throw new InternalServerErrorException('OpenAI returned an empty answer');
       }
     } catch (error) {
-      if (error instanceof InternalServerErrorException) {
+      if (
+        error instanceof InternalServerErrorException ||
+        error instanceof ServiceUnavailableException
+      ) {
         throw error;
+      }
+
+      if (isTimeoutError(error)) {
+        throw new ServiceUnavailableException('OpenAI answer generation timed out');
       }
 
       this.logger.error(
@@ -143,7 +140,7 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string[]> {
     try {
       const { output } = await generateText({
-        model: this.client(this.utilityModel),
+        model: this.getClient()(this.getUtilityModel()),
         abortSignal,
         system: SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
         prompt: createSuggestedFollowUpQuestionsPrompt(input),
@@ -187,7 +184,7 @@ export class OpenAiProviderService implements AiProvider {
   ): Promise<string> {
     try {
       const { text } = await generateText({
-        model: this.client(this.utilityModel),
+        model: this.getClient()(this.getUtilityModel()),
         abortSignal,
         maxOutputTokens: STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS,
         system: STANDALONE_SEARCH_QUERY_SYSTEM_PROMPT,
@@ -203,7 +200,10 @@ export class OpenAiProviderService implements AiProvider {
 
       return searchQuery;
     } catch (error) {
-      if (error instanceof InternalServerErrorException) {
+      if (
+        error instanceof InternalServerErrorException ||
+        error instanceof ServiceUnavailableException
+      ) {
         throw error;
       }
 
@@ -218,14 +218,58 @@ export class OpenAiProviderService implements AiProvider {
   }
 
   getAnswerTimeoutMs(): number {
-    return this.answerTimeoutMs;
+    return getPositiveIntegerConfig(
+      this.configService,
+      OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_ANSWER_TIMEOUT_MS,
+    );
   }
 
   getQueryRewriteTimeoutMs(): number {
-    return this.queryRewriteTimeoutMs;
+    return getPositiveIntegerConfig(
+      this.configService,
+      OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_QUERY_REWRITE_TIMEOUT_MS,
+    );
   }
 
   getSuggestionTimeoutMs(): number {
-    return this.suggestionTimeoutMs;
+    return getPositiveIntegerConfig(
+      this.configService,
+      OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_OPENAI_SUGGESTION_TIMEOUT_MS,
+    );
   }
+
+  private getClient(): ReturnType<typeof createOpenAI> {
+    if (!this.client) {
+      const apiKey = getRequiredTrimmedConfig(
+        this.configService,
+        OPENAI_API_KEY_CONFIG_KEY,
+      );
+      this.client = createOpenAI({ apiKey });
+    }
+
+    return this.client;
+  }
+
+  private getModel(): string {
+    return getOptionalTrimmedConfig(
+      this.configService,
+      OPENAI_MODEL_CONFIG_KEY,
+      DEFAULT_OPENAI_MODEL,
+    );
+  }
+
+  private getUtilityModel(): string {
+    return getOptionalTrimmedConfig(
+      this.configService,
+      OPENAI_UTILITY_MODEL_CONFIG_KEY,
+      DEFAULT_OPENAI_UTILITY_MODEL,
+    );
+  }
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return getErrorMessage(error).toLowerCase().includes('timed out');
 }

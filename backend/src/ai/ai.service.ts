@@ -63,11 +63,16 @@ export class AiService {
     sources: CreateTurnSourceInput[],
   ): Promise<string> {
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     return withTimeout(
-      provider.generateAnswer({ question, priorTurns, sources }),
+      provider.generateAnswer(
+        { question, priorTurns, sources },
+        abortController.signal,
+      ),
       provider.getAnswerTimeoutMs(),
       () => new ServiceUnavailableException(`${name} answer generation timed out`),
+      () => abortController.abort(),
     );
   }
 
@@ -95,16 +100,21 @@ export class AiService {
     }
 
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateStandaloneSearchQuery({
-          question,
-          threadTitle,
-          priorTurns: getQueryRewritePriorTurns(priorTurns),
-        }),
+        provider.generateStandaloneSearchQuery(
+          {
+            question,
+            threadTitle,
+            priorTurns: getQueryRewritePriorTurns(priorTurns),
+          },
+          abortController.signal,
+        ),
         provider.getQueryRewriteTimeoutMs(),
         () => new ServiceUnavailableException(`${name} search query rewrite timed out`),
+        () => abortController.abort(),
       );
     } catch (error) {
       this.logger.warn(
@@ -124,17 +134,22 @@ export class AiService {
     sources: CreateTurnSourceInput[],
   ): Promise<string[]> {
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateSuggestedFollowUpQuestions({
-          question,
-          answerMarkdown,
-          priorTurns,
-          sources,
-        }),
+        provider.generateSuggestedFollowUpQuestions(
+          {
+            question,
+            answerMarkdown,
+            priorTurns,
+            sources,
+          },
+          abortController.signal,
+        ),
         provider.getSuggestionTimeoutMs(),
         () => new ServiceUnavailableException(`${name} suggestion generation timed out`),
+        () => abortController.abort(),
       );
     } catch (error) {
       this.logger.warn(

@@ -36,15 +36,22 @@ test('withTimeout rejects with the original error when the operation fails', asy
 });
 
 test('withTimeout rejects with the timeout error when the operation is slow', async () => {
+  let didTimeout = false;
+
   await assert.rejects(
     () =>
       withTimeout(
         delay(25, 'late'),
         1,
         () => new ServiceUnavailableException('provider timed out'),
+        () => {
+          didTimeout = true;
+        },
       ),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'provider timed out',
   );
+
+  assert.equal(didTimeout, true);
 });
