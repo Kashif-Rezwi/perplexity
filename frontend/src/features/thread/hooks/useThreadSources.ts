@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { getSources } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import type {
   SourceHighlightTarget,
   SourcesResponse,
@@ -22,7 +23,7 @@ export function useThreadSources(
 
   const sourceQueries = useQueries({
     queries: completedTurns.map((turn) => ({
-      queryKey: ['sources', threadId, turn.turnId],
+      queryKey: queryKeys.sourcesForTurn(threadId, turn.turnId),
       queryFn: () => getSources({ turnId: turn.turnId }),
       enabled:
         Boolean(threadId) &&

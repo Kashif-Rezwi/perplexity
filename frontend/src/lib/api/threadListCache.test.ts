@@ -7,6 +7,7 @@ import {
   updateThreadInThreadListCaches,
   updateThreadPinInCaches,
 } from './threadListCache';
+import { queryKeys } from './queryKeys';
 import type {
   ThreadDetailResponse,
   ThreadListResponse,
@@ -91,7 +92,10 @@ describe('thread list cache helpers', () => {
     queryClient.setQueryData(['threads', 'infinite'], infinite([first, second]));
     queryClient.setQueryData(['threads', 'pinned'], [first]);
     queryClient.setQueryData(['thread', 'a'], detail);
-    queryClient.setQueryData(['sources', 'a'], { items: [], nextCursor: null });
+    queryClient.setQueryData(queryKeys.sourcesForTurn('a', 'turn-a'), {
+      items: [],
+      nextCursor: null,
+    });
 
     removeThreadsFromManagedCaches(queryClient, ['a']);
 
@@ -107,7 +111,9 @@ describe('thread list cache helpers', () => {
     ).toEqual(['b']);
     expect(queryClient.getQueryData(['threads', 'pinned'])).toEqual([]);
     expect(queryClient.getQueryData(['thread', 'a'])).toBeUndefined();
-    expect(queryClient.getQueryData(['sources', 'a'])).toBeUndefined();
+    expect(
+      queryClient.getQueryData(queryKeys.sourcesForTurn('a', 'turn-a')),
+    ).toBeUndefined();
   });
 
   it('moves a pinned thread into pinned cache and out of excludePinned lists', () => {

@@ -8,6 +8,7 @@ import type {
   ThreadDetailResponse,
 } from '@/types/api.types';
 import { getThread } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import type { AskInputRef } from '@/features/home/components/AskInput';
 import { useAskSubmit } from '@/features/home/hooks/useAskSubmit';
 import { useThreadAutoScroll } from './useThreadAutoScroll';
@@ -35,7 +36,7 @@ export function useThreadPage(threadId: string) {
   });
 
   const { data: thread, isPending, error } = useQuery({
-    queryKey: ['thread', threadId],
+    queryKey: queryKeys.thread(threadId),
     queryFn: () => getThread(threadId),
     retry: 1,
   });
@@ -87,7 +88,7 @@ export function useThreadPage(threadId: string) {
   }
 
   function retryThread() {
-    void queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.thread(threadId) });
   }
 
   function retryTurn(turnId: string, question: string) {

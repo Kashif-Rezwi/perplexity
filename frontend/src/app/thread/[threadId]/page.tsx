@@ -2,6 +2,7 @@ import { dehydrate, HydrationBoundary, QueryClient } from '@tanstack/react-query
 import { ThreadPage } from '@/features/thread/components/ThreadPage';
 import { getThread } from '@/lib/api';
 import { queryClientConfig } from '@/lib/api/queryClientConfig';
+import { queryKeys } from '@/lib/api/queryKeys';
 import type { Metadata } from 'next';
 
 type Props = {
@@ -29,7 +30,7 @@ export default async function Page({ params }: Props) {
   const queryClient = new QueryClient(queryClientConfig);
 
   await queryClient.prefetchQuery({
-    queryKey: ['thread', threadId],
+    queryKey: queryKeys.thread(threadId),
     queryFn: () => getThread(threadId),
   });
   

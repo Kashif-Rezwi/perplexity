@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { getThreads } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import type { ThreadListResponse } from '@/types/api.types';
@@ -32,16 +33,12 @@ export function useServerHistoryThreads({
   });
 
   const threadListQuery = useInfiniteQuery<ThreadListResponse>({
-    queryKey: [
-      'threads',
-      'history',
-      {
-        limit: HISTORY_PAGE_SIZE,
-        mode: typeFilter,
-        q: normalizedSearchQuery,
-        sort: sortOrder,
-      },
-    ],
+    queryKey: queryKeys.threadsHistory({
+      limit: HISTORY_PAGE_SIZE,
+      mode: typeFilter,
+      q: normalizedSearchQuery,
+      sort: sortOrder,
+    }),
     queryFn: ({ pageParam }) =>
       getThreads({
         limit: HISTORY_PAGE_SIZE,

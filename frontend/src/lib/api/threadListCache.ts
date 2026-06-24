@@ -4,6 +4,7 @@ import type {
   ThreadListResponse,
   ThreadSummaryItem,
 } from '@/types/api.types';
+import { queryKeys } from './queryKeys';
 
 type ThreadCacheSnapshot = {
   queryKey: QueryKey;
@@ -24,8 +25,8 @@ export function removeThreadsFromManagedCaches(
   removeThreadsFromThreadListCaches(queryClient, threadIds);
 
   for (const threadId of threadIds) {
-    queryClient.removeQueries({ queryKey: ['thread', threadId] });
-    queryClient.removeQueries({ queryKey: ['sources', threadId] });
+    queryClient.removeQueries({ queryKey: queryKeys.thread(threadId) });
+    queryClient.removeQueries({ queryKey: queryKeys.sourcesForThread(threadId) });
   }
 }
 
@@ -36,7 +37,7 @@ export function removeThreadsFromThreadListCaches(
   const idsToRemove = new Set(threadIds);
 
   queryClient.setQueriesData<ThreadListResponse>(
-    { queryKey: ['threads'] },
+    { queryKey: queryKeys.threadsRoot },
     (data) => {
       if (!isThreadListResponse(data)) return data;
 
@@ -45,7 +46,7 @@ export function removeThreadsFromThreadListCaches(
   );
 
   queryClient.setQueriesData<InfiniteData<ThreadListResponse>>(
-    { queryKey: ['threads'] },
+    { queryKey: queryKeys.threadsRoot },
     (data) => {
       if (!isInfiniteThreadListResponse(data)) return data;
 
@@ -57,7 +58,7 @@ export function removeThreadsFromThreadListCaches(
   );
 
   queryClient.setQueriesData<ThreadSummaryItem[]>(
-    { queryKey: ['threads', 'pinned'] },
+    { queryKey: queryKeys.threadsPinned },
     (data) => {
       if (!Array.isArray(data)) return data;
       return data.filter((thread) => !idsToRemove.has(thread.threadId));
@@ -70,7 +71,7 @@ export function updateThreadInThreadListCaches(
   thread: ThreadSummaryItem,
 ) {
   queryClient.setQueriesData<ThreadListResponse>(
-    { queryKey: ['threads'] },
+    { queryKey: queryKeys.threadsRoot },
     (data) => {
       if (!isThreadListResponse(data)) return data;
 
@@ -79,7 +80,7 @@ export function updateThreadInThreadListCaches(
   );
 
   queryClient.setQueriesData<InfiniteData<ThreadListResponse>>(
-    { queryKey: ['threads'] },
+    { queryKey: queryKeys.threadsRoot },
     (data) => {
       if (!isInfiniteThreadListResponse(data)) return data;
 
@@ -105,7 +106,7 @@ export function snapshotThreadCaches(
   queryClient: QueryClient,
 ): ThreadCacheSnapshot[] {
   return queryClient
-    .getQueriesData({ queryKey: ['threads'] })
+    .getQueriesData({ queryKey: queryKeys.threadsRoot })
     .map(([queryKey, data]) => ({ queryKey, data }));
 }
 
@@ -160,7 +161,7 @@ export function updateThreadDetailCacheTitle(
   title: string,
 ) {
   queryClient.setQueryData<ThreadDetailResponse>(
-    ['thread', threadId],
+    queryKeys.thread(threadId),
     (data) => (data ? { ...data, title } : data),
   );
 }
@@ -203,7 +204,7 @@ function updatePinnedThreadCache(
   updatedThread: ThreadSummaryItem,
 ) {
   queryClient.setQueriesData<ThreadSummaryItem[]>(
-    { queryKey: ['threads', 'pinned'] },
+    { queryKey: queryKeys.threadsPinned },
     (data) => {
       if (!Array.isArray(data)) return data;
 
@@ -234,7 +235,7 @@ function moveThreadForPinState(
 ) {
   for (const query of queryClient
     .getQueryCache()
-    .findAll({ queryKey: ['threads'] })) {
+    .findAll({ queryKey: queryKeys.threadsRoot })) {
     const { queryKey } = query;
     const excludePinned = isExcludePinnedThreadListQuery(queryKey);
 
@@ -259,7 +260,7 @@ function hasThreadInNonPinnedThreadListCaches(
 ) {
   return queryClient
     .getQueryCache()
-    .findAll({ queryKey: ['threads'] })
+    .findAll({ queryKey: queryKeys.threadsRoot })
     .some(
       (query) =>
         isExcludePinnedThreadListQuery(query.queryKey) &&
@@ -305,7 +306,9 @@ function findThreadInCaches(
   queryClient: QueryClient,
   threadId: string,
 ): ThreadSummaryItem | null {
-  const cachedThreads = queryClient.getQueriesData({ queryKey: ['threads'] });
+  const cachedThreads = queryClient.getQueriesData({
+    queryKey: queryKeys.threadsRoot,
+  });
 
   for (const [, data] of cachedThreads) {
     const thread = findThreadInCacheValue(data, threadId);
