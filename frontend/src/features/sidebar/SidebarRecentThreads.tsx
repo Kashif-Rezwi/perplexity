@@ -16,7 +16,7 @@ import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useHistoryStore } from '@/store/historyStore';
-import { getVisibleSidebarThreadGroups } from './utils/sidebarThreads';
+import { getSidebarThreadViewState } from './utils/sidebarThreads';
 
 type Props = {
   isOpen: boolean;
@@ -53,11 +53,18 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
   const serverThreads = (threadListQuery.data?.items ?? []).map(
     mapThreadSummaryToHistoryItem,
   );
-  const threads = threadListQuery.data ? serverThreads : localThreads;
   const {
     pinnedThreads: visiblePinnedThreads,
     recentThreads: visibleRecentThreads,
-  } = getVisibleSidebarThreadGroups(threads, SIDEBAR_THREAD_LIMIT);
+    isLoading,
+  } = getSidebarThreadViewState({
+    serverThreads,
+    localThreads,
+    hasServerData: Boolean(threadListQuery.data),
+    isPending: threadListQuery.isPending,
+    isError: threadListQuery.isError,
+    limit: SIDEBAR_THREAD_LIMIT,
+  });
   const visibleThreadCount =
     visiblePinnedThreads.length + visibleRecentThreads.length;
 
@@ -99,7 +106,12 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
     return () => observer.disconnect();
   }, [mounted, isOpen, isCollapsed, visibleThreadCount]);
 
-  if (!isOpen || !mounted || isCollapsed || visibleThreadCount === 0) {
+  if (
+    !isOpen ||
+    !mounted ||
+    isCollapsed ||
+    (visibleThreadCount === 0 && !isLoading)
+  ) {
     return <div className="min-h-0 flex-1" />;
   }
 
@@ -184,6 +196,17 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
                   Pinned
                 </div>
                 {visiblePinnedThreads.map(renderThread)}
+              </div>
+            )}
+
+            {isLoading && (
+              <div className="flex flex-col gap-1 px-1 py-1" aria-hidden="true">
+                {Array.from({ length: 3 }, (_, index) => (
+                  <div
+                    key={index}
+                    className="h-7 rounded-lg bg-[var(--color-surface-hover)] opacity-40"
+                  />
+                ))}
               </div>
             )}
 

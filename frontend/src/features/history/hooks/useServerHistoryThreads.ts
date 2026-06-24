@@ -17,6 +17,40 @@ type UseServerHistoryThreadsInput = {
   searchQuery: string;
 };
 
+type ServerHistoryViewStateInput = {
+  fallbackThreads: ThreadHistoryItem[];
+  serverThreads: ThreadHistoryItem[];
+  canUseLocalFallback: boolean;
+  hasServerData: boolean;
+  isPending: boolean;
+  isError: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+};
+
+export function getServerHistoryViewState({
+  fallbackThreads,
+  serverThreads,
+  canUseLocalFallback,
+  hasServerData,
+  isPending,
+  isError,
+  hasNextPage,
+  isFetchingNextPage,
+}: ServerHistoryViewStateInput) {
+  const canShowFallback =
+    canUseLocalFallback && !hasServerData && fallbackThreads.length > 0;
+  const shouldShowFallback = canShowFallback && (isPending || isError);
+
+  return {
+    threads: shouldShowFallback ? fallbackThreads : serverThreads,
+    isLoading: isPending && !shouldShowFallback,
+    isError: isError && !hasServerData && !shouldShowFallback,
+    hasNextPage: shouldShowFallback ? false : hasNextPage,
+    isFetchingNextPage: shouldShowFallback ? false : isFetchingNextPage,
+  };
+}
+
 export function useServerHistoryThreads({
   localThreads,
   typeFilter,
@@ -61,21 +95,18 @@ export function useServerHistoryThreads({
   );
 
   const canUseLocalFallback = typeFilter !== 'deep-research';
-  const shouldUseFallback =
-    canUseLocalFallback && !threadListQuery.data && threadListQuery.isError;
-  const shouldUseInitialFallback =
-    canUseLocalFallback &&
-    !threadListQuery.data &&
-    threadListQuery.isPending &&
-    fallbackThreads.length > 0;
-  const shouldShowFallback = shouldUseFallback || shouldUseInitialFallback;
 
   return {
-    threads: shouldShowFallback ? fallbackThreads : serverThreads,
-    isLoading: threadListQuery.isPending && fallbackThreads.length === 0,
-    isError: threadListQuery.isError && serverThreads.length === 0,
-    hasNextPage: threadListQuery.hasNextPage,
-    isFetchingNextPage: threadListQuery.isFetchingNextPage,
+    ...getServerHistoryViewState({
+      fallbackThreads,
+      serverThreads,
+      canUseLocalFallback,
+      hasServerData: Boolean(threadListQuery.data),
+      isPending: threadListQuery.isPending,
+      isError: threadListQuery.isError,
+      hasNextPage: threadListQuery.hasNextPage,
+      isFetchingNextPage: threadListQuery.isFetchingNextPage,
+    }),
     fetchNextPage: threadListQuery.fetchNextPage,
   };
 }
