@@ -102,9 +102,9 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
               aria-label="Ask a question"
               aria-describedby="textarea-submit-instructions"
               className={[
-                'w-full bg-transparent text-[var(--color-text)]',
+                'w-full bg-transparent text-[var(--color-text)] border-none',
                 'placeholder:text-[var(--color-text-muted)] placeholder:font-[350] font-normal',
-                'resize-none outline-none overflow-hidden',
+                'resize-none outline-none focus:outline-none focus-visible:outline-none overflow-hidden',
                 'text-[16px] leading-[1.35]',
                 isPending ? 'opacity-50' : '',
               ].join(' ')}

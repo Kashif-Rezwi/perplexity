@@ -14,6 +14,7 @@ import {
   serializeThreadMarkdown,
   serializeThreadPlainText,
 } from '../utils/threadExport';
+import { CopyMenuButton } from './CopyMenuButton';
 
 type ThreadExportActionsProps = {
   thread: ThreadDetailResponse;
@@ -136,42 +137,27 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
 
           {/* Copy actions */}
           <div className="flex flex-col">
-            <button
-              type="button"
+            <CopyMenuButton
+              Icon={Link2}
+              label="Copy thread URL"
+              copiedLabel="Copied thread URL"
+              isCopied={copiedAction === 'url'}
               onClick={() => void copyValue('url', createThreadUrl(thread.threadId))}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
-            >
-              <Link2 size={16} strokeWidth={1.75} className="shrink-0" />
-              Copy thread URL
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                void copyValue('markdown', serializeThreadMarkdown(thread))
-              }
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
-            >
-              <Copy size={16} strokeWidth={1.75} className="shrink-0" />
-              Copy Markdown
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                void copyValue('text', serializeThreadPlainText(thread))
-              }
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
-            >
-              <FileText size={16} strokeWidth={1.75} className="shrink-0" />
-              Copy plain text
-            </button>
-            {copiedAction && (
-              <p
-                aria-live="polite"
-                className="px-2 pb-1 pt-1 text-xs font-medium text-[var(--color-accent)]"
-              >
-                Copied {copiedAction === 'url' ? 'URL' : copiedAction}
-              </p>
-            )}
+            />
+            <CopyMenuButton
+              Icon={Copy}
+              label="Copy Markdown"
+              copiedLabel="Copied Markdown"
+              isCopied={copiedAction === 'markdown'}
+              onClick={() => void copyValue('markdown', serializeThreadMarkdown(thread))}
+            />
+            <CopyMenuButton
+              Icon={FileText}
+              label="Copy plain text"
+              copiedLabel="Copied plain text"
+              isCopied={copiedAction === 'text'}
+              onClick={() => void copyValue('text', serializeThreadPlainText(thread))}
+            />
           </div>
 
           <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />

@@ -121,6 +121,17 @@ body {
   outline-offset: 2px;
 }
 
+/* Suppress focus ring on bare inputs/textareas (e.g. AskInput textarea).
+   This needs higher specificity than the :where() rule above so that
+   components which opt-out via outline-none are guaranteed no visible ring. */
+textarea:focus,
+textarea:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* ─── Reduced motion ─────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
