@@ -1,5 +1,12 @@
 'use client';
 
+import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from '@floating-ui/react';
 import type { SourcePreviewItem } from '@/types/api.types';
 import { useMemo, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
@@ -37,6 +44,16 @@ export function CitationBadge({
   const [isFocused, setIsFocused] = useState(false);
 
   const showTooltip = isHovered || isFocused;
+  const {
+    refs: { setReference, setFloating },
+    floatingStyles,
+  } = useFloating({
+    open: showTooltip,
+    placement: 'top',
+    strategy: 'fixed',
+    middleware: [offset(12), flip({ padding: 8 }), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
   const activeSourceKey =
     activeSourceState.citationNumber === number
       ? activeSourceState.sourceKey
@@ -120,6 +137,7 @@ export function CitationBadge({
       onBlur={handleBlur}
     >
       <button
+        ref={setReference}
         type="button"
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -130,13 +148,15 @@ export function CitationBadge({
       </button>
 
       <span
+        ref={setFloating}
+        style={floatingStyles}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={[
-          "absolute bottom-full left-1/2 -translate-x-1/2 pb-3 w-[320px] transition-all duration-150 z-30 origin-bottom font-sans text-left not-prose block",
+          'z-30 w-[min(320px,calc(100vw-24px))] transition-all duration-150 font-sans text-left not-prose block',
           showTooltip
-            ? "visible opacity-100 scale-100 pointer-events-auto"
-            : "invisible opacity-0 scale-95 pointer-events-none"
+            ? 'visible opacity-100 scale-100 pointer-events-auto'
+            : 'invisible opacity-0 scale-95 pointer-events-none',
         ].join(' ')}
       >
         <CitationTooltipCard

@@ -26,9 +26,12 @@ export function useThreadSources(
     queries: completedTurns.map((turn) => ({
       queryKey: queryKeys.sourcesForTurn(threadId, turn.turnId),
       queryFn: () => getSources({ turnId: turn.turnId }),
-      enabled:
-        Boolean(threadId) &&
-        (shouldFetchSources || highlightedSourceTarget?.turnId === turn.turnId),
+      enabled: shouldFetchSourcesForTurn(
+        threadId,
+        turn.turnId,
+        shouldFetchSources,
+        highlightedSourceTarget,
+      ),
       placeholderData: createFallbackSourcesResponse(threadId, turn),
       staleTime: 60_000,
     })),
@@ -49,6 +52,18 @@ export function useThreadSources(
       }))
       .reverse();
   }, [completedTurns, sourceQueries]);
+}
+
+export function shouldFetchSourcesForTurn(
+  threadId: string,
+  turnId: string,
+  shouldFetchSources: boolean,
+  highlightedSourceTarget?: SourceHighlightTarget | null,
+): boolean {
+  return (
+    Boolean(threadId) &&
+    (shouldFetchSources || highlightedSourceTarget?.turnId === turnId)
+  );
 }
 
 function createFallbackSourcesResponse(

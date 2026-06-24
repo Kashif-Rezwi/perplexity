@@ -9,21 +9,10 @@ type Props = {
   params: Promise<{ threadId: string }>;
 };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { threadId } = await params;
-  
-  try {
-    const thread = await getThread(threadId);
-    return {
-      title: `${thread.title} - Perplexity Clone`,
-      description: `Turns: ${thread.turnCount}, sources: ${thread.totalSourceCount}`,
-    };
-  } catch {
-    return {
-      title: 'Thread - Perplexity Clone',
-    };
-  }
-}
+export const metadata: Metadata = {
+  title: 'Thread - Perplexity Clone',
+  description: 'Read a Perplexity Clone research thread.',
+};
 
 export default async function Page({ params }: Props) {
   const { threadId } = await params;
@@ -33,7 +22,7 @@ export default async function Page({ params }: Props) {
     queryKey: queryKeys.thread(threadId),
     queryFn: () => getThread(threadId),
   });
-  
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="w-full h-full flex flex-col overflow-hidden">

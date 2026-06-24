@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { getSources, streamAsk, streamRetryAsk } from '@/lib/api';
+import { streamAsk, streamRetryAsk } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { useHistoryStore } from '@/store/historyStore';
@@ -62,13 +62,7 @@ export function useAskSubmit({
   const addThread = useHistoryStore((state) => state.addThread);
 
   function applyFinalResponse(data: Parameters<typeof applyFinalAskResponse>[2]) {
-    const targetThreadId = data.thread.threadId;
     applyFinalAskResponse(queryClient, addThread, data);
-    void queryClient.prefetchQuery({
-      queryKey: queryKeys.sourcesForTurn(targetThreadId, data.turn.turnId),
-      queryFn: () => getSources({ turnId: data.turn.turnId }),
-    });
-
     void queryClient.invalidateQueries({ queryKey: queryKeys.threadsRoot });
   }
 

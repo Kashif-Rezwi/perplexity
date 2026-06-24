@@ -49,11 +49,11 @@ export function useThreadPage(threadId: string) {
     ? thread?.turns[turnsCount - 1]?.status ?? null
     : null;
 
-  // Assemble grouped sources from thread fallback data while fetching canonical lists as soon as the thread opens.
+  // Assemble grouped sources from thread fallback data and fetch canonical lists only when needed.
   const turnSourceGroups = useThreadSources(
     threadId,
     thread?.turns ?? [],
-    true,
+    activeTab === 'links',
     highlightedSourceTarget,
   );
 
