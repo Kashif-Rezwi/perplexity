@@ -1,17 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, usePathname } from 'next/navigation';
 import { deleteThread, deleteThreads, renameThread, toggleThreadPin } from '@/lib/api';
-import { queryKeys } from '@/lib/api/queryKeys';
 import {
-  invalidateUnpinnedThreadListCaches,
+  invalidateThreadListCaches,
   removeThreadsFromManagedCaches,
-  restoreThreadCaches,
-  snapshotThreadCaches,
-  shouldRefetchUnpinnedThreadLists,
   updateThreadDetailCacheTitle,
-  updateThreadInThreadListCaches,
-  updateThreadPinInCaches,
-  updateThreadPinOptimistically,
 } from '@/lib/api/threadListCache';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import { useHistoryStore } from '@/store/historyStore';
@@ -26,6 +19,7 @@ export function useThreadMutations() {
   const removeDeletedThreads = (threadIds: string[]) => {
     removeThreadsFromStore(threadIds);
     removeThreadsFromManagedCaches(queryClient, threadIds);
+    void invalidateThreadListCaches(queryClient);
   };
 
   const navigateAwayFromDeletedThread = (threadIds: string[]) => {
@@ -40,23 +34,15 @@ export function useThreadMutations() {
 
   const applyRenamedThread = (thread: Awaited<ReturnType<typeof renameThread>>) => {
     addThreadToStore(mapThreadSummaryToHistoryItem(thread));
-    updateThreadInThreadListCaches(queryClient, thread);
     updateThreadDetailCacheTitle(queryClient, thread.threadId, thread.title);
+    void invalidateThreadListCaches(queryClient);
   };
 
-  const applyPinnedThread = async (
+  const applyPinnedThread = (
     thread: Awaited<ReturnType<typeof toggleThreadPin>>,
   ) => {
-    const shouldRefetchUnpinned =
-      !thread.isPinned &&
-      shouldRefetchUnpinnedThreadLists(queryClient, thread.threadId);
-
     addThreadToStore(mapThreadSummaryToHistoryItem(thread));
-    updateThreadPinInCaches(queryClient, thread);
-
-    if (shouldRefetchUnpinned) {
-      await invalidateUnpinnedThreadListCaches(queryClient);
-    }
+    void invalidateThreadListCaches(queryClient);
   };
 
   const deleteMutation = useMutation({
@@ -86,22 +72,9 @@ export function useThreadMutations() {
   const pinMutation = useMutation({
     mutationFn: ({ threadId, isPinned }: { threadId: string; isPinned: boolean }) =>
       toggleThreadPin(threadId, isPinned),
-    onMutate: async ({ threadId, isPinned }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.threadsRoot });
-
-      const previousThreadCaches = snapshotThreadCaches(queryClient);
-      updateThreadPinOptimistically(queryClient, threadId, isPinned);
-
-      return { previousThreadCaches };
-    },
-    onError: (_err, _newPin, context) => {
-      if (context?.previousThreadCaches) {
-        restoreThreadCaches(queryClient, context.previousThreadCaches);
-      }
-    },
-    onSuccess: async (thread) => {
+    onSuccess: (thread) => {
       if (thread) {
-        await applyPinnedThread(thread);
+        applyPinnedThread(thread);
       }
     },
   });
