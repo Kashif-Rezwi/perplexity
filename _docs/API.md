@@ -396,6 +396,8 @@ Response:
       ],
       "status": "completed",
       "errorMessage": null,
+      "sourceCount": 1,
+      "citationCount": 1,
       "sources": [
         {
           "sourceId": "uuid",

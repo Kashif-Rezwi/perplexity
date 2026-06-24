@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const { NotFoundException } = require('@nestjs/common');
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const {
   ThreadsRepository,
@@ -60,6 +61,10 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
           },
         },
         turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return { id: turnId };
+          },
           async update(args) {
             operations.push(['turn.update', args]);
           },
@@ -108,9 +113,16 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
     ],
   });
 
-  assert.equal(operations[0][0], 'source.create');
+  assert.deepEqual(operations[0], [
+    'turn.findFirst',
+    {
+      where: { id: turnId, threadId },
+      select: { id: true },
+    },
+  ]);
   assert.equal(operations[1][0], 'source.create');
-  assert.deepEqual(operations[2], [
+  assert.equal(operations[2][0], 'source.create');
+  assert.deepEqual(operations[3], [
     'citation.createMany',
     {
       data: [
@@ -119,7 +131,7 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
       ],
     },
   ]);
-  assert.deepEqual(operations[3], [
+  assert.deepEqual(operations[4], [
     'turn.update',
     {
       where: { id: turnId },
@@ -132,12 +144,12 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
         ],
         status: TurnStatus.COMPLETED,
         errorMessage: null,
-        completedAt: operations[3][1].data.completedAt,
+        completedAt: operations[4][1].data.completedAt,
       },
     },
   ]);
-  assert(operations[3][1].data.completedAt instanceof Date);
-  assert.deepEqual(operations[4], [
+  assert(operations[4][1].data.completedAt instanceof Date);
+  assert.deepEqual(operations[5], [
     'thread.update',
     {
       where: { id: threadId },
@@ -146,6 +158,53 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
         status: ThreadStatus.COMPLETED,
       },
     },
+  ]);
+});
+
+test('ThreadsRepository.completeTurn rejects mismatched thread and turn ids before writing', async () => {
+  const operations = [];
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return null;
+          },
+        },
+        source: {
+          async create(args) {
+            operations.push(['source.create', args]);
+          },
+        },
+      });
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      repository.completeTurn({
+        threadId,
+        turnId,
+        answerMarkdown: 'Answer',
+        answerPreview: 'Answer',
+        sources: [],
+        citationNumbers: [],
+        suggestedFollowUpQuestions: [],
+      }),
+    (error) =>
+      error instanceof NotFoundException &&
+      error.message === `Turn ${turnId} was not found in thread ${threadId}`,
+  );
+
+  assert.deepEqual(operations, [
+    [
+      'turn.findFirst',
+      {
+        where: { id: turnId, threadId },
+        select: { id: true },
+      },
+    ],
   ]);
 });
 

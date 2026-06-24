@@ -13,6 +13,7 @@ import { ThreadsService } from '../threads/threads.service';
 import {
   getLatestTurn,
   getPriorTurns,
+  getPriorTurnsBeforeTurn,
 } from './helpers/ask-thread-context.helper';
 import { prepareAnswerCitations } from './helpers/answer-citation.helper';
 import { mapSearchResultsToSourceInputs } from './mappers/search-to-source.mapper';
@@ -148,7 +149,7 @@ export class AskService {
       throw new BadRequestException('Only failed turns can be retried');
     }
 
-    const priorTurns = getPriorTurns(existingThread);
+    const priorTurns = getPriorTurnsBeforeTurn(existingThread, failedTurn.id);
     const searchQuery = await this.aiService.resolveSearchQuery(
       failedTurn.question,
       priorTurns,
