@@ -117,6 +117,23 @@ describe('thread export utilities', () => {
     expect(markdown).toContain('1. [Prisma docs](https://www.prisma.io/docs)');
   });
 
+  it('serializes thread citation sources when canonical sources are not loaded yet', () => {
+    const streamedThread: ThreadDetailResponse = {
+      ...thread,
+      turns: [
+        {
+          ...thread.turns[0],
+          sources: [],
+          citationSources: thread.turns[0].sources,
+        },
+      ],
+    };
+
+    expect(serializeThreadMarkdown(streamedThread)).toContain(
+      '1. [Prisma docs](https://www.prisma.io/docs)',
+    );
+  });
+
   it('serializes a thread as plain text', () => {
     expect(serializeThreadPlainText(thread)).toContain(
       'Prisma overview\n\n---\n\nWhat is Prisma?',

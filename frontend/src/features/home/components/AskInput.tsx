@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { ArrowUp, ChevronDown, Loader2, Plus, Search } from 'lucide-react';
+import { ArrowUp, Loader2, Search } from 'lucide-react';
 import { useAskSubmit } from '../hooks/useAskSubmit';
 import type { AskStreamStartEvent } from '@/types/api.types';
 
@@ -118,36 +118,16 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
 
           <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-1">
             <div className="flex min-w-0 items-center gap-2">
-              <button
-                type="button"
-                aria-label="Upload files"
-                title="Upload files"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] cursor-pointer"
-              >
-                <Plus size={20} strokeWidth={1.75} />
-              </button>
-
-              <button
-                type="button"
+              <span
                 aria-label="Search mode"
-                className="flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-transparent pl-3 pr-2 text-[15px] font-medium text-[var(--color-text)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] cursor-pointer"
+                className="flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-transparent px-3 text-[15px] font-medium text-[var(--color-text)]"
               >
                 <Search size={16} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
                 <span className="hidden sm:inline">Search</span>
-                <ChevronDown size={15} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
-              </button>
+              </span>
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                aria-label="Model selector"
-                className="hidden h-8 items-center gap-1 rounded-full px-2 text-[15px] font-medium text-[var(--color-text-muted)] transition-all duration-[var(--transition-hover)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] sm:flex cursor-pointer"
-              >
-                <span>Model</span>
-                <ChevronDown size={15} strokeWidth={1.75} className="text-[var(--color-text-muted)]" />
-              </button>
-
               <button
                 type="submit"
                 disabled={!question.trim() || isPending}

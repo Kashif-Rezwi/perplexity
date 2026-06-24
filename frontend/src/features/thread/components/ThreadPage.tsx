@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Globe, Image as ImageIcon, Compass, WifiOff } from 'lucide-react';
+import { Globe, Compass, WifiOff } from 'lucide-react';
 import { PerplexityLogo } from '@/components/ui/icons';
 import { AskInput } from '@/features/home/components/AskInput';
 import { ApiError } from '@/lib/api/client';
@@ -107,13 +107,6 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
               icon={<Globe size={16} />}
               isActive={activeTab === 'links'}
               onClick={() => setActiveTab('links')}
-            />
-            <ThreadTabButton
-              label="Images"
-              icon={<ImageIcon size={16} />}
-              isActive={false}
-              onClick={() => undefined}
-              disabled
             />
           </div>
           <ThreadExportActions thread={thread} />

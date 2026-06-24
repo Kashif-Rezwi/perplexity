@@ -43,7 +43,7 @@ export function ThreadTurn({
     turn.sources.length > 0
       ? turn.sources
       : 'citationSources' in turn
-        ? turn.citationSources
+        ? turn.citationSources ?? []
         : [];
 
   return (

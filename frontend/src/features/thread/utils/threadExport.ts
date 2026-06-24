@@ -49,7 +49,13 @@ export function serializeTurnPlainText(turn: ExportTurnInput): string {
 export function serializeThreadMarkdown(thread: ThreadDetailResponse): string {
   const turns = thread.turns
     .filter((turn) => turn.answerMarkdown?.trim())
-    .map((turn) => serializeTurnMarkdown(turn));
+    .map((turn) =>
+      serializeTurnMarkdown({
+        question: turn.question,
+        answerMarkdown: turn.answerMarkdown,
+        sources: getTurnExportSources(turn),
+      }),
+    );
 
   return [`# ${thread.title.trim()}`, ...turns].join('\n\n---\n\n');
 }
@@ -96,6 +102,12 @@ function serializeSourcesMarkdown(
       return `${source.citationNumber}. [${title}](${source.url})`;
     }),
   ].join('\n');
+}
+
+function getTurnExportSources(
+  turn: ThreadDetailResponse['turns'][number],
+): Array<SourceItem | SourcePreviewItem> {
+  return turn.sources.length > 0 ? turn.sources : turn.citationSources ?? [];
 }
 
 function getCurrentOrigin(): string {
