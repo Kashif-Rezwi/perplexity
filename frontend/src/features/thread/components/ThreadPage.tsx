@@ -90,6 +90,11 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     );
   }
 
+  const latestTurn = thread.turns.at(-1);
+  const shouldReserveStreamingScrollSpace =
+    activeTab === 'answer' &&
+    (Boolean(pendingQuestion) || latestTurn?.status === 'pending');
+
   return (
     <div className="flex flex-col w-full h-full relative overflow-hidden bg-[var(--color-bg)]">
       {/* Tab bar */}
@@ -171,6 +176,13 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
                     isLast={false}
                   />
                 </div>
+              )}
+
+              {shouldReserveStreamingScrollSpace && (
+                <div
+                  aria-hidden="true"
+                  className="h-[calc(100dvh-112px)] shrink-0"
+                />
               )}
             </div>
           </div>

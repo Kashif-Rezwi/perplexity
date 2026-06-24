@@ -45,6 +45,9 @@ export function useThreadPage(threadId: string) {
   const latestTurnId = turnsCount > 0
     ? thread?.turns[turnsCount - 1]?.turnId ?? null
     : null;
+  const latestTurnStatus = turnsCount > 0
+    ? thread?.turns[turnsCount - 1]?.status ?? null
+    : null;
 
   // Assemble grouped sources from thread fallback data while fetching canonical lists as soon as the thread opens.
   const turnSourceGroups = useThreadSources(
@@ -60,6 +63,7 @@ export function useThreadPage(threadId: string) {
     activeTab,
     turnsCount,
     latestTurnId,
+    latestTurnStatus,
     pendingQuestion,
     scrollContainerRef,
     lastTurnRef,
