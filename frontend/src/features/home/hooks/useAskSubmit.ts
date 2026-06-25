@@ -1,18 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { getSources, streamAsk, streamRetryAsk } from '@/lib/api';
+import { streamAsk, streamRetryAsk } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
-import { mapAskTurnToTurnItem } from '@/lib/mappers/ask.mapper';
+import { queryKeys } from '@/lib/api/queryKeys';
 import { useHistoryStore } from '@/store/historyStore';
 import type {
-  AskResponse,
   AskStreamErrorEvent,
   AskStreamHandlers,
   AskStreamProgressEvent,
   AskStreamStartEvent,
   ThreadDetailResponse,
-  TurnItem,
 } from '@/types/api.types';
+import {
+  appendStreamingTurnToThread,
+  applyFinalAskResponse,
+  createStreamingThread,
+  hasPersistedTurn,
+  markStreamingTurnFailed,
+  updateStreamingTurn,
+} from '../utils/askCache';
 
 type AskMutationInput = {
   question: string;
@@ -34,45 +40,15 @@ function getErrorMessage(error: unknown): string {
   return 'Failed to connect to the server.';
 }
 
-function createStreamingTurn(event: AskStreamStartEvent): TurnItem {
-  const now = new Date().toISOString();
-
-  return {
-    turnId: event.turnId,
-    question: event.question,
-    searchQuery: event.searchQuery,
-    answerMarkdown: '',
-    suggestedFollowUpQuestions: [],
-    status: 'pending',
-    errorMessage: null,
-    sourceCount: 0,
-    citationCount: 0,
-    sources: [],
-    citations: [],
-    streamStage: 'preparing',
-    streamMessage: 'Preparing your question...',
-    createdAt: now,
-    completedAt: null,
-  };
-}
-
-function createStreamingThread(event: AskStreamStartEvent): ThreadDetailResponse {
-  const now = new Date().toISOString();
-
-  return {
-    threadId: event.threadId,
-    title: event.question,
-    status: 'running',
-    mode: 'web',
-    answerPreview: null,
-    isPinned: false,
-    pinnedAt: null,
-    totalSourceCount: 0,
-    turnCount: 1,
-    createdAt: now,
-    updatedAt: now,
-    turns: [createStreamingTurn(event)],
-  };
+class PersistedTurnError extends Error {
+  constructor(
+    error: unknown,
+    public readonly threadId: string,
+    public readonly turnId: string,
+  ) {
+    super(getErrorMessage(error));
+    this.name = 'PersistedTurnError';
+  }
 }
 
 export function useAskSubmit({
@@ -85,75 +61,9 @@ export function useAskSubmit({
   const queryClient = useQueryClient();
   const addThread = useHistoryStore((state) => state.addThread);
 
-  function applyFinalResponse(data: AskResponse) {
-    const targetThreadId = data.thread.threadId;
-    const completedTurn = mapAskTurnToTurnItem(data.turn);
-
-    addThread({
-      id: data.thread.threadId,
-      title: data.thread.title,
-      mode: data.thread.mode,
-      updatedAt: data.thread.updatedAt,
-      isPinned: data.thread.isPinned,
-    });
-
-    queryClient.setQueryData<ThreadDetailResponse>(
-      ['thread', targetThreadId],
-      (existing) => {
-        if (!existing) {
-          return {
-            ...data.thread,
-            turns: [completedTurn],
-          };
-        }
-
-        const turnAlreadyPresent = existing.turns.some(
-          (turn) => turn.turnId === completedTurn.turnId,
-        );
-
-        return {
-          ...existing,
-          title: data.thread.title,
-          status: data.thread.status,
-          answerPreview: data.thread.answerPreview,
-          totalSourceCount: data.thread.totalSourceCount,
-          turnCount: data.thread.turnCount,
-          updatedAt: data.thread.updatedAt,
-          turns: turnAlreadyPresent
-            ? existing.turns.map((turn) =>
-                turn.turnId === completedTurn.turnId ? completedTurn : turn,
-              )
-            : [...existing.turns, completedTurn],
-        };
-      },
-    );
-
-    void queryClient.prefetchQuery({
-      queryKey: ['sources', targetThreadId, data.turn.turnId],
-      queryFn: () => getSources({ turnId: data.turn.turnId }),
-    });
-
-    void queryClient.invalidateQueries({ queryKey: ['threads'] });
-  }
-
-  function updateStreamingTurn(
-    targetThreadId: string,
-    targetTurnId: string,
-    patch: Partial<TurnItem>,
-  ) {
-    queryClient.setQueryData<ThreadDetailResponse>(
-      ['thread', targetThreadId],
-      (existing) => {
-        if (!existing) return existing;
-
-        return {
-          ...existing,
-          turns: existing.turns.map((turn) =>
-            turn.turnId === targetTurnId ? { ...turn, ...patch } : turn,
-          ),
-        };
-      },
-    );
+  function applyFinalResponse(data: Parameters<typeof applyFinalAskResponse>[2]) {
+    applyFinalAskResponse(queryClient, addThread, data);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.threadsRoot });
   }
 
   const mutation = useMutation({
@@ -177,7 +87,7 @@ export function useAskSubmit({
             });
 
             queryClient.setQueryData<ThreadDetailResponse>(
-              ['thread', event.threadId],
+              queryKeys.thread(event.threadId),
               createStreamingThread(event),
             );
             onStreamStart?.(event);
@@ -185,32 +95,13 @@ export function useAskSubmit({
             return;
           }
 
-          queryClient.setQueryData<ThreadDetailResponse>(
-            ['thread', activeThreadId],
-            (existing) => {
-              if (!existing) return existing;
-              const turnAlreadyPresent = existing.turns.some(
-                (turn) => turn.turnId === event.turnId,
-              );
-
-              return {
-                ...existing,
-                status: 'running',
-                turnCount: turnAlreadyPresent
-                  ? existing.turnCount
-                  : existing.turnCount + 1,
-                turns: turnAlreadyPresent
-                  ? existing.turns
-                  : [...existing.turns, createStreamingTurn(event)],
-              };
-            },
-          );
+          appendStreamingTurnToThread(queryClient, activeThreadId, event);
           onStreamStart?.(event);
         },
         onProgress: (event: AskStreamProgressEvent) => {
           if (!streamThreadId || !streamTurnId) return;
 
-          updateStreamingTurn(streamThreadId, streamTurnId, {
+          updateStreamingTurn(queryClient, streamThreadId, streamTurnId, {
             streamStage: event.stage,
             streamMessage: event.message,
           });
@@ -218,15 +109,16 @@ export function useAskSubmit({
         onDelta: (text) => {
           if (!streamThreadId || !streamTurnId) return;
 
+          const targetTurnId = streamTurnId;
           queryClient.setQueryData<ThreadDetailResponse>(
-            ['thread', streamThreadId],
+            queryKeys.thread(streamThreadId),
             (existing) => {
               if (!existing) return existing;
 
               return {
                 ...existing,
                 turns: existing.turns.map((turn) =>
-                  turn.turnId === streamTurnId
+                  turn.turnId === targetTurnId
                     ? {
                         ...turn,
                         streamStage: 'answering',
@@ -245,53 +137,40 @@ export function useAskSubmit({
         onError: (error: AskStreamErrorEvent) => {
           if (!streamThreadId || !streamTurnId) return;
 
-          queryClient.setQueryData<ThreadDetailResponse>(
-            ['thread', streamThreadId],
-            (existing) => {
-              if (!existing) return existing;
-
-              return {
-                ...existing,
-                status: 'failed',
-                turns: existing.turns.map((turn) =>
-                  turn.turnId === streamTurnId
-                    ? {
-                        ...turn,
-                        status: 'failed',
-                        streamStage: null,
-                        streamMessage: null,
-                        errorMessage: error.message,
-                      }
-                    : turn,
-                ),
-              };
-            },
-          );
+          markStreamingTurnFailed(queryClient, streamThreadId, streamTurnId, error);
         },
       };
 
-      if (retryTurnId && activeThreadId) {
-        await streamRetryAsk(activeThreadId, retryTurnId, handlers);
-        return;
+      try {
+        if (retryTurnId && activeThreadId) {
+          await streamRetryAsk(activeThreadId, retryTurnId, handlers);
+          return;
+        }
+
+        await streamAsk(question, activeThreadId, handlers);
+      } catch (error) {
+        if (streamThreadId && streamTurnId) {
+          throw new PersistedTurnError(error, streamThreadId, streamTurnId);
+        }
+
+        throw error;
       }
-
-      await streamAsk(question, activeThreadId, handlers);
     },
-    onError: async (_error, variables) => {
-      const activeThreadId = variables.threadId ?? threadId;
-      if (!activeThreadId) return;
+    onError: async (error, variables) => {
+      const persistedTurnError =
+        error instanceof PersistedTurnError ? error : null;
+      const activeThreadId =
+        persistedTurnError?.threadId ?? variables.threadId ?? threadId;
+      if (!activeThreadId || !persistedTurnError) return;
 
-      await queryClient.refetchQueries({ queryKey: ['thread', activeThreadId] });
-      const updated = queryClient.getQueryData<ThreadDetailResponse>([
-        'thread',
-        activeThreadId,
-      ]);
-
-      const questionWasPersisted = updated?.turns.some(
-        (turn) => turn.question === variables.question && turn.status !== 'pending',
+      await queryClient.refetchQueries({
+        queryKey: queryKeys.thread(activeThreadId),
+      });
+      const updated = queryClient.getQueryData<ThreadDetailResponse>(
+        queryKeys.thread(activeThreadId),
       );
 
-      if (questionWasPersisted) {
+      if (hasPersistedTurn(updated, persistedTurnError.turnId)) {
         mutation.reset();
       }
     },

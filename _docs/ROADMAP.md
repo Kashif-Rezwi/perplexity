@@ -5,6 +5,10 @@
 **Current Phase**: V2 (Usability Improvements)
 **Usage**: Mark capabilities as `(Completed)` when fully integrated and deployed to the `main` branch.
 
+**V2 deployment boundary**: V2 is local and single-user. Authentication,
+user-owned data, public rate limits, quotas, and billing limits are intentionally
+out of scope until productization/deployment phases.
+
 ---
 
 ## V1 - MVP Foundation (Completed)
@@ -42,7 +46,7 @@ Enhancements that improve the client experience once the core flow is stable.
 | **Backend** | Pagination support | Load large lists such as thread history and source lists in stable chunks |
 | **Backend/Frontend** | Expanded Thread Management | History/sidebar rename, delete, bulk delete, pin/unpin, and richer server-backed history controls |
 | **Frontend** | Source and citation polish | Links tab source actions, cited-source emphasis, citation tooltip open/copy actions |
-| **Frontend** | Share/export basics | Copy response/thread URLs, Markdown, and plain text without public share records |
+| **Frontend** | Share/export basics (Completed) | Copy response/thread URLs, Markdown, and plain text without public share records |
 
 ## V3 - Deployment Readiness
 
@@ -51,6 +55,7 @@ Operational work needed before the application is easier to run outside local de
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend** | Dockerized deployment | Package the backend and dependencies consistently |
+| **Backend** | Public deployment guardrails | Add rate limits, secure configuration validation, and operational checks before exposing the API publicly |
 
 ## V4 - Research Intelligence
 
@@ -67,7 +72,7 @@ Features needed when the product moves beyond a single-user V1 app.
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend/Frontend** | Authentication | User login, sign-up flows |
-| **Backend/Frontend** | Cloud Persistence | Migrate from local storage to fetching user-scoped threads |
+| **Backend/Frontend** | User-scoped Persistence | Ensure all threads, turns, sources, and citations are owned by a user |
 | **Backend** | Billing / Limits | Control cost, rate limits, and paid usage |
 
 ## V6 - Architecture Scaling

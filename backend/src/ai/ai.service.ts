@@ -15,6 +15,7 @@ import {
 
 const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
 const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
+const SUPPORTED_AI_PROVIDERS = ['openai', 'groq'] as const;
 
 function truncateForQueryRewrite(value: string): string {
   const normalizedValue = value.replace(/\s+/g, ' ').trim();
@@ -50,6 +51,14 @@ export class AiService {
       DEFAULT_AI_PROVIDER,
     ).toLowerCase();
 
+    if (!SUPPORTED_AI_PROVIDERS.includes(type as (typeof SUPPORTED_AI_PROVIDERS)[number])) {
+      throw new ServiceUnavailableException(
+        `${AI_PROVIDER_CONFIG_KEY} must be one of: ${SUPPORTED_AI_PROVIDERS.join(
+          ', ',
+        )}`,
+      );
+    }
+
     if (type === 'groq') {
       return { provider: this.groqProviderService, name: 'Groq' };
     }
@@ -63,11 +72,16 @@ export class AiService {
     sources: CreateTurnSourceInput[],
   ): Promise<string> {
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     return withTimeout(
-      provider.generateAnswer({ question, priorTurns, sources }),
+      provider.generateAnswer(
+        { question, priorTurns, sources },
+        abortController.signal,
+      ),
       provider.getAnswerTimeoutMs(),
       () => new ServiceUnavailableException(`${name} answer generation timed out`),
+      () => abortController.abort(),
     );
   }
 
@@ -95,16 +109,21 @@ export class AiService {
     }
 
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateStandaloneSearchQuery({
-          question,
-          threadTitle,
-          priorTurns: getQueryRewritePriorTurns(priorTurns),
-        }),
+        provider.generateStandaloneSearchQuery(
+          {
+            question,
+            threadTitle,
+            priorTurns: getQueryRewritePriorTurns(priorTurns),
+          },
+          abortController.signal,
+        ),
         provider.getQueryRewriteTimeoutMs(),
         () => new ServiceUnavailableException(`${name} search query rewrite timed out`),
+        () => abortController.abort(),
       );
     } catch (error) {
       this.logger.warn(
@@ -124,17 +143,22 @@ export class AiService {
     sources: CreateTurnSourceInput[],
   ): Promise<string[]> {
     const { provider, name } = this.resolveProvider();
+    const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateSuggestedFollowUpQuestions({
-          question,
-          answerMarkdown,
-          priorTurns,
-          sources,
-        }),
+        provider.generateSuggestedFollowUpQuestions(
+          {
+            question,
+            answerMarkdown,
+            priorTurns,
+            sources,
+          },
+          abortController.signal,
+        ),
         provider.getSuggestionTimeoutMs(),
         () => new ServiceUnavailableException(`${name} suggestion generation timed out`),
+        () => abortController.abort(),
       );
     } catch (error) {
       this.logger.warn(

@@ -26,16 +26,22 @@ function makeConfig(overrides = {}) {
 // A valid API key to use whenever we need construction to succeed.
 const VALID_API_KEY = 'gsk-test-key';
 
-test('GroqProviderService constructor throws when GROQ_API_KEY is missing', () => {
-  assert.throws(
-    () => new GroqProviderService(makeConfig()),
+test('GroqProviderService constructor does not require GROQ_API_KEY eagerly', () => {
+  assert.doesNotThrow(() => new GroqProviderService(makeConfig()));
+});
+
+test('GroqProviderService fails clearly when used without GROQ_API_KEY', async () => {
+  const service = new GroqProviderService(makeConfig());
+
+  await assert.rejects(
+    () => service.generateAnswer({ question: 'Explain Prisma' }),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'GROQ_API_KEY is not configured',
   );
 });
 
-test('GroqProviderService constructor throws when timeout config is invalid', () => {
+test('GroqProviderService timeout getters throw when timeout config is invalid', () => {
   assert.throws(
     () =>
       new GroqProviderService(
@@ -43,7 +49,7 @@ test('GroqProviderService constructor throws when timeout config is invalid', ()
           [GROQ_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [GROQ_ANSWER_TIMEOUT_MS_CONFIG_KEY]: '0',
         }),
-      ),
+      ).getAnswerTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'GROQ_ANSWER_TIMEOUT_MS must be a positive integer',
@@ -56,7 +62,7 @@ test('GroqProviderService constructor throws when timeout config is invalid', ()
           [GROQ_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [GROQ_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY]: 'not-a-number',
         }),
-      ),
+      ).getQueryRewriteTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message ===
@@ -70,7 +76,7 @@ test('GroqProviderService constructor throws when timeout config is invalid', ()
           [GROQ_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [GROQ_SUGGESTION_TIMEOUT_MS_CONFIG_KEY]: '-10',
         }),
-      ),
+      ).getSuggestionTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message ===

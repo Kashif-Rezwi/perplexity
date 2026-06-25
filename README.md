@@ -4,6 +4,13 @@ This repository contains a vertical slice of a Perplexity-inspired AI answer eng
 
 The project is structured as a full-stack monorepo, consisting of a NestJS backend and a Next.js frontend.
 
+## V2 Scope
+
+V2 is intended for local, single-user use. It does not include authentication,
+user-scoped data access, rate limits, billing limits, or public multi-tenant
+deployment guardrails yet. Those concerns are tracked as later productization
+work in the roadmap.
+
 ## Architecture Overview
 
 *   **Backend (`/backend`)**: A modular monolith built with **NestJS**, **TypeScript**, and **PostgreSQL**. It handles API requests, database persistence via Prisma, web search integration (Tavily), and AI answer generation (provider-agnostic, supporting OpenAI and Groq).
@@ -20,6 +27,10 @@ To run the application locally, you will need to start both the backend and fron
    cd backend
    ```
 2. Ensure your `.env` file is configured with the necessary API keys (OpenAI/Groq, Tavily, Database URL).
+   You can start from the example file:
+   ```bash
+   cp .env.example .env
+   ```
 3. Install dependencies and start the development server:
    ```bash
    npm install
@@ -38,7 +49,8 @@ To run the application locally, you will need to start both the backend and fron
    npm install
    npm run dev
    ```
-   The frontend runs on `http://localhost:3001`.
+   The frontend dev script runs on `http://localhost:3001` and proxies API
+   calls to the backend at `http://localhost:8080` by default.
 
 ### 3. Usage
 

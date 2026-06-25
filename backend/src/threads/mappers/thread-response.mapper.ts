@@ -36,6 +36,8 @@ export function mapTurnDetail(turn: TurnDetailRecord): TurnItem {
     suggestedFollowUpQuestions: turn.suggestedFollowUpQuestions,
     status: TURN_STATUS_MAP[turn.status],
     errorMessage: turn.errorMessage,
+    sourceCount: turn.sources.length,
+    citationCount: turn.citations.length,
     sources: turn.sources.map((s) => ({
       sourceId: s.id,
       citationNumber: s.citationNumber,

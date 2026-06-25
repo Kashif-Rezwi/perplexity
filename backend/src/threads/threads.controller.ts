@@ -11,6 +11,7 @@ import {
 import { IsUUID } from 'class-validator';
 import { BulkDeleteThreadsDto } from './dto/bulk-delete-threads.dto';
 import { RenameThreadDto } from './dto/rename-thread.dto';
+import { PinnedThreadListQueryDto } from './dto/pinned-thread-list-query.dto';
 import { ThreadListQueryDto } from './dto/thread-list-query.dto';
 import { TogglePinDto } from './dto/toggle-pin.dto';
 import { ThreadsService } from './threads.service';
@@ -35,7 +36,7 @@ export class ThreadsController {
   }
 
   @Get('pinned')
-  listPinnedThreads(@Query() query: ThreadListQueryDto) {
+  listPinnedThreads(@Query() query: PinnedThreadListQueryDto) {
     return this.threadsService.listPinnedThreads(query.limit);
   }
 

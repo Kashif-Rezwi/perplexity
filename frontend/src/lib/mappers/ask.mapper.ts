@@ -54,8 +54,8 @@ export function mapAskTurnToTurnItem(turn: AskTurnSummary): TurnItemWithCache {
     errorMessage: turn.errorMessage,
     sourceCount: turn.sourceCount,
     citationCount: turn.citationCount,
-    // sources is empty until refetched; citationSources holds previews.
-    sources: [],
+    // Keep citation previews as sources until canonical per-turn source lists load.
+    sources: citationSources,
     citationSources,
     citations,
     createdAt: turn.createdAt,

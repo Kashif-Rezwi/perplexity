@@ -33,6 +33,7 @@ export type SourceRecord = Prisma.SourceGetPayload<{
 export type ListSourcesOptions = {
   limit?: number;
   turnId?: string;
+  cursor?: string;
 };
 
 export type SourceItem = {
@@ -50,4 +51,7 @@ export type SourceItem = {
   createdAt: string;
 };
 
-export type ListSourcesResponse = SourceItem[];
+export type ListSourcesResponse = {
+  items: SourceItem[];
+  nextCursor: string | null;
+};

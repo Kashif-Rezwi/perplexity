@@ -74,6 +74,8 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   assert.equal(detail.totalSourceCount, 1);
   assert.equal(detail.turnCount, 1);
   assert.equal(detail.turns[0].turnId, turnId);
+  assert.equal(detail.turns[0].sourceCount, 1);
+  assert.equal(detail.turns[0].citationCount, 1);
   assert.deepEqual(detail.turns[0].suggestedFollowUpQuestions, [
     'How does Next.js 15 affect app router projects?',
     'What should I migrate first in Next.js 15?',

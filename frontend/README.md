@@ -10,6 +10,10 @@ The frontend handles:
 * Rendering of complex AI answers using GitHub Flavored Markdown (GFM).
 * A custom citation system that maps inline markers (e.g., `[1]`) to interactive badges and source panels.
 
+Note: source favicons are loaded from Google's public favicon service. This is
+simple for V2 local use, but a production deployment should consider a
+first-party proxy/cache if privacy or CSP requirements demand it.
+
 ## Getting Started
 
 ### Prerequisites
@@ -23,7 +27,7 @@ The frontend handles:
    npm install
    ```
 
-2. The frontend is configured to automatically proxy requests via Next.js `rewrites` to avoid CORS issues. If your backend is running on a different port, update the `next.config.ts`.
+2. The frontend is configured to automatically proxy requests via Next.js `rewrites` to avoid CORS issues. If your backend is running on a different port, set `BACKEND_URL` before starting the frontend.
 
 ### Running the Application
 
@@ -33,7 +37,8 @@ Start the development server:
 npm run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser.
+The development and production start scripts both serve the app on
+[http://localhost:3001](http://localhost:3001).
 
 ## Documentation
 

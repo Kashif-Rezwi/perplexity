@@ -1,18 +1,26 @@
 'use client';
 
-import { MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Copy, FileText, Link2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import type { ThreadDetailResponse } from '@/types/api.types';
 import { useEffect, useRef, useState } from 'react';
-import { useThreadMutations } from '@/features/sidebar/hooks/useThreadMutations';
 import {
   ThreadDeleteDialog,
   ThreadRenameDialog,
 } from '@/features/thread-management/components/ThreadManagementDialogs';
-import { getThreadMutationErrorMessage } from '@/features/thread-management/utils/threadManagementErrors';
+import { useThreadActionDialogs } from '@/features/thread-management/hooks/useThreadActionDialogs';
+import { copyTextToClipboard } from '@/lib/utils/clipboard';
+import {
+  createThreadUrl,
+  serializeThreadMarkdown,
+  serializeThreadPlainText,
+} from '../utils/threadExport';
+import { CopyMenuButton } from './CopyMenuButton';
 
 type ThreadExportActionsProps = {
   thread: ThreadDetailResponse;
 };
+
+type CopiedAction = 'url' | 'markdown' | 'text';
 
 function formatMenuDate(value?: string) {
   if (!value) return 'Just now';
@@ -30,19 +38,12 @@ function formatMenuDate(value?: string) {
 export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const copiedTimerRef = useRef<number | null>(null);
 
-  const {
-    deleteThreadAsync,
-    renameThreadAsync,
-    isDeleting,
-    isRenaming,
-  } = useThreadMutations();
-
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [renameTitle, setRenameTitle] = useState(thread.title);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const threadActions = useThreadActionDialogs({
+    renameInputId: 'topbar-rename-thread-title',
+  });
+  const [copiedAction, setCopiedAction] = useState<CopiedAction | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -68,35 +69,30 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
     };
   }, [isOpen]);
 
-  const submitRename = async () => {
-    const title = renameTitle.trim();
-    if (title.length === 0) {
-      setRenameError('Title is required.');
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const copyValue = async (action: CopiedAction, value: string) => {
+    const didCopy = await copyTextToClipboard(value);
+
+    if (!didCopy) {
       return;
     }
 
-    if (title.length > 80) {
-      setRenameError('Title must be 80 characters or fewer.');
-      return;
+    setCopiedAction(action);
+
+    if (copiedTimerRef.current) {
+      window.clearTimeout(copiedTimerRef.current);
     }
 
-    try {
-      setRenameError(null);
-      await renameThreadAsync({ threadId: thread.threadId, title });
-      setIsRenameOpen(false);
-    } catch (err) {
-      setRenameError(getThreadMutationErrorMessage(err));
-    }
-  };
-
-  const confirmDelete = async () => {
-    try {
-      setDeleteError(null);
-      await deleteThreadAsync(thread.threadId);
-      setIsDeleteOpen(false);
-    } catch (err) {
-      setDeleteError(getThreadMutationErrorMessage(err));
-    }
+    copiedTimerRef.current = window.setTimeout(() => {
+      setCopiedAction(null);
+    }, 1600);
   };
 
   return (
@@ -129,12 +125,6 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
             </p>
             <div className="mt-2.5 flex flex-col gap-1.5 text-xs font-normal">
               <div className="flex items-center justify-between gap-4 overflow-hidden">
-                <span className="flex-shrink-0 text-[var(--color-text-faint)]">Created by</span>
-                <span className="min-w-0 text-right text-[var(--color-text-muted)] truncate">
-                  kashifrezwi8210 (You)
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-4 overflow-hidden">
                 <span className="flex-shrink-0 text-[var(--color-text-faint)]">Last Updated</span>
                 <span className="min-w-0 text-right text-[var(--color-text-muted)] truncate">
                   {formatMenuDate(thread.updatedAt)}
@@ -145,145 +135,57 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
 
           <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
 
-          {/* Group 1: Spaces & Rename */}
+          {/* Copy actions */}
           <div className="flex flex-col">
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <Plus size={16} strokeWidth={1.75} className="shrink-0" />
-              Add to Space
-            </button>
+            <CopyMenuButton
+              Icon={Link2}
+              label="Copy thread URL"
+              copiedLabel="Copied thread URL"
+              isCopied={copiedAction === 'url'}
+              onClick={() => void copyValue('url', createThreadUrl(thread.threadId))}
+            />
+            <CopyMenuButton
+              Icon={Copy}
+              label="Copy Markdown"
+              copiedLabel="Copied Markdown"
+              isCopied={copiedAction === 'markdown'}
+              onClick={() => void copyValue('markdown', serializeThreadMarkdown(thread))}
+            />
+            <CopyMenuButton
+              Icon={FileText}
+              label="Copy plain text"
+              copiedLabel="Copied plain text"
+              isCopied={copiedAction === 'text'}
+              onClick={() => void copyValue('text', serializeThreadPlainText(thread))}
+            />
+          </div>
+
+          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
+
+          {/* Manage actions */}
+          <div className="flex flex-col">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                setRenameTitle(thread.title);
-                setRenameError(null);
-                setIsRenameOpen(true);
+                threadActions.openRenameDialog({
+                  id: thread.threadId,
+                  title: thread.title,
+                });
               }}
               className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
               <Pencil size={16} strokeWidth={1.75} className="shrink-0" />
               Rename Session
             </button>
-          </div>
-
-          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
-
-          {/* Group 2: Exports */}
-          <div className="flex flex-col">
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="5"
-                  y="18"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  PDF
-                </text>
-              </svg>
-              Export as PDF
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="6"
-                  y="18"
-                  fontSize="6"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  M↓
-                </text>
-              </svg>
-              Export as Markdown
-            </button>
-            <button
-              type="button"
-              disabled
-              className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-text-faint)] cursor-not-allowed opacity-40"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0"
-              >
-                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                <text
-                  x="5"
-                  y="18"
-                  fontSize="5"
-                  fontFamily="sans-serif"
-                  fontWeight="bold"
-                  fill="currentColor"
-                  stroke="none"
-                >
-                  DOCX
-                </text>
-              </svg>
-              Export as DOCX
-            </button>
-          </div>
-
-          <div className="border-t border-[var(--color-border-subtle)] my-1 mx-1.5" />
-
-          {/* Group 3: Delete */}
-          <div className="flex flex-col">
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                setIsDeleteOpen(true);
+                threadActions.openDeleteDialog({
+                  id: thread.threadId,
+                  title: thread.title,
+                });
               }}
               className="flex w-full cursor-pointer items-center gap-2 rounded-lg p-2 text-left text-sm text-[var(--color-error)] transition-colors hover:bg-[var(--color-surface-hover)]"
             >
@@ -294,24 +196,9 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
         </div>
       )}
 
-      <ThreadRenameDialog
-        thread={isRenameOpen ? { title: thread.title } : null}
-        titleValue={renameTitle}
-        error={renameError}
-        isSubmitting={isRenaming}
-        inputId="topbar-rename-thread-title"
-        onTitleChange={setRenameTitle}
-        onClose={() => setIsRenameOpen(false)}
-        onSubmit={() => void submitRename()}
-      />
+      <ThreadRenameDialog {...threadActions.renameDialogProps} />
 
-      <ThreadDeleteDialog
-        thread={isDeleteOpen ? { title: thread.title } : null}
-        error={deleteError}
-        isDeleting={isDeleting}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={() => void confirmDelete()}
-      />
+      <ThreadDeleteDialog {...threadActions.deleteDialogProps} />
     </div>
   );
 }

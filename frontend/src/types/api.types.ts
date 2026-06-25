@@ -178,6 +178,7 @@ export type TurnItem = {
   sourceCount: number;
   citationCount: number;
   sources: SourceItem[];
+  citationSources?: SourceItem[];
   citations: CitationItem[];
   createdAt: string;
   completedAt: string | null;

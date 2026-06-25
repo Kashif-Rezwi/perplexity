@@ -18,35 +18,69 @@ type HistoryStore = {
   removeThreads: (ids: string[]) => void;
 };
 
-function upsertThreadHistoryItem(
+function getThreadHistoryTime(value?: string): number {
+  if (!value) return 0;
+  const time = Date.parse(value);
+
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getPreferredUpdatedAt(
+  existingUpdatedAt: string | undefined,
+  incomingUpdatedAt: string | undefined,
+): string | undefined {
+  return getThreadHistoryTime(incomingUpdatedAt) >
+    getThreadHistoryTime(existingUpdatedAt)
+    ? incomingUpdatedAt
+    : existingUpdatedAt ?? incomingUpdatedAt;
+}
+
+function hasThreadHistoryItemChanged(
+  current: ThreadHistoryItem,
+  next: ThreadHistoryItem,
+): boolean {
+  return (
+    current.title !== next.title ||
+    current.mode !== next.mode ||
+    current.isPinned !== next.isPinned ||
+    current.updatedAt !== next.updatedAt
+  );
+}
+
+export function upsertThreadHistoryItem(
   threads: ThreadHistoryItem[],
   thread: ThreadHistoryItem
 ) {
   const existingIndex = threads.findIndex((item) => item.id === thread.id);
 
-  if (
-    existingIndex === 0 &&
-    threads[0].title === thread.title &&
-    threads[0].mode === thread.mode &&
-    threads[0].isPinned === thread.isPinned &&
-    threads[0].updatedAt === thread.updatedAt
-  ) {
-    return threads;
-  }
-
   if (existingIndex >= 0) {
     const existingThread = threads[existingIndex];
-    if (
-      existingThread.title === thread.title &&
-      existingThread.mode === thread.mode &&
-      existingThread.isPinned === thread.isPinned &&
-      existingThread.updatedAt === thread.updatedAt
-    ) {
+    const mergedThread = {
+      ...existingThread,
+      ...thread,
+      updatedAt: getPreferredUpdatedAt(
+        existingThread.updatedAt,
+        thread.updatedAt,
+      ),
+    };
+
+    if (!hasThreadHistoryItemChanged(existingThread, mergedThread)) {
       return threads;
     }
 
+    const shouldMoveToTop =
+      getThreadHistoryTime(thread.updatedAt) >
+      getThreadHistoryTime(existingThread.updatedAt);
+
+    if (shouldMoveToTop) {
+      return [
+        mergedThread,
+        ...threads.filter((item) => item.id !== thread.id),
+      ].slice(0, MAX_THREAD_HISTORY_ITEMS);
+    }
+
     return threads.map((item, index) =>
-      index === existingIndex ? { ...item, ...thread } : item
+      index === existingIndex ? mergedThread : item
     );
   }
 
