@@ -23,8 +23,6 @@ type TurnResponseActionsProps = {
 };
 
 export function TurnResponseActions({
-  threadId: _threadId,
-  turnId: _turnId,
   question,
   answerMarkdown,
   sourceCount,
