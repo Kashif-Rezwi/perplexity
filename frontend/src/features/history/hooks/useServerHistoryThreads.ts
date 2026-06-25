@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { getThreads } from '@/lib/api';
 import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
@@ -40,7 +40,7 @@ export function getServerHistoryViewState({
 }: ServerHistoryViewStateInput) {
   const canShowFallback =
     canUseLocalFallback && !hasServerData && fallbackThreads.length > 0;
-  const shouldShowFallback = canShowFallback && (isPending || isError);
+  const shouldShowFallback = canShowFallback && isError;
 
   return {
     threads: shouldShowFallback ? fallbackThreads : serverThreads,
@@ -83,7 +83,6 @@ export function useServerHistoryThreads({
       }),
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    placeholderData: keepPreviousData,
   });
 
   const serverThreads = useMemo(
