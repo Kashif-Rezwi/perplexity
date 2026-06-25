@@ -15,8 +15,9 @@ import type { HistoryTypeFilter, SortOrder } from '../constants/history.constant
 import { useHistorySearch } from '../hooks/useHistorySearch';
 import { useHistorySelection } from '../hooks/useHistorySelection';
 import { useServerHistoryThreads } from '../hooks/useServerHistoryThreads';
+import { getHistoryEmptyState } from '../utils/historyEmptyState';
 import { HistoryFiltersBar } from './HistoryFiltersBar';
-import { HistoryList } from './HistoryList';
+import { HistoryList, HistoryListSkeleton } from './HistoryList';
 import { HistoryToolbar } from './HistoryToolbar';
 
 export function HistoryPage() {
@@ -57,6 +58,11 @@ export function HistoryPage() {
   });
 
   const selectedCount = selectedThreadIds.size;
+  const historyEmptyState = getHistoryEmptyState({
+    searchQuery,
+    typeFilter,
+  });
+  const areHistoryControlsDisabled = !mounted || historyThreads.isLoading;
 
   const deleteSelectedThreads = async () => {
     try {
@@ -91,14 +97,6 @@ export function HistoryPage() {
     setDeleteError(null);
   };
 
-  if (!mounted) {
-    return (
-      <main className="flex h-full w-full items-center justify-center text-sm text-[var(--color-text-muted)]">
-        Loading history...
-      </main>
-    );
-  }
-
   return (
     <main className="h-full w-full overflow-hidden bg-[var(--color-bg)]">
       <div className="flex h-full flex-col">
@@ -118,6 +116,7 @@ export function HistoryPage() {
             setDeleteError(null);
           }}
           isDeleting={isDeleting}
+          disabled={areHistoryControlsDisabled}
         />
 
         <HistoryFiltersBar
@@ -125,19 +124,25 @@ export function HistoryPage() {
           sortOrder={sortOrder}
           onTypeFilterChange={handleTypeFilterChange}
           onSortOrderChange={setSortOrder}
+          disabled={areHistoryControlsDisabled}
         />
 
         <section className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5">
-          <HistoryList
-            threads={historyThreads.threads}
-            selectedThreadIds={selectedThreadIds}
-            onToggleSelection={toggleThreadSelection}
-            onRenameThread={threadActions.openRenameDialog}
-            onDeleteThread={threadActions.openDeleteDialog}
-            onTogglePinThread={handleTogglePinThread}
-            isLoading={historyThreads.isLoading}
-            isError={historyThreads.isError}
-          />
+          {!mounted ? (
+            <HistoryListSkeleton />
+          ) : (
+            <HistoryList
+              threads={historyThreads.threads}
+              selectedThreadIds={selectedThreadIds}
+              onToggleSelection={toggleThreadSelection}
+              onRenameThread={threadActions.openRenameDialog}
+              onDeleteThread={threadActions.openDeleteDialog}
+              onTogglePinThread={handleTogglePinThread}
+              isLoading={historyThreads.isLoading}
+              isError={historyThreads.isError}
+              emptyState={historyEmptyState}
+            />
+          )}
           {historyThreads.hasNextPage && (
             <div className="flex justify-center py-4">
               <button
