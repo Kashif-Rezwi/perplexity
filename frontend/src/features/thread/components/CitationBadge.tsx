@@ -1,9 +1,21 @@
 'use client';
 
+import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from '@floating-ui/react';
 import type { SourcePreviewItem } from '@/types/api.types';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
 import { CitationTooltipCard } from './CitationTooltipCard';
+import {
+  getCitationSourceList,
+  getCitationSourceKey,
+  resolveCitationActiveIndexByKey,
+} from '../utils/citationSources';
 
 interface CitationBadgeProps {
   number: number;
@@ -18,26 +30,39 @@ export function CitationBadge({
   allSources,
   onCitationClick,
 }: CitationBadgeProps) {
-  // Resolve sources array. If allSources is provided, use it. Otherwise fall back to a single item list.
-  const sourcesList = allSources && allSources.length > 0
-    ? allSources
-    : source
-    ? [source]
-    : [];
-
-  // Find index of the badge's primary source in the list to initialize the active index.
-  const initialIndex = source
-    ? sourcesList.findIndex((s) => s.citationNumber === source.citationNumber)
-    : 0;
-
-  const [activeIndex, setActiveIndex] = useState(
-    initialIndex !== -1 ? initialIndex : 0
+  const sourcesList = useMemo(
+    () => getCitationSourceList(source, allSources),
+    [source, allSources],
   );
+  const primarySourceKey = source ? getCitationSourceKey(source) : null;
+  const [activeSourceState, setActiveSourceState] = useState(() => ({
+    citationNumber: number,
+    sourceKey: primarySourceKey,
+  }));
 
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   const showTooltip = isHovered || isFocused;
+  const {
+    refs: { setReference, setFloating },
+    floatingStyles,
+  } = useFloating({
+    open: showTooltip,
+    placement: 'top',
+    strategy: 'fixed',
+    middleware: [offset(12), flip({ padding: 8 }), shift({ padding: 8 })],
+    whileElementsMounted: autoUpdate,
+  });
+  const activeSourceKey =
+    activeSourceState.citationNumber === number
+      ? activeSourceState.sourceKey
+      : primarySourceKey;
+  const safeActiveIndex = resolveCitationActiveIndexByKey(
+    sourcesList,
+    activeSourceKey,
+    source,
+  );
 
   // If there's no matching source, render a muted/disabled badge without interactivity
   if (!source) {
@@ -75,13 +100,21 @@ export function CitationBadge({
   const handlePrev = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setActiveIndex((prev) => (prev - 1 + sourcesList.length) % sourcesList.length);
+    const nextIndex = (safeActiveIndex - 1 + sourcesList.length) % sourcesList.length;
+    setActiveSourceState({
+      citationNumber: number,
+      sourceKey: getCitationSourceKey(sourcesList[nextIndex]),
+    });
   };
 
   const handleNext = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setActiveIndex((prev) => (prev + 1) % sourcesList.length);
+    const nextIndex = (safeActiveIndex + 1) % sourcesList.length;
+    setActiveSourceState({
+      citationNumber: number,
+      sourceKey: getCitationSourceKey(sourcesList[nextIndex]),
+    });
   };
 
   const handleFocus = () => {
@@ -104,6 +137,7 @@ export function CitationBadge({
       onBlur={handleBlur}
     >
       <button
+        ref={setReference}
         type="button"
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -114,18 +148,20 @@ export function CitationBadge({
       </button>
 
       <span
+        ref={setFloating}
+        style={floatingStyles}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={[
-          "absolute bottom-full left-1/2 -translate-x-1/2 pb-3 w-[320px] transition-all duration-150 z-30 origin-bottom font-sans text-left not-prose block",
+          'z-30 w-[min(320px,calc(100vw-24px))] transition-all duration-150 font-sans text-left not-prose block',
           showTooltip
-            ? "visible opacity-100 scale-100 pointer-events-auto"
-            : "invisible opacity-0 scale-95 pointer-events-none"
+            ? 'visible opacity-100 scale-100 pointer-events-auto'
+            : 'invisible opacity-0 scale-95 pointer-events-none',
         ].join(' ')}
       >
         <CitationTooltipCard
           sources={sourcesList}
-          activeIndex={activeIndex}
+          activeIndex={safeActiveIndex}
           onPrevious={handlePrev}
           onNext={handleNext}
         />

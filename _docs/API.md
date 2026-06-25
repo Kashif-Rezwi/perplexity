@@ -24,6 +24,8 @@ Response:
     "status": "completed",
     "mode": "web",
     "answerPreview": "Short answer preview...",
+    "isPinned": false,
+    "pinnedAt": null,
     "totalSourceCount": 1,
     "turnCount": 1,
     "createdAt": "2026-06-04T00:00:00.000Z",
@@ -171,6 +173,7 @@ Query:
 
 ```text
 limit?: number, 1-50, default 20
+cursor?: uuid, pagination cursor from the previous response
 turnId?: uuid, filters sources to one ask turn
 ```
 
@@ -210,6 +213,7 @@ cursor?: uuid, pagination cursor from the previous response
 sort?: "newest" | "oldest", default "newest"
 mode?: "all" | "web" | "deep-research", default "all"
 q?: string, trimmed title search
+excludePinned?: boolean, omits pinned threads when true
 ```
 
 Response:
@@ -223,6 +227,8 @@ Response:
       "status": "completed",
       "mode": "web",
       "answerPreview": "Short answer preview...",
+      "isPinned": false,
+      "pinnedAt": null,
       "totalSourceCount": 3,
       "turnCount": 1,
       "createdAt": "2026-06-04T00:00:00.000Z",
@@ -237,6 +243,37 @@ Note: `mode=deep-research` currently returns an empty list because V1 only
 persists `web` threads. The frontend uses this endpoint as the source of truth
 for `/history` and sidebar recents, with local history retained only as an
 optimistic/offline fallback.
+
+## GET /perplexity/threads/pinned
+
+Lists pinned thread summaries ordered by most recently pinned first. This
+endpoint is used by sidebar/history controls that need a compact pinned list.
+
+Query:
+
+```text
+limit?: number, 1-50, default 20
+```
+
+Response:
+
+```json
+[
+  {
+    "threadId": "uuid",
+    "title": "What changed in Next.js 15?",
+    "status": "completed",
+    "mode": "web",
+    "answerPreview": "Short answer preview...",
+    "isPinned": true,
+    "pinnedAt": "2026-06-04T00:00:00.000Z",
+    "totalSourceCount": 3,
+    "turnCount": 1,
+    "createdAt": "2026-06-04T00:00:00.000Z",
+    "updatedAt": "2026-06-04T00:00:00.000Z"
+  }
+]
+```
 
 ## PATCH /perplexity/threads/:threadId
 
@@ -259,6 +296,8 @@ Response:
   "status": "completed",
   "mode": "web",
   "answerPreview": "Short answer preview...",
+  "isPinned": false,
+  "pinnedAt": null,
   "totalSourceCount": 3,
   "turnCount": 1,
   "createdAt": "2026-06-04T00:00:00.000Z",
@@ -269,6 +308,37 @@ Response:
 Note: `title` is trimmed and must be 1-80 characters. Rename intentionally
 preserves the thread's existing `updatedAt`, so a rename does not move the row
 to the top of a newest-first history list.
+
+## PATCH /perplexity/threads/:threadId/pin
+
+Pins or unpins a thread. Pinning sets `pinnedAt` to the current time; unpinning
+sets `pinnedAt` to `null`.
+
+Request:
+
+```json
+{
+  "isPinned": true
+}
+```
+
+Response:
+
+```json
+{
+  "threadId": "uuid",
+  "title": "What changed in Next.js 15?",
+  "status": "completed",
+  "mode": "web",
+  "answerPreview": "Short answer preview...",
+  "isPinned": true,
+  "pinnedAt": "2026-06-04T00:00:00.000Z",
+  "totalSourceCount": 3,
+  "turnCount": 1,
+  "createdAt": "2026-06-04T00:00:00.000Z",
+  "updatedAt": "2026-06-04T00:00:00.000Z"
+}
+```
 
 ## DELETE /perplexity/threads
 
@@ -307,6 +377,8 @@ Response:
   "status": "completed",
   "mode": "web",
   "answerPreview": "Short answer preview...",
+  "isPinned": false,
+  "pinnedAt": null,
   "totalSourceCount": 3,
   "turnCount": 1,
   "createdAt": "2026-06-04T00:00:00.000Z",
@@ -324,6 +396,8 @@ Response:
       ],
       "status": "completed",
       "errorMessage": null,
+      "sourceCount": 1,
+      "citationCount": 1,
       "sources": [
         {
           "sourceId": "uuid",

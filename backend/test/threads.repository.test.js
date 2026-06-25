@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const { NotFoundException } = require('@nestjs/common');
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
 const {
   ThreadsRepository,
@@ -60,6 +61,10 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
           },
         },
         turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return { id: turnId };
+          },
           async update(args) {
             operations.push(['turn.update', args]);
           },
@@ -108,9 +113,16 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
     ],
   });
 
-  assert.equal(operations[0][0], 'source.create');
+  assert.deepEqual(operations[0], [
+    'turn.findFirst',
+    {
+      where: { id: turnId, threadId },
+      select: { id: true },
+    },
+  ]);
   assert.equal(operations[1][0], 'source.create');
-  assert.deepEqual(operations[2], [
+  assert.equal(operations[2][0], 'source.create');
+  assert.deepEqual(operations[3], [
     'citation.createMany',
     {
       data: [
@@ -119,7 +131,7 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
       ],
     },
   ]);
-  assert.deepEqual(operations[3], [
+  assert.deepEqual(operations[4], [
     'turn.update',
     {
       where: { id: turnId },
@@ -132,12 +144,20 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
         ],
         status: TurnStatus.COMPLETED,
         errorMessage: null,
-        completedAt: operations[3][1].data.completedAt,
+        completedAt: operations[4][1].data.completedAt,
       },
     },
   ]);
-  assert(operations[3][1].data.completedAt instanceof Date);
-  assert.deepEqual(operations[4], [
+  assert(operations[4][1].data.completedAt instanceof Date);
+  assert.deepEqual(operations[5], [
+    'turn.findFirst',
+    {
+      where: { threadId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    },
+  ]);
+  assert.deepEqual(operations[6], [
     'thread.update',
     {
       where: { id: threadId },
@@ -146,6 +166,188 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
         status: ThreadStatus.COMPLETED,
       },
     },
+  ]);
+});
+
+test('ThreadsRepository.completeTurn does not overwrite thread summary for an older turn', async () => {
+  const operations = [];
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        source: {
+          async create(args) {
+            operations.push(['source.create', args]);
+            return {
+              id: `source-${args.data.citationNumber}`,
+              citationNumber: args.data.citationNumber,
+            };
+          },
+        },
+        citation: {
+          async createMany(args) {
+            operations.push(['citation.createMany', args]);
+          },
+        },
+        turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return args.orderBy ? { id: 'newer-turn-id' } : { id: turnId };
+          },
+          async update(args) {
+            operations.push(['turn.update', args]);
+          },
+        },
+        thread: {
+          async update(args) {
+            operations.push(['thread.update', args]);
+          },
+        },
+      });
+    },
+  });
+
+  await repository.completeTurn({
+    threadId,
+    turnId,
+    answerMarkdown: 'Older answer',
+    answerPreview: 'Older answer',
+    sources: [],
+    citationNumbers: [],
+    suggestedFollowUpQuestions: [],
+  });
+
+  assert.deepEqual(
+    operations.map(([operation]) => operation),
+    ['turn.findFirst', 'turn.update', 'turn.findFirst'],
+  );
+  assert.deepEqual(operations[2][1], {
+    where: { threadId },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: { id: true },
+  });
+});
+
+test('ThreadsRepository.failTurn updates the thread only when the failed turn is latest', async () => {
+  const operations = [];
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return { id: turnId };
+          },
+          async update(args) {
+            operations.push(['turn.update', args]);
+          },
+        },
+        thread: {
+          async update(args) {
+            operations.push(['thread.update', args]);
+          },
+        },
+      });
+    },
+  });
+
+  await repository.failTurn({
+    threadId,
+    turnId,
+    errorMessage: 'Search failed',
+  });
+
+  assert.deepEqual(
+    operations.map(([operation]) => operation),
+    ['turn.findFirst', 'turn.update', 'turn.findFirst', 'thread.update'],
+  );
+  assert.deepEqual(operations[3], [
+    'thread.update',
+    {
+      where: { id: threadId },
+      data: { status: ThreadStatus.FAILED },
+    },
+  ]);
+});
+
+test('ThreadsRepository.failTurn does not mark the thread failed for an older turn', async () => {
+  const operations = [];
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return args.orderBy ? { id: 'newer-turn-id' } : { id: turnId };
+          },
+          async update(args) {
+            operations.push(['turn.update', args]);
+          },
+        },
+        thread: {
+          async update(args) {
+            operations.push(['thread.update', args]);
+          },
+        },
+      });
+    },
+  });
+
+  await repository.failTurn({
+    threadId,
+    turnId,
+    errorMessage: 'Search failed',
+  });
+
+  assert.deepEqual(
+    operations.map(([operation]) => operation),
+    ['turn.findFirst', 'turn.update', 'turn.findFirst'],
+  );
+});
+
+test('ThreadsRepository.completeTurn rejects mismatched thread and turn ids before writing', async () => {
+  const operations = [];
+  const repository = new ThreadsRepository({
+    async $transaction(callback) {
+      return callback({
+        turn: {
+          async findFirst(args) {
+            operations.push(['turn.findFirst', args]);
+            return null;
+          },
+        },
+        source: {
+          async create(args) {
+            operations.push(['source.create', args]);
+          },
+        },
+      });
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      repository.completeTurn({
+        threadId,
+        turnId,
+        answerMarkdown: 'Answer',
+        answerPreview: 'Answer',
+        sources: [],
+        citationNumbers: [],
+        suggestedFollowUpQuestions: [],
+      }),
+    (error) =>
+      error instanceof NotFoundException &&
+      error.message === `Turn ${turnId} was not found in thread ${threadId}`,
+  );
+
+  assert.deepEqual(operations, [
+    [
+      'turn.findFirst',
+      {
+        where: { id: turnId, threadId },
+        select: { id: true },
+      },
+    ],
   ]);
 });
 

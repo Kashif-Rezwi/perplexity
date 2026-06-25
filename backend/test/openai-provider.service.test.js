@@ -26,16 +26,22 @@ function makeConfig(overrides = {}) {
 // A valid API key to use whenever we need construction to succeed.
 const VALID_API_KEY = 'sk-test-key';
 
-test('OpenAiProviderService constructor throws when OPENAI_API_KEY is missing', () => {
-  assert.throws(
-    () => new OpenAiProviderService(makeConfig()),
+test('OpenAiProviderService constructor does not require OPENAI_API_KEY eagerly', () => {
+  assert.doesNotThrow(() => new OpenAiProviderService(makeConfig()));
+});
+
+test('OpenAiProviderService fails clearly when used without OPENAI_API_KEY', async () => {
+  const service = new OpenAiProviderService(makeConfig());
+
+  await assert.rejects(
+    () => service.generateAnswer({ question: 'Explain Prisma' }),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'OPENAI_API_KEY is not configured',
   );
 });
 
-test('OpenAiProviderService constructor throws when timeout config is invalid', () => {
+test('OpenAiProviderService timeout getters throw when timeout config is invalid', () => {
   assert.throws(
     () =>
       new OpenAiProviderService(
@@ -43,7 +49,7 @@ test('OpenAiProviderService constructor throws when timeout config is invalid', 
           [OPENAI_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [OPENAI_ANSWER_TIMEOUT_MS_CONFIG_KEY]: '0',
         }),
-      ),
+      ).getAnswerTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message === 'OPENAI_ANSWER_TIMEOUT_MS must be a positive integer',
@@ -56,7 +62,7 @@ test('OpenAiProviderService constructor throws when timeout config is invalid', 
           [OPENAI_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [OPENAI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY]: 'not-a-number',
         }),
-      ),
+      ).getQueryRewriteTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message ===
@@ -70,7 +76,7 @@ test('OpenAiProviderService constructor throws when timeout config is invalid', 
           [OPENAI_API_KEY_CONFIG_KEY]: VALID_API_KEY,
           [OPENAI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY]: '-10',
         }),
-      ),
+      ).getSuggestionTimeoutMs(),
     (error) =>
       error instanceof ServiceUnavailableException &&
       error.message ===

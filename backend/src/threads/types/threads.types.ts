@@ -164,6 +164,8 @@ export type TurnItem = {
   suggestedFollowUpQuestions: string[];
   status: ApiTurnStatus;
   errorMessage: string | null;
+  sourceCount: number;
+  citationCount: number;
   sources: SourceItem[];
   citations: CitationItem[];
   createdAt: string;

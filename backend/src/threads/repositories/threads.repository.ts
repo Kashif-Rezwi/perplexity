@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import type {
@@ -72,6 +72,8 @@ export class ThreadsRepository {
 
   async completeTurn(input: CompleteTurnInput): Promise<void> {
     await this.database.$transaction(async (tx) => {
+      await this.ensureTurnBelongsToThread(tx, input.threadId, input.turnId);
+
       const sourceIdsByCitationNumber = await this.createTurnSources(
         tx,
         input.turnId,
@@ -85,18 +87,25 @@ export class ThreadsRepository {
         sourceIdsByCitationNumber,
       );
       await this.completeTurnRecord(tx, input);
-      await this.completeThreadRecord(
-        tx,
-        input.threadId,
-        input.answerPreview,
-      );
+
+      if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
+        await this.completeThreadRecord(
+          tx,
+          input.threadId,
+          input.answerPreview,
+        );
+      }
     });
   }
 
   async failTurn(input: FailTurnInput): Promise<void> {
     await this.database.$transaction(async (tx) => {
+      await this.ensureTurnBelongsToThread(tx, input.threadId, input.turnId);
       await this.failTurnRecord(tx, input);
-      await this.failThreadRecord(tx, input.threadId);
+
+      if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
+        await this.failThreadRecord(tx, input.threadId);
+      }
     });
   }
 
@@ -230,8 +239,8 @@ export class ThreadsRepository {
         where: { id: threadId },
         include: { _count: { select: { turns: true } } },
       }),
-      this.database.turn.findUnique({
-        where: { id: turnId },
+      this.database.turn.findFirst({
+        where: { id: turnId, threadId },
         include: turnDetailInclude,
       }),
       this.database.source.count({
@@ -272,6 +281,37 @@ export class ThreadsRepository {
     }
 
     return sourceIdsByCitationNumber;
+  }
+
+  private async ensureTurnBelongsToThread(
+    tx: RepositoryTransaction,
+    threadId: string,
+    turnId: string,
+  ): Promise<void> {
+    const turn = await tx.turn.findFirst({
+      where: { id: turnId, threadId },
+      select: { id: true },
+    });
+
+    if (!turn) {
+      throw new NotFoundException(
+        `Turn ${turnId} was not found in thread ${threadId}`,
+      );
+    }
+  }
+
+  private async isLatestTurn(
+    tx: RepositoryTransaction,
+    threadId: string,
+    turnId: string,
+  ): Promise<boolean> {
+    const latestTurn = await tx.turn.findFirst({
+      where: { threadId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { id: true },
+    });
+
+    return latestTurn?.id === turnId;
   }
 
   private async attachTotalSourceCount(

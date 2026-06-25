@@ -413,6 +413,131 @@ test('AskService retry stream appends a new turn from the failed question', asyn
   ]);
 });
 
+test('AskService retry stream only uses turns before the failed turn as context', async () => {
+  const failedQuestion = 'Explain failed Prisma relations';
+  const standaloneSearchQuery = 'retry failed Prisma relations';
+  const answerMarkdown = 'Retried answer.';
+  const priorCompletedTurn = createTurnRecord({
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    question: 'Earlier question',
+    answerMarkdown: 'Earlier answer',
+  });
+  const failedTurn = createTurnRecord({
+    id: followUpTurnId,
+    question: failedQuestion,
+    searchQuery: failedQuestion,
+    answerMarkdown: null,
+    turnStatus: TurnStatus.FAILED,
+    errorMessage: 'Previous failure',
+    completedAt: null,
+  });
+  const laterCompletedTurn = createTurnRecord({
+    id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    question: 'Later question',
+    answerMarkdown: 'Later answer',
+  });
+  const expectedPriorTurns = [
+    {
+      question: 'Earlier question',
+      answerMarkdown: 'Earlier answer',
+    },
+  ];
+  const calls = [];
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async generateStandaloneSearchQuery(input) {
+        calls.push(['generateStandaloneSearchQuery', input]);
+        return standaloneSearchQuery;
+      },
+      async *streamAnswer(input) {
+        calls.push(['streamAnswer', input]);
+        yield answerMarkdown;
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        return [];
+      },
+    },
+    {
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({
+          turns: [priorCompletedTurn, failedTurn, laterCompletedTurn],
+        });
+      },
+      async appendPendingTurnToThread(input) {
+        calls.push(['appendPendingTurnToThread', input]);
+        return createThreadRecord({
+          turns: [
+            priorCompletedTurn,
+            failedTurn,
+            laterCompletedTurn,
+            createTurnRecord({
+              id: turnId,
+              question: failedQuestion,
+              searchQuery: standaloneSearchQuery,
+              answerMarkdown: null,
+              turnStatus: TurnStatus.PENDING,
+              completedAt: null,
+            }),
+          ],
+        });
+      },
+      async completeTurn(input) {
+        calls.push(['completeTurn', input]);
+      },
+      async findThreadWithSingleTurn(id, tId) {
+        calls.push(['findThreadWithSingleTurn', id, tId]);
+        return {
+          thread: createThreadRecord({ turns: Array.from({ length: 4 }) }),
+          turn: createTurnRecord({
+            id: turnId,
+            question: failedQuestion,
+            searchQuery: standaloneSearchQuery,
+            answerMarkdown,
+          }),
+          totalSourceCount: 0,
+        };
+      },
+    },
+  );
+
+  const stream = await service.retryAskStream({
+    threadId,
+    turnId: followUpTurnId,
+  });
+
+  for await (const _event of stream) {
+    // Drain stream.
+  }
+
+  assert.deepEqual(
+    calls.find(([name]) => name === 'generateStandaloneSearchQuery'),
+    [
+      'generateStandaloneSearchQuery',
+      {
+        question: failedQuestion,
+        threadTitle: 'Explain Prisma relations',
+        priorTurns: expectedPriorTurns,
+      },
+    ],
+  );
+  assert.deepEqual(
+    calls.find(([name]) => name === 'streamAnswer'),
+    [
+      'streamAnswer',
+      {
+        question: failedQuestion,
+        priorTurns: expectedPriorTurns,
+        sources: [],
+      },
+    ],
+  );
+});
+
 test('AskService streaming failure marks the pending turn failed and emits an error event', async () => {
   const error = new ServiceUnavailableException('Streaming failed');
   const calls = [];

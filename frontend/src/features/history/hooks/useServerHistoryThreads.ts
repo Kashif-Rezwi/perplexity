@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { getThreads } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import type { ThreadListResponse } from '@/types/api.types';
@@ -15,6 +16,40 @@ type UseServerHistoryThreadsInput = {
   sortOrder: SortOrder;
   searchQuery: string;
 };
+
+type ServerHistoryViewStateInput = {
+  fallbackThreads: ThreadHistoryItem[];
+  serverThreads: ThreadHistoryItem[];
+  canUseLocalFallback: boolean;
+  hasServerData: boolean;
+  isPending: boolean;
+  isError: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+};
+
+export function getServerHistoryViewState({
+  fallbackThreads,
+  serverThreads,
+  canUseLocalFallback,
+  hasServerData,
+  isPending,
+  isError,
+  hasNextPage,
+  isFetchingNextPage,
+}: ServerHistoryViewStateInput) {
+  const canShowFallback =
+    canUseLocalFallback && !hasServerData && fallbackThreads.length > 0;
+  const shouldShowFallback = canShowFallback && (isPending || isError);
+
+  return {
+    threads: shouldShowFallback ? fallbackThreads : serverThreads,
+    isLoading: isPending && !shouldShowFallback,
+    isError: isError && !hasServerData && !shouldShowFallback,
+    hasNextPage: shouldShowFallback ? false : hasNextPage,
+    isFetchingNextPage: shouldShowFallback ? false : isFetchingNextPage,
+  };
+}
 
 export function useServerHistoryThreads({
   localThreads,
@@ -32,16 +67,12 @@ export function useServerHistoryThreads({
   });
 
   const threadListQuery = useInfiniteQuery<ThreadListResponse>({
-    queryKey: [
-      'threads',
-      'history',
-      {
-        limit: HISTORY_PAGE_SIZE,
-        mode: typeFilter,
-        q: normalizedSearchQuery,
-        sort: sortOrder,
-      },
-    ],
+    queryKey: queryKeys.threadsHistory({
+      limit: HISTORY_PAGE_SIZE,
+      mode: typeFilter,
+      q: normalizedSearchQuery,
+      sort: sortOrder,
+    }),
     queryFn: ({ pageParam }) =>
       getThreads({
         limit: HISTORY_PAGE_SIZE,
@@ -64,21 +95,18 @@ export function useServerHistoryThreads({
   );
 
   const canUseLocalFallback = typeFilter !== 'deep-research';
-  const shouldUseFallback =
-    canUseLocalFallback && !threadListQuery.data && threadListQuery.isError;
-  const shouldUseInitialFallback =
-    canUseLocalFallback &&
-    !threadListQuery.data &&
-    threadListQuery.isPending &&
-    fallbackThreads.length > 0;
-  const shouldShowFallback = shouldUseFallback || shouldUseInitialFallback;
 
   return {
-    threads: shouldShowFallback ? fallbackThreads : serverThreads,
-    isLoading: threadListQuery.isPending && fallbackThreads.length === 0,
-    isError: threadListQuery.isError && serverThreads.length === 0,
-    hasNextPage: threadListQuery.hasNextPage,
-    isFetchingNextPage: threadListQuery.isFetchingNextPage,
+    ...getServerHistoryViewState({
+      fallbackThreads,
+      serverThreads,
+      canUseLocalFallback,
+      hasServerData: Boolean(threadListQuery.data),
+      isPending: threadListQuery.isPending,
+      isError: threadListQuery.isError,
+      hasNextPage: threadListQuery.hasNextPage,
+      isFetchingNextPage: threadListQuery.isFetchingNextPage,
+    }),
     fetchNextPage: threadListQuery.fetchNextPage,
   };
 }

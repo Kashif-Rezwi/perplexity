@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { getSources } from '@/lib/api';
+import { queryKeys } from '@/lib/api/queryKeys';
 import type {
   SourceHighlightTarget,
   SourcesResponse,
   TurnItem,
   TurnSourceGroup,
 } from '@/types/api.types';
+import { sortSourcesForLinks } from '../utils/sourceOrdering';
 
 // Fetches canonical per-turn source lists while using thread-detail sources as the instant fallback.
 export function useThreadSources(
@@ -22,11 +24,14 @@ export function useThreadSources(
 
   const sourceQueries = useQueries({
     queries: completedTurns.map((turn) => ({
-      queryKey: ['sources', threadId, turn.turnId],
+      queryKey: queryKeys.sourcesForTurn(threadId, turn.turnId),
       queryFn: () => getSources({ turnId: turn.turnId }),
-      enabled:
-        Boolean(threadId) &&
-        (shouldFetchSources || highlightedSourceTarget?.turnId === turn.turnId),
+      enabled: shouldFetchSourcesForTurn(
+        threadId,
+        turn.turnId,
+        shouldFetchSources,
+        highlightedSourceTarget,
+      ),
       placeholderData: createFallbackSourcesResponse(threadId, turn),
       staleTime: 60_000,
     })),
@@ -41,10 +46,24 @@ export function useThreadSources(
         citedCitationNumbers: turn.citations.map(
           (citation) => citation.citationNumber,
         ),
-        sources: sourceQueries[index]?.data?.items ?? turn.sources,
+        sources: sortSourcesForLinks(
+          sourceQueries[index]?.data?.items ?? turn.sources,
+        ),
       }))
       .reverse();
   }, [completedTurns, sourceQueries]);
+}
+
+export function shouldFetchSourcesForTurn(
+  threadId: string,
+  turnId: string,
+  shouldFetchSources: boolean,
+  highlightedSourceTarget?: SourceHighlightTarget | null,
+): boolean {
+  return (
+    Boolean(threadId) &&
+    (shouldFetchSources || highlightedSourceTarget?.turnId === turnId)
+  );
 }
 
 function createFallbackSourcesResponse(
@@ -52,7 +71,7 @@ function createFallbackSourcesResponse(
   turn: TurnItem,
 ): SourcesResponse {
   return {
-    items: turn.sources.map((source) => ({
+    items: sortSourcesForLinks(turn.sources).map((source) => ({
       sourceId: source.sourceId,
       turnId: turn.turnId,
       threadId,
