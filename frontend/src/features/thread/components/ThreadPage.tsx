@@ -20,6 +20,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
   const {
     thread,
     turnSourceGroups,
+    isLoadingSources,
     isPending,
     error,
     activeTab,
@@ -199,6 +200,7 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
             <div className="animate-in fade-in duration-300">
               <LinksPanel
                 groups={turnSourceGroups}
+                isLoadingSources={isLoadingSources}
                 highlightedTarget={highlightedSourceTarget}
                 onClearHighlight={() => setHighlightedSourceTarget(null)}
               />
