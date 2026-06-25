@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { ThreadActionMenu } from '@/features/thread-management/components/ThreadActionMenu';
 import {
   ThreadDeleteDialog,
@@ -16,6 +16,7 @@ import { queryKeys } from '@/lib/api/queryKeys';
 import { mapThreadSummaryToHistoryItem } from '@/lib/mappers/thread-summary.mapper';
 import type { ThreadHistoryItem } from '@/store/historyStore';
 import { useHistoryStore } from '@/store/historyStore';
+import type { ThreadListResponse } from '@/types/api.types';
 import { getSidebarThreadViewState } from './utils/sidebarThreads';
 
 type Props = {
@@ -38,19 +39,28 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
     renamingThreadId,
     pinningThreadId,
   } = threadActions;
-  const threadListQuery = useQuery({
-    queryKey: queryKeys.threadsSidebar(SIDEBAR_THREAD_LIMIT),
-    queryFn: () => getThreads({
+  const threadListQuery = useInfiniteQuery<ThreadListResponse>({
+    queryKey: queryKeys.threadsHistory({
       limit: SIDEBAR_THREAD_LIMIT,
+      mode: 'all',
+      q: '',
+      sort: 'newest',
+    }),
+    queryFn: ({ pageParam }) => getThreads({
+      limit: SIDEBAR_THREAD_LIMIT,
+      cursor: typeof pageParam === 'string' ? pageParam : undefined,
       mode: 'all',
       sort: 'newest',
     }),
     enabled: isOpen && !isCollapsed,
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
     retry: 1,
   });
 
-  const serverThreads = (threadListQuery.data?.items ?? []).map(
+  const firstPage = threadListQuery.data?.pages[0];
+  const serverThreads = (firstPage?.items ?? []).map(
     mapThreadSummaryToHistoryItem,
   );
   const {
@@ -60,7 +70,7 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
   } = getSidebarThreadViewState({
     serverThreads,
     localThreads,
-    hasServerData: Boolean(threadListQuery.data),
+    hasServerData: Boolean(firstPage),
     isPending: threadListQuery.isPending,
     isError: threadListQuery.isError,
     limit: SIDEBAR_THREAD_LIMIT,
@@ -204,8 +214,15 @@ export function SidebarRecentThreads({ isOpen, isCollapsed }: Props) {
                 {Array.from({ length: 3 }, (_, index) => (
                   <div
                     key={index}
-                    className="h-7 rounded-lg bg-[var(--color-surface-hover)] opacity-40"
-                  />
+                    className="flex h-7 items-center rounded-lg px-3"
+                  >
+                    <div
+                      className={[
+                        'h-3 rounded bg-[var(--color-surface-hover)] opacity-40 animate-pulse',
+                        index === 0 ? 'w-8/12' : index === 1 ? 'w-7/12' : 'w-9/12',
+                      ].join(' ')}
+                    />
+                  </div>
                 ))}
               </div>
             )}
