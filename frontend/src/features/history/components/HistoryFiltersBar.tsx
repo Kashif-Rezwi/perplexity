@@ -11,6 +11,7 @@ type HistoryFiltersBarProps = {
   sortOrder: SortOrder;
   onTypeFilterChange: (value: HistoryTypeFilter) => void;
   onSortOrderChange: (value: SortOrder) => void;
+  disabled?: boolean;
 };
 
 export function HistoryFiltersBar({
@@ -18,6 +19,7 @@ export function HistoryFiltersBar({
   sortOrder,
   onTypeFilterChange,
   onSortOrderChange,
+  disabled = false,
 }: HistoryFiltersBarProps) {
   return (
     <div className="flex shrink-0 items-center justify-between gap-4 px-6 py-3">
@@ -27,6 +29,7 @@ export function HistoryFiltersBar({
           value={typeFilter}
           options={HISTORY_TYPE_FILTERS}
           onChange={onTypeFilterChange}
+          disabled={disabled}
         />
       </div>
 
@@ -36,8 +39,8 @@ export function HistoryFiltersBar({
         options={HISTORY_SORT_OPTIONS}
         onChange={onSortOrderChange}
         align="right"
+        disabled={disabled}
       />
     </div>
   );
 }
-
