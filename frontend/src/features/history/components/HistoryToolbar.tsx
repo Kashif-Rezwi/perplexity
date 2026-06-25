@@ -14,6 +14,7 @@ type HistoryToolbarProps = {
   onDeleteSelected: () => void | Promise<void>;
   onClearSelection: () => void;
   isDeleting?: boolean;
+  disabled?: boolean;
 };
 
 export function HistoryToolbar({
@@ -28,8 +29,10 @@ export function HistoryToolbar({
   onDeleteSelected,
   onClearSelection,
   isDeleting = false,
+  disabled = false,
 }: HistoryToolbarProps) {
   const hasSelection = selectedCount > 0;
+  const controlsDisabled = disabled || isDeleting;
 
   return (
     <header className="flex h-[70px] shrink-0 items-center justify-between border-b border-[var(--color-border-subtle)] px-6">
@@ -43,8 +46,8 @@ export function HistoryToolbar({
             <button
               type="button"
               onClick={() => void onDeleteSelected()}
-              disabled={isDeleting}
-              className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]"
+              disabled={controlsDisabled}
+              className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent"
             >
               <Trash2 size={14} strokeWidth={1.75} />
               Delete
@@ -53,8 +56,8 @@ export function HistoryToolbar({
             <button
               type="button"
               onClick={onClearSelection}
-              disabled={isDeleting}
-              className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg bg-[var(--color-text)] px-2.5 text-xs font-medium text-[var(--color-bg)] transition-opacity hover:opacity-90"
+              disabled={controlsDisabled}
+              className="flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-lg bg-[var(--color-text)] px-2.5 text-xs font-medium text-[var(--color-bg)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-55"
             >
               <X size={14} strokeWidth={1.75} />
               Cancel
@@ -71,20 +74,22 @@ export function HistoryToolbar({
                 <input
                   ref={searchInputRef}
                   type="text"
-                  value={searchQuery}
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
+	                  value={searchQuery}
+	                  disabled={disabled}
+	                  onChange={(event) => onSearchQueryChange(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') onCloseSearch();
                   }}
                   placeholder="Search sessions..."
-                  className="min-w-0 flex-1 bg-transparent text-xs text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-faint)]"
+	                  className="min-w-0 flex-1 bg-transparent text-xs text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-faint)] disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 {searchQuery.trim().length > 0 && (
                   <button
-                    type="button"
-                    aria-label="Clear history search"
-                    onClick={onCloseSearch}
-                    className="grid size-5 shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+	                    type="button"
+	                    aria-label="Clear history search"
+	                    onClick={onCloseSearch}
+	                    disabled={disabled}
+	                    className="grid size-5 shrink-0 place-items-center rounded-md text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent disabled:hover:text-[var(--color-text-muted)]"
                   >
                     <X size={12} strokeWidth={1.9} />
                   </button>
@@ -95,7 +100,8 @@ export function HistoryToolbar({
                 type="button"
                 aria-label="Search history"
                 onClick={onOpenSearch}
-                className="flex size-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-state-hover)]"
+                disabled={disabled}
+                className="flex size-8 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-state-hover)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent disabled:hover:text-[var(--color-text-muted)]"
               >
                 <Search size={15} strokeWidth={1.75} />
               </button>
@@ -103,8 +109,15 @@ export function HistoryToolbar({
 
             <Link
               href="/"
-              scroll={false}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]"
+	              scroll={false}
+	              aria-disabled={disabled}
+	              tabIndex={disabled ? -1 : undefined}
+	              className={[
+	                'flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-2.5 text-xs font-medium text-[var(--color-state-active)] transition-colors hover:bg-[var(--color-surface-hover)]',
+	                disabled
+	                  ? 'pointer-events-none cursor-not-allowed opacity-55 hover:bg-transparent'
+	                  : '',
+	              ].join(' ')}
             >
               <Plus size={14} strokeWidth={1.75} />
               New Session

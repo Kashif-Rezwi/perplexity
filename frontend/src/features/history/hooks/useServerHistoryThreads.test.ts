@@ -49,7 +49,7 @@ describe('getServerHistoryViewState', () => {
     expect(state.isError).toBe(true);
   });
 
-  it('shows initial fallback rows instead of a loading state', () => {
+  it('shows a loading state instead of partial local fallback rows while initially loading', () => {
     const fallbackThreads = [thread('local')];
 
     const state = getServerHistoryViewState({
@@ -63,8 +63,8 @@ describe('getServerHistoryViewState', () => {
       isFetchingNextPage: false,
     });
 
-    expect(state.threads).toEqual(fallbackThreads);
-    expect(state.isLoading).toBe(false);
+    expect(state.threads).toEqual([]);
+    expect(state.isLoading).toBe(true);
   });
 
   it('does not use local fallback for deep research filters', () => {

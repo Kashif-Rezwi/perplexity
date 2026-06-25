@@ -7,6 +7,7 @@ type SelectPillProps<T extends string> = {
   options: Array<{ value: T; label: string }>;
   onChange: (value: T) => void;
   align?: 'left' | 'right';
+  disabled?: boolean;
 };
 
 export function HistorySelectPill<T extends string>({
@@ -15,13 +16,15 @@ export function HistorySelectPill<T extends string>({
   options,
   onChange,
   align = 'left',
+  disabled = false,
 }: SelectPillProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
+  const isMenuOpen = isOpen && !disabled;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isMenuOpen) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
@@ -31,27 +34,28 @@ export function HistorySelectPill<T extends string>({
 
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [isOpen]);
+  }, [isMenuOpen]);
 
   return (
     <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-label={label}
-        aria-expanded={isOpen}
+        aria-expanded={isMenuOpen}
+        disabled={disabled}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             setIsOpen(false);
           }
         }}
         onClick={() => setIsOpen((current) => !current)}
-        className="flex h-6 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+        className="flex h-6 items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent disabled:hover:text-[var(--color-text-muted)]"
       >
         {selected.label}
         <ChevronDown size={12} strokeWidth={1.75} />
       </button>
 
-      {isOpen && (
+      {isMenuOpen && (
         <div
           className={[
             'absolute top-8 z-20 min-w-[144px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-2xl',
@@ -77,4 +81,3 @@ export function HistorySelectPill<T extends string>({
     </div>
   );
 }
-

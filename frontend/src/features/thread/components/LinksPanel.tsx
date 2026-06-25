@@ -12,12 +12,14 @@ import { getSourceDisplayTitle } from '../utils/sourceActions';
 
 interface LinksPanelProps {
   groups: TurnSourceGroup[];
+  isLoadingSources?: boolean;
   highlightedTarget?: SourceHighlightTarget | null;
   onClearHighlight?: () => void;
 }
 
 export function LinksPanel({
   groups,
+  isLoadingSources = false,
   highlightedTarget,
   onClearHighlight,
 }: LinksPanelProps) {
@@ -47,6 +49,10 @@ export function LinksPanel({
   }, [highlightedTarget, onClearHighlight]);
 
   const hasAnySources = groups.some((g) => g.sources.length > 0);
+
+  if (!hasAnySources && isLoadingSources) {
+    return <LinksPanelSkeleton />;
+  }
 
   if (!hasAnySources) {
     return (
@@ -88,6 +94,34 @@ export function LinksPanel({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function LinksPanelSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex flex-col gap-2 animate-in fade-in duration-200 font-sans"
+    >
+      <div className="mb-3 h-3 w-48 rounded bg-[var(--color-surface-hover)] opacity-45 animate-pulse" />
+      {Array.from({ length: 3 }, (_, index) => (
+        <div
+          key={index}
+          className="rounded-[16px] px-4 py-3.5"
+        >
+          <div className="flex min-w-0 items-start gap-3.5">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-[var(--color-surface-hover)] opacity-45 animate-pulse" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2 pt-1">
+              <div className="h-3.5 w-32 rounded bg-[var(--color-surface-hover)] opacity-45 animate-pulse" />
+              <div className="h-3 w-7/12 rounded bg-[var(--color-surface-hover)] opacity-35 animate-pulse" />
+            </div>
+          </div>
+          <div className="mt-4 h-3.5 w-9/12 rounded bg-[var(--color-surface-hover)] opacity-45 animate-pulse" />
+          <div className="mt-2 h-3 w-full rounded bg-[var(--color-surface-hover)] opacity-35 animate-pulse" />
+          <div className="mt-2 h-3 w-8/12 rounded bg-[var(--color-surface-hover)] opacity-35 animate-pulse" />
+        </div>
+      ))}
     </div>
   );
 }

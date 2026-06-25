@@ -49,8 +49,10 @@ export function useThreadPage(threadId: string) {
     ? thread?.turns[turnsCount - 1]?.status ?? null
     : null;
 
-  // Assemble grouped sources from thread fallback data and fetch canonical lists only when needed.
-  const turnSourceGroups = useThreadSources(
+  const {
+    groups: turnSourceGroups,
+    isLoadingSources,
+  } = useThreadSources(
     threadId,
     thread?.turns ?? [],
     activeTab === 'links',
@@ -103,6 +105,7 @@ export function useThreadPage(threadId: string) {
     // Data
     thread,
     turnSourceGroups,
+    isLoadingSources,
     // Status
     isPending,
     error,
