@@ -5,10 +5,11 @@ import {
   flip,
   offset,
   shift,
+  type Placement,
   useFloating,
 } from '@floating-ui/react';
 import type { SourcePreviewItem } from '@/types/api.types';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FocusEvent, KeyboardEvent, MouseEvent } from 'react';
 import { CitationTooltipCard } from './CitationTooltipCard';
 import {
@@ -42,11 +43,21 @@ export function CitationBadge({
 
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const showTooltip = isHovered || isFocused;
   const {
     refs: { setReference, setFloating },
     floatingStyles,
+    placement,
   } = useFloating({
     open: showTooltip,
     placement: 'top',
@@ -118,6 +129,7 @@ export function CitationBadge({
   };
 
   const handleFocus = () => {
+    clearCloseTimer();
     setIsFocused(true);
   };
 
@@ -128,11 +140,33 @@ export function CitationBadge({
     setIsFocused(false);
   };
 
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current === null) return;
+
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  };
+
+  const openTooltip = () => {
+    clearCloseTimer();
+    setIsHovered(true);
+  };
+
+  const scheduleCloseTooltip = () => {
+    clearCloseTimer();
+
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsHovered(false);
+      setIsFocused(false);
+      closeTimerRef.current = null;
+    }, 140);
+  };
+
   return (
     <span
       className="relative inline-block mx-0.5"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={openTooltip}
+      onMouseLeave={scheduleCloseTooltip}
       onFocus={handleFocus}
       onBlur={handleBlur}
     >
@@ -149,11 +183,14 @@ export function CitationBadge({
 
       <span
         ref={setFloating}
-        style={floatingStyles}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        style={{
+          ...floatingStyles,
+          transformOrigin: getTooltipTransformOrigin(placement),
+        }}
+        onMouseEnter={openTooltip}
+        onMouseLeave={scheduleCloseTooltip}
         className={[
-          'z-30 w-[min(320px,calc(100vw-24px))] transition-all duration-150 font-sans text-left not-prose block',
+          'z-30 w-[min(320px,calc(100vw-24px))] transition-[opacity,scale] duration-150 ease-out font-sans text-left not-prose block',
           showTooltip
             ? 'visible opacity-100 scale-100 pointer-events-auto'
             : 'invisible opacity-0 scale-95 pointer-events-none',
@@ -168,4 +205,15 @@ export function CitationBadge({
       </span>
     </span>
   );
+}
+
+function getTooltipTransformOrigin(placement: Placement): string {
+  const side = placement.split('-')[0];
+
+  if (side === 'top') return 'center bottom';
+  if (side === 'bottom') return 'center top';
+  if (side === 'left') return 'right center';
+  if (side === 'right') return 'left center';
+
+  return 'center center';
 }

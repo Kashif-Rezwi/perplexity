@@ -104,7 +104,7 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
         className={[
-          'flex h-10 w-10 items-center justify-center rounded-[14px] transition-colors',
+          'flex h-10 w-10 cursor-pointer items-center justify-center rounded-[14px] transition-colors',
           isOpen
             ? 'bg-[var(--color-surface-active)] text-[var(--color-text)]'
             : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',

@@ -34,6 +34,7 @@ export function CitationTooltipCard({
         <span className="flex items-center gap-3">
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onPrevious}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer p-1 rounded-full hover:bg-[var(--color-surface-hover)] flex items-center justify-center border-0"
             aria-label="Previous source"
@@ -45,6 +46,7 @@ export function CitationTooltipCard({
           </span>
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onNext}
             className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors cursor-pointer p-1 rounded-full hover:bg-[var(--color-surface-hover)] flex items-center justify-center border-0"
             aria-label="Next source"
