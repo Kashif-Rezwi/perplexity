@@ -5,6 +5,8 @@ import { AskModule } from './ask/ask.module';
 import { HealthController } from './health.controller';
 import { SourcesModule } from './sources/sources.module';
 import { ThreadsModule } from './threads/threads.module';
+import { DatabaseModule } from './database/database.module';
+import { validateEnvironment } from './config/environment';
 
 const PERPLEXITY_API_PATH = 'perplexity';
 
@@ -13,7 +15,9 @@ const PERPLEXITY_API_PATH = 'perplexity';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      validate: validateEnvironment,
     }),
+    DatabaseModule,
     RouterModule.register([
       { path: PERPLEXITY_API_PATH, module: AskModule },
       { path: PERPLEXITY_API_PATH, module: SourcesModule },
