@@ -16,7 +16,9 @@
     "lint": "eslint \"src/**/*.ts\" prisma.config.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:status": "prisma migrate status"
   },
   "keywords": [],
   "author": "",
@@ -51,5 +53,8 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.62.0"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }
