@@ -68,6 +68,40 @@ test('GET /health route is registered', async () => {
   }
 });
 
+test('GET /health/live route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'GET' && r.path === '/health/live',
+    );
+    assert.ok(
+      found,
+      `GET /health/live not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
+test('GET /health/ready route is registered', async () => {
+  const app = await createRoutedApp();
+
+  try {
+    const routes = getRegisteredRoutes(app);
+    const found = routes.some(
+      (r) => r.method === 'GET' && r.path === '/health/ready',
+    );
+    assert.ok(
+      found,
+      `GET /health/ready not found in routes: ${JSON.stringify(routes)}`,
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('POST /perplexity/ask route is registered', async () => {
   const app = await createRoutedApp();
 
