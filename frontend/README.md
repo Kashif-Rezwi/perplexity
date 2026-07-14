@@ -29,6 +29,10 @@ first-party proxy/cache if privacy or CSP requirements demand it.
 
 2. The frontend is configured to automatically proxy requests via Next.js `rewrites` to avoid CORS issues. If your backend is running on a different port, set `BACKEND_URL` before starting the frontend.
 
+   `BACKEND_URL` is server-only. Set the same value during `next build` and on
+   the running server for SSR; rebuild the production frontend whenever it
+   changes.
+
 ### Running the Application
 
 Start the development server:
@@ -47,3 +51,4 @@ Deeper technical documentation is located in the root `_docs/` directory:
 * [System Architecture](../_docs/ARCHITECTURE.md): Frontend structure, backend interaction, and state management.
 * [Product Roadmap](../_docs/ROADMAP.md): Current development phase and future planned features.
 * [API Contracts](../_docs/API.md): API definitions for backend communication.
+* [Deployment Guide](../_docs/DEPLOYMENT.md): Docker images, proxy networking, production deployment, and verification.

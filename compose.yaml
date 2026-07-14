@@ -1,0 +1,118 @@
+name: perplexity
+
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  PORT: 8080
+  LOG_LEVEL: ${LOG_LEVEL:-log}
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3001}
+  TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+  TAVILY_MAX_RESULTS: ${TAVILY_MAX_RESULTS:-}
+  TAVILY_SEARCH_DEPTH: ${TAVILY_SEARCH_DEPTH:-}
+  TAVILY_SEARCH_TIMEOUT_MS: ${TAVILY_SEARCH_TIMEOUT_MS:-}
+  AI_PROVIDER: ${AI_PROVIDER:-openai}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-}
+  OPENAI_UTILITY_MODEL: ${OPENAI_UTILITY_MODEL:-}
+  OPENAI_ANSWER_TIMEOUT_MS: ${OPENAI_ANSWER_TIMEOUT_MS:-}
+  OPENAI_QUERY_REWRITE_TIMEOUT_MS: ${OPENAI_QUERY_REWRITE_TIMEOUT_MS:-}
+  OPENAI_SUGGESTION_TIMEOUT_MS: ${OPENAI_SUGGESTION_TIMEOUT_MS:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  GROQ_MODEL: ${GROQ_MODEL:-}
+  GROQ_UTILITY_MODEL: ${GROQ_UTILITY_MODEL:-}
+  GROQ_ANSWER_TIMEOUT_MS: ${GROQ_ANSWER_TIMEOUT_MS:-}
+  GROQ_QUERY_REWRITE_TIMEOUT_MS: ${GROQ_QUERY_REWRITE_TIMEOUT_MS:-}
+  GROQ_SUGGESTION_TIMEOUT_MS: ${GROQ_SUGGESTION_TIMEOUT_MS:-}
+
+services:
+  database:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-perplexity}
+      POSTGRES_USER: ${POSTGRES_USER:-perplexity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - database
+
+  migrate:
+    build:
+      context: ./backend
+      target: migration
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-perplexity}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@database:5432/${POSTGRES_DB:-perplexity}?schema=public
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - database
+
+  backend:
+    build:
+      context: ./backend
+      target: runner
+    environment:
+      <<: *backend-environment
+      DATABASE_URL: postgresql://${POSTGRES_USER:-perplexity}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@database:5432/${POSTGRES_DB:-perplexity}?schema=public
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - application
+      - database
+
+  frontend:
+    build:
+      context: ./frontend
+      target: runner
+      args:
+        BACKEND_URL: http://backend:8080
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOSTNAME: 0.0.0.0
+      BACKEND_URL: http://backend:8080
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - application
+
+volumes:
+  postgres_data:
+
+networks:
+  application:
+  database:
+    internal: true

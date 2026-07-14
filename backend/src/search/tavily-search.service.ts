@@ -58,13 +58,13 @@ export class TavilySearchService {
     } catch (error) {
       if (error instanceof ServiceUnavailableException) {
         this.logger.warn(
-          `${error.message} for query: ${formatSearchQueryForLog(input.query)}`,
+          `${error.message} (${formatSearchQueryForLog(input.query)})`,
         );
         throw error;
       }
 
       this.logger.error(
-        `Tavily search failed for query: ${formatSearchQueryForLog(input.query)}`,
+        `Tavily search failed (${formatSearchQueryForLog(input.query)})`,
         getErrorStack(error),
       );
       throw new ServiceUnavailableException('Tavily search failed');
@@ -117,9 +117,5 @@ export class TavilySearchService {
 }
 
 function formatSearchQueryForLog(query: string): string {
-  const normalizedQuery = query.replace(/\s+/g, ' ').trim();
-
-  return normalizedQuery.length > 160
-    ? `${normalizedQuery.slice(0, 160)}...`
-    : normalizedQuery;
+  return `queryLength=${query.trim().length}`;
 }
