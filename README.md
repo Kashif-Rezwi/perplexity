@@ -18,6 +18,22 @@ work in the roadmap.
 
 ## Quick Start
 
+For a production-shaped local stack, use Docker Compose:
+
+```bash
+cp .env.example .env
+# Replace every placeholder in .env, then:
+docker compose up -d --build
+docker compose ps -a
+```
+
+Open `http://localhost:3001`. See the
+**[Deployment Guide](_docs/DEPLOYMENT.md)** for configuration, migrations,
+independent service deployment, secret management, networking, and end-to-end
+verification.
+
+### Run services directly
+
 To run the application locally, you will need to start both the backend and frontend servers.
 
 ### 1. Start the Backend
@@ -64,3 +80,4 @@ Comprehensive project documentation has been consolidated into the root `_docs/`
 *   **[Tech Stack](_docs/TECH_STACK.md)**: Detailed list of frontend and backend technologies and rationale.
 *   **[API Contracts](_docs/API.md)**: Detailed request and response payloads for all backend endpoints.
 *   **[Product Roadmap](_docs/ROADMAP.md)**: Current development phase and future planned features.
+*   **[Deployment Guide](_docs/DEPLOYMENT.md)**: Production preparation, containers, database migrations, deployment, and verification.
