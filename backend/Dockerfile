@@ -7,6 +7,9 @@ RUN npm ci
 
 FROM dependencies AS builder
 WORKDIR /app
+# Prisma client generation validates DATABASE_URL but does not connect to it.
+# Keep this non-secret placeholder scoped to the disposable build stage.
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY prisma.config.ts ./
 COPY prisma ./prisma
