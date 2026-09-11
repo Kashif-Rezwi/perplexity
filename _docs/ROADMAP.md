@@ -48,6 +48,19 @@ Enhancements that improve the client experience once the core flow is stable.
 | **Frontend** | Source and citation polish | Links tab source actions, cited-source emphasis, citation tooltip open/copy actions |
 | **Frontend** | Share/export basics (Completed) | Copy response/thread URLs, Markdown, and plain text without public share records |
 
+### Contribution Scope: Frontend Loading, History, Sources, And Citations
+
+Kashif's contribution for the V2 loading, skeleton, empty-state,
+history-cache, lazy-source, and citation-tooltip polish was frontend-only
+because this feature required no backend implementation. The work covered
+React/Next.js UI components, route and panel loading states, contextual empty
+states, React Query cache sharing and request deduplication, lazy source loading
+for the Links tab, citation popup positioning plus hover/focus behavior,
+accessibility refinements, and focused frontend tests.
+
+Backend/API routes, database schema or persistence changes, object storage, and
+deployment changes were outside this feature's scope.
+
 ## V3 - Deployment Readiness
 
 Operational work needed before the application is easier to run outside local development.
