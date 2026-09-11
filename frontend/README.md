@@ -44,6 +44,13 @@ npm run dev
 The development and production start scripts both serve the app on
 [http://localhost:3001](http://localhost:3001).
 
+### Testing and Linting
+
+```bash
+npm test          # Vitest unit tests
+npm run lint      # ESLint (Next.js + TypeScript configs)
+```
+
 ## Documentation
 
 Deeper technical documentation is located in the root `_docs/` directory:
