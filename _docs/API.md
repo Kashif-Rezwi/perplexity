@@ -435,12 +435,39 @@ Response: `204 No Content`
 
 ## GET /health
 
-Backend health check endpoint to verify server status.
+Database-aware readiness check. Returns `200` with the readiness payload when
+the backend can reach PostgreSQL, and `503 Service Unavailable` when the
+database readiness check fails.
 
 Response:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "checks": {
+    "database": "up"
+  },
+  "timestamp": "2026-06-04T00:00:00.000Z"
 }
 ```
+
+## GET /health/live
+
+Process liveness check that does not touch the database. Use this when you only
+need to know whether the process is alive and accepting requests.
+
+Response:
+
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-06-04T00:00:00.000Z"
+}
+```
+
+## GET /health/ready
+
+Alias of `GET /health` with the same database-aware readiness semantics. Both
+the backend Docker image and `compose.yaml` use `/health/ready` as the
+readiness probe, while `/health/live` distinguishes process health from traffic
+readiness.

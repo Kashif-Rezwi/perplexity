@@ -85,6 +85,24 @@ npm run start:prod
 The server defaults to `http://localhost:8080`. Override it with `PORT` when
 needed.
 
+### Testing
+
+Run the backend test suite (node:test with a ts-node glue layer):
+
+```bash
+npm test
+```
+
+The tests cover ask orchestration and retry semantics, stream failure handling,
+AI provider services, Tavily search, source and thread persistence, mappers,
+citation parsing, environment validation, and route smoke tests.
+
+### Linting
+
+```bash
+npm run lint
+```
+
 ## Documentation
 
 Deeper technical documentation is located in the root `_docs/` directory:
