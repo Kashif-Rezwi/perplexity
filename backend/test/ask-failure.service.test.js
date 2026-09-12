@@ -40,8 +40,8 @@ test('AskService marks the appended follow-up turn failed when search fails', as
   const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
-      async generateStandaloneSearchQuery(input) {
-        calls.push(['generateStandaloneSearchQuery', input]);
+      async resolveSearchQuery(input) {
+        calls.push(['resolveSearchQuery', input]);
         return standaloneSearchQuery;
       },
       async generateAnswer() {
@@ -86,7 +86,7 @@ test('AskService marks the appended follow-up turn failed when search fails', as
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [
-      'generateStandaloneSearchQuery',
+      'resolveSearchQuery',
       {
         question,
         threadTitle: 'Explain Prisma relations',
@@ -226,7 +226,7 @@ test('AskService marks the pending turn failed when search times out', async () 
 });
 
 test('AskService marks the pending turn failed when AI generation fails', async () => {
-  const error = new ServiceUnavailableException('OpenAI answer generation failed');
+  const error = new ServiceUnavailableException('AI answer generation failed');
   const searchResults = [];
   const calls = [];
   const service = createTestAskService(
@@ -286,7 +286,7 @@ test('AskService marks the pending turn failed when AI generation fails', async 
       {
         threadId,
         turnId,
-        errorMessage: 'OpenAI answer generation failed',
+        errorMessage: 'AI answer generation failed',
       },
     ],
   ]);
@@ -331,7 +331,7 @@ test('AskService marks the pending turn failed when answer generation times out'
     () => service.ask({ question: 'Explain Prisma relations' }),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'OpenAI answer generation timed out',
+      error.message === 'AI answer generation timed out',
   );
   assert.deepEqual(calls, [
     [
@@ -356,7 +356,7 @@ test('AskService marks the pending turn failed when answer generation times out'
       {
         threadId,
         turnId,
-        errorMessage: 'OpenAI answer generation timed out',
+        errorMessage: 'AI answer generation timed out',
       },
     ],
   ]);

@@ -22,11 +22,11 @@ require.cache[resolvedAiPath] = {
 };
 
 const {
-  generateProviderAnswer,
-  streamProviderAnswer,
-} = require('../src/ai/utils/ai-provider-sdk.util.ts');
+  generateAnswer,
+  streamAnswer,
+} = require('../src/ai/utils/ai-sdk.util.ts');
 
-const providerName = 'OpenAI';
+
 const unansweredInput = {
   question: 'hi there?',
   priorTurns: [],
@@ -58,9 +58,8 @@ async function collectStream(stream) {
   return parts.join('');
 }
 
-function createProviderCallOptions(loggerCalls = []) {
+function createAiCallOptions(loggerCalls = []) {
   return {
-    providerName,
     model: 'mock-model',
     input: unansweredInput,
     logger: createLogger(loggerCalls),
@@ -68,7 +67,7 @@ function createProviderCallOptions(loggerCalls = []) {
   };
 }
 
-test('streamProviderAnswer streams text deltas and returns the concatenated answer', async () => {
+test('streamAnswer streams text deltas and returns the concatenated answer', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       { type: 'start' },
@@ -79,14 +78,14 @@ test('streamProviderAnswer streams text deltas and returns the concatenated answ
   const loggerCalls = [];
 
   const answer = await collectStream(
-    streamProviderAnswer(createProviderCallOptions(loggerCalls)),
+    streamAnswer(createAiCallOptions(loggerCalls)),
   );
 
   assert.equal(answer, 'Hello world');
   assert.deepEqual(loggerCalls, []);
 });
 
-test('streamProviderAnswer reports a genuinely empty stream as an empty answer', async () => {
+test('streamAnswer reports a genuinely empty stream as an empty answer', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       { type: 'start' },
@@ -95,15 +94,15 @@ test('streamProviderAnswer reports a genuinely empty stream as an empty answer',
   const loggerCalls = [];
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions(loggerCalls))),
+    () => collectStream(streamAnswer(createAiCallOptions(loggerCalls))),
     (error) =>
       error instanceof InternalServerErrorException &&
-      error.message === 'OpenAI returned an empty answer',
+      error.message === 'AI returned an empty answer',
   );
   assert.deepEqual(loggerCalls, []);
 });
 
-test('streamProviderAnswer surfaces provider stream errors with the real reason instead of an empty answer', async () => {
+test('streamAnswer surfaces provider stream errors with the real reason instead of an empty answer', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       { type: 'start' },
@@ -121,10 +120,10 @@ test('streamProviderAnswer surfaces provider stream errors with the real reason 
   const loggerCalls = [];
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions(loggerCalls))),
+    () => collectStream(streamAnswer(createAiCallOptions(loggerCalls))),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message.includes('OpenAI answer generation failed') &&
+      error.message.includes('AI answer generation failed') &&
       error.message.includes('billing details on our website'),
   );
   assert.ok(
@@ -135,7 +134,7 @@ test('streamProviderAnswer surfaces provider stream errors with the real reason 
   );
 });
 
-test('streamProviderAnswer unwraps SDK error envelopes to extract the real provider reason', async () => {
+test('streamAnswer unwraps SDK error envelopes to extract the real provider reason', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       {
@@ -153,10 +152,10 @@ test('streamProviderAnswer unwraps SDK error envelopes to extract the real provi
   const loggerCalls = [];
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions(loggerCalls))),
+    () => collectStream(streamAnswer(createAiCallOptions(loggerCalls))),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message.includes('OpenAI answer generation failed') &&
+      error.message.includes('AI answer generation failed') &&
       error.message.includes('billing details on our website') &&
       !error.message.includes(': error'),
   );
@@ -168,14 +167,14 @@ test('streamProviderAnswer unwraps SDK error envelopes to extract the real provi
   );
 });
 
-test('streamProviderAnswer delivers text yielded before a provider stream error', async () => {
+test('streamAnswer delivers text yielded before a provider stream error', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       { type: 'text-delta', text: 'Partial' },
       { type: 'error', error: { code: 'server_error', message: 'Upstream exploded' } },
     ]);
   const loggerCalls = [];
-  const stream = streamProviderAnswer(createProviderCallOptions(loggerCalls));
+  const stream = streamAnswer(createAiCallOptions(loggerCalls));
 
   const first = await stream[Symbol.asyncIterator]().next();
   assert.equal(first.value, 'Partial');
@@ -184,23 +183,23 @@ test('streamProviderAnswer delivers text yielded before a provider stream error'
     () => stream[Symbol.asyncIterator]().next(),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'OpenAI answer generation failed: Upstream exploded',
+      error.message === 'AI answer generation failed: Upstream exploded',
   );
 });
 
-test('streamProviderAnswer reports content-filter finishes distinctly', async () => {
+test('streamAnswer reports content-filter finishes distinctly', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([{ type: 'finish', finishReason: 'content-filter' }]);
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions())),
+    () => collectStream(streamAnswer(createAiCallOptions())),
     (error) =>
       error instanceof InternalServerErrorException &&
-      error.message === 'OpenAI response was blocked by the content filter',
+      error.message === 'AI response was blocked by the content filter',
   );
 });
 
-test('streamProviderAnswer accepts legacy object finish reasons', async () => {
+test('streamAnswer accepts legacy object finish reasons', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([
       {
@@ -210,88 +209,88 @@ test('streamProviderAnswer accepts legacy object finish reasons', async () => {
     ]);
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions())),
+    () => collectStream(streamAnswer(createAiCallOptions())),
     (error) =>
       error instanceof InternalServerErrorException &&
-      error.message === 'OpenAI response was blocked by the content filter',
+      error.message === 'AI response was blocked by the content filter',
   );
 });
 
-test('streamProviderAnswer reports length-truncated finishes distinctly', async () => {
+test('streamAnswer reports length-truncated finishes distinctly', async () => {
   mockAiExports.streamText = () =>
     createStreamResult([{ type: 'finish', finishReason: 'length' }]);
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions())),
+    () => collectStream(streamAnswer(createAiCallOptions())),
     (error) =>
       error instanceof InternalServerErrorException &&
       error.message ===
-        'OpenAI answer was truncated before any content was generated',
+        'AI answer was truncated before any content was generated',
   );
 });
 
-test('streamProviderAnswer wraps thrown stream errors and logs the raw cause', async () => {
+test('streamAnswer wraps thrown stream errors and logs the raw cause', async () => {
   mockAiExports.streamText = () => {
     throw new Error('socket hang up');
   };
   const loggerCalls = [];
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions(loggerCalls))),
+    () => collectStream(streamAnswer(createAiCallOptions(loggerCalls))),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'OpenAI answer streaming failed',
+      error.message === 'AI answer streaming failed',
   );
   assert.ok(
     loggerCalls.some(([message]) => message.includes('socket hang up')),
   );
 });
 
-test('streamProviderAnswer maps timeout errors to a dedicated exception', async () => {
+test('streamAnswer maps timeout errors to a dedicated exception', async () => {
   mockAiExports.streamText = () => {
     throw new Error('The request timed out after 16000ms');
   };
   const loggerCalls = [];
 
   await assert.rejects(
-    () => collectStream(streamProviderAnswer(createProviderCallOptions(loggerCalls))),
+    () => collectStream(streamAnswer(createAiCallOptions(loggerCalls))),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'OpenAI answer generation timed out',
+      error.message === 'AI answer generation timed out',
   );
   assert.deepEqual(loggerCalls, []);
 });
 
-test('generateProviderAnswer returns trimmed text on success', async () => {
+test('generateAnswer returns trimmed text on success', async () => {
   mockAiExports.generateText = async () => ({ text: '  Hello from the model.  ' });
 
-  const answer = await generateProviderAnswer(createProviderCallOptions());
+  const answer = await generateAnswer(createAiCallOptions());
 
   assert.equal(answer, 'Hello from the model.');
 });
 
-test('generateProviderAnswer reports blank model output as an empty answer', async () => {
+test('generateAnswer reports blank model output as an empty answer', async () => {
   mockAiExports.generateText = async () => ({ text: '   ' });
 
   await assert.rejects(
-    () => generateProviderAnswer(createProviderCallOptions()),
+    () => generateAnswer(createAiCallOptions()),
     (error) =>
       error instanceof InternalServerErrorException &&
-      error.message === 'OpenAI returned an empty answer',
+      error.message === 'AI returned an empty answer',
   );
 });
 
-test('generateProviderAnswer wraps unexpected errors and logs the root cause', async () => {
+test('generateAnswer wraps unexpected errors and logs the root cause', async () => {
   mockAiExports.generateText = async () => {
     throw new Error('Your account is not active, please check your billing details on our website.');
   };
   const loggerCalls = [];
 
   await assert.rejects(
-    () => generateProviderAnswer(createProviderCallOptions(loggerCalls)),
+    () => generateAnswer(createAiCallOptions(loggerCalls)),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'OpenAI answer generation failed',
+      error.message === 'AI answer generation failed',
   );
   assert.ok(
     loggerCalls.some(([message]) => message.includes('account is not active')),

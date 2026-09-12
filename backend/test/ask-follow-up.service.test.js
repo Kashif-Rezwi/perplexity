@@ -82,8 +82,8 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
-      async generateStandaloneSearchQuery(input) {
-        calls.push(['generateStandaloneSearchQuery', input]);
+      async resolveSearchQuery(input) {
+        calls.push(['resolveSearchQuery', input]);
         return standaloneSearchQuery;
       },
       async generateAnswer(input) {
@@ -153,7 +153,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [
-      'generateStandaloneSearchQuery',
+      'resolveSearchQuery',
       {
         question,
         threadTitle: 'Explain Prisma relations',
@@ -220,10 +220,10 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
   const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
-      async generateStandaloneSearchQuery(input) {
-        calls.push(['generateStandaloneSearchQuery', input]);
+      async resolveSearchQuery(input) {
+        calls.push(['resolveSearchQuery', input]);
         throw new ServiceUnavailableException(
-          'OpenAI search query generation failed',
+          'AI search query generation failed',
         );
       },
       async generateAnswer(input) {
@@ -279,7 +279,7 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
   assert.deepEqual(calls, [
     ['findThreadDetailById', threadId],
     [
-      'generateStandaloneSearchQuery',
+      'resolveSearchQuery',
       {
         question,
         threadTitle: 'Explain Prisma relations',
@@ -354,8 +354,8 @@ test('AskService falls back to the raw follow-up question when rewrite times out
       getQueryRewriteTimeoutMs() {
         return 1;
       },
-      async generateStandaloneSearchQuery(input, abortSignal) {
-        calls.push(['generateStandaloneSearchQuery', input]);
+      async resolveSearchQuery(input, abortSignal) {
+        calls.push(['resolveSearchQuery', input]);
         return delayWithAbort(25, 'Prisma pricing current plans', abortSignal);
       },
       async generateAnswer(input) {
@@ -411,7 +411,7 @@ test('AskService falls back to the raw follow-up question when rewrite times out
     calls.map(([name]) => name),
     [
       'findThreadDetailById',
-      'generateStandaloneSearchQuery',
+      'resolveSearchQuery',
       'appendPendingTurnToThread',
       'search',
       'generateAnswer',
@@ -427,8 +427,8 @@ test('AskService rejects follow-up for a missing thread before search', async ()
   const calls = [];
   const service = createTestAskService(
     {
-      async generateStandaloneSearchQuery() {
-        calls.push(['generateStandaloneSearchQuery']);
+      async resolveSearchQuery() {
+        calls.push(['resolveSearchQuery']);
       },
       async generateAnswer() {
         calls.push(['generateAnswer']);
