@@ -22,7 +22,6 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
   "dependencies": {
     "@ai-sdk/groq": "^3.0.39",
     "@nestjs/common": "^11.0.0",

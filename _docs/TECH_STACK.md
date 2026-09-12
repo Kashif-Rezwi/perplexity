@@ -19,7 +19,7 @@ This document captures the technology stack for the Perplexity clone. For struct
 |---|---|---|
 | **Framework** | NestJS (Node.js) | Provides strong conventions, out-of-the-box dependency injection, and a robust ecosystem. |
 | **Language** | TypeScript | Adds static typing to catch errors at compile-time and improve refactoring safety. |
-| **Database** | PostgreSQL + Neon | Rock-solid relational database perfect for strict schemas like threads, turns, and citations. Neon allows for scale-to-zero in development. |
+| **Database** | PostgreSQL 17 (Prisma ORM) | Relational database for strict schemas (threads, turns, sources, and citations). Neon is supported for cloud serverless branching; local and Docker Compose environments run standard PostgreSQL 17. |
 | **ORM** | Prisma | Type-safe database client that greatly speeds up development compared to raw SQL. |
 | **Validation** | `class-validator` | Integrates seamlessly with NestJS pipes to automatically validate incoming JSON payloads. |
 | **AI Framework**| Vercel AI SDK | Provides a unified, provider-agnostic interface for interacting with LLMs (currently Groq). |
