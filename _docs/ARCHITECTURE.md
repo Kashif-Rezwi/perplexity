@@ -50,7 +50,7 @@ The following describes the end-to-end data flow when a user submits a question.
 7.  **Source Preparation**: The retrieved web results are normalized into source inputs for answer context and later persistence.
 8.  **AI Answer Generation**:
     *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.
-    *   The AI Service is provider-agnostic, supporting OpenAI and Groq based on environment variables.
+    *   The AI Service is provider-agnostic behind generic `AI_*` environment variables; the active model runs on Groq.
 9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence. The stream also emits lifecycle progress stages (`preparing`, `searching`, `answering`, `saving`, `completed`) so the UI can show specific status text.
 10. **Citation Linking**: After streaming completes, the backend maps markdown citations (e.g., `[1]`) to the persisted sources to construct `citations` objects.
 11. **Finalization (Backend)**: The final answer, sources, citations, and suggested follow-up questions are persisted, and the stream emits the same `{ thread, turn }` response shape used by the synchronous endpoint.

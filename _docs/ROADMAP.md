@@ -18,7 +18,7 @@ Core capabilities required to make the first complete product loop work.
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend** | Database persistence | Store threads, turns, sources, and citations (via PostgreSQL) |
-| **Backend** | Web search & LLM | Retrieve external sources and generate answers (Tavily, OpenAI/Groq) |
+| **Backend** | Web search & LLM | Retrieve external sources and generate answers (Tavily, Groq) |
 | **Backend** | Core API endpoints | Ask a question, retrieve thread details, load per-turn sources, and delete threads |
 | **Frontend** | Layout & design system | Two-column shell, styling tokens, typography, animations |
 | **Frontend** | Core Thread UI | Submit questions, render markdown answers, render citation badges |
