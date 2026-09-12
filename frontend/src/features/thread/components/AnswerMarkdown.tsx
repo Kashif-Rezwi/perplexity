@@ -132,7 +132,7 @@ export function AnswerMarkdown({ markdown, sources = [], onCitationClick }: Answ
 
   return (
     <div className="flex flex-col gap-3 w-full animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
-      <div className="prose prose-invert max-w-none text-[16px] text-[var(--color-answer-text)] font-serif leading-[1.65] tracking-[-0.002em]">
+      <div className="prose prose-invert max-w-none text-[16px] text-[var(--color-answer-text)] font-sans leading-[1.65] tracking-[-0.002em]">
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkCitations]}
           rehypePlugins={[rehypeHighlight]}
