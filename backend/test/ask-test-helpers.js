@@ -1,6 +1,8 @@
 const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
+const { ServiceUnavailableException } = require('@nestjs/common');
 const { AskService } = require('../src/ask/ask.service.ts');
-const { AiService } = require('../src/ai/ai.service.ts');
+const { withTimeout } = require('../src/common/utils/with-timeout.util.ts');
+const { getErrorMessage } = require('../src/common/utils/error.util.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
@@ -19,29 +21,150 @@ const DEFAULT_AI_TIMEOUTS = {
   getSuggestionTimeoutMs() { return 25_000; },
 };
 
-function createTestAskService(aiMock, searchMock, threadsMock) {
-  // Pass aiMock as the active provider via stubbed ConfigService fallback.
-  const stubConfigService = { get() { return undefined; } };
-  const providerMock = {
-    ...DEFAULT_AI_TIMEOUTS,
-    async generateSuggestedFollowUpQuestions() { return []; },
-    async generateAnswer() { return 'Prisma relations connect rows.'; },
-    ...aiMock,
-  };
+// Mirrors AiService's query-rewrite context truncation.
+const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
+const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
 
-  if (!providerMock.streamAnswer) {
-    providerMock.streamAnswer = async function* streamAnswer(input) {
-      yield await providerMock.generateAnswer(input);
-    };
+function getQueryRewritePriorTurns(priorTurns) {
+  return (priorTurns ?? [])
+    .slice(-QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT)
+    .map((turn) => ({
+      question: turn.question,
+      answerMarkdown: truncateForQueryRewrite(turn.answerMarkdown),
+    }));
+}
+
+function truncateForQueryRewrite(value) {
+  const normalizedValue = value.replace(/\s+/g, ' ').trim();
+
+  return normalizedValue.length > QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH
+    ? `${normalizedValue.slice(0, QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH)}...`
+    : normalizedValue;
+}
+
+function createTestAskService(aiMock, searchMock, threadsMock) {
+  // AiService exposes positional arguments to AskService and owns the
+  // timeout/abort/fallback behavior internally, while the AI mocks in these
+  // tests record the single-object provider call shape. This adapter emulates
+  // the real AiService behavior between the two so the recorded calls stay
+  // comparable.
+  const timeouts = {};
+  for (const key of [
+    'getAnswerTimeoutMs',
+    'getQueryRewriteTimeoutMs',
+    'getSuggestionTimeoutMs',
+  ]) {
+    if (aiMock[key]) {
+      timeouts[key] = aiMock[key];
+    }
   }
 
-  const aiService = new AiService(
-    providerMock,
-    stubConfigService,
-    providerMock,
-  );
+  const aiService = {
+    ...DEFAULT_AI_TIMEOUTS,
+    ...timeouts,
+
+    async resolveSearchQuery(question, priorTurns, threadTitle) {
+      if (!aiMock.resolveSearchQuery) {
+        return question;
+      }
+
+      const abortController = new AbortController();
+
+      try {
+        return await withTimeout(
+          aiMock.resolveSearchQuery(
+            {
+              question,
+              threadTitle,
+              priorTurns: getQueryRewritePriorTurns(priorTurns),
+            },
+            abortController.signal,
+          ),
+          aiService.getQueryRewriteTimeoutMs(),
+          () =>
+            new ServiceUnavailableException(
+              'AI search query rewrite timed out',
+            ),
+          () => abortController.abort(),
+        );
+      } catch (error) {
+        aiFallbackLog(
+          `Search query rewrite failed; falling back to raw question: ${getErrorMessage(error)}`,
+        );
+        return question;
+      }
+    },
+
+    async generateAnswer(question, priorTurns, sources) {
+      if (!aiMock.generateAnswer) {
+        return 'Prisma relations connect rows.';
+      }
+
+      const abortController = new AbortController();
+
+      return withTimeout(
+        aiMock.generateAnswer(
+          { question, priorTurns, sources },
+          abortController.signal,
+        ),
+        aiService.getAnswerTimeoutMs(),
+        () => new ServiceUnavailableException('AI answer generation timed out'),
+        () => abortController.abort(),
+      );
+    },
+
+    async *streamAnswer(question, priorTurns, sources, abortSignal) {
+      if (aiMock.streamAnswer) {
+        yield* aiMock.streamAnswer(
+          { question, priorTurns, sources },
+          abortSignal,
+        );
+        return;
+      }
+
+      yield await aiService.generateAnswer(question, priorTurns, sources);
+    },
+
+    async generateSuggestedFollowUpQuestions(
+      question,
+      answerMarkdown,
+      priorTurns,
+      sources,
+      abortSignal,
+    ) {
+      if (!aiMock.generateSuggestedFollowUpQuestions) {
+        return [];
+      }
+
+      const controller = new AbortController();
+
+      try {
+        return await withTimeout(
+          aiMock.generateSuggestedFollowUpQuestions(
+            { question, answerMarkdown, priorTurns, sources },
+            controller.signal,
+          ),
+          aiService.getSuggestionTimeoutMs(),
+          () =>
+            new ServiceUnavailableException(
+              'AI suggestion generation timed out',
+            ),
+          () => controller.abort(),
+        );
+      } catch (error) {
+        aiFallbackLog(
+          `Suggested follow-up generation failed; returning empty suggestions: ${getErrorMessage(error)}`,
+        );
+        return [];
+      }
+    },
+  };
 
   return new AskService(aiService, searchMock, threadsMock);
+}
+
+function aiFallbackLog(message) {
+  // Keep fallback warnings quiet in test output.
 }
 
 function delayWithAbort(ms, value, signal) {

@@ -1,5 +1,4 @@
 const NODE_ENV_VALUES = new Set(['development', 'test', 'production']);
-const AI_PROVIDER_VALUES = new Set(['openai', 'groq']);
 const LOG_LEVEL_VALUES = new Set(['error', 'warn', 'log', 'debug', 'verbose']);
 const TAVILY_SEARCH_DEPTH_VALUES = new Set([
   'basic',
@@ -9,12 +8,9 @@ const TAVILY_SEARCH_DEPTH_VALUES = new Set([
 ]);
 
 const POSITIVE_INTEGER_KEYS = [
-  'OPENAI_ANSWER_TIMEOUT_MS',
-  'OPENAI_QUERY_REWRITE_TIMEOUT_MS',
-  'OPENAI_SUGGESTION_TIMEOUT_MS',
-  'GROQ_ANSWER_TIMEOUT_MS',
-  'GROQ_QUERY_REWRITE_TIMEOUT_MS',
-  'GROQ_SUGGESTION_TIMEOUT_MS',
+  'AI_ANSWER_TIMEOUT_MS',
+  'AI_QUERY_REWRITE_TIMEOUT_MS',
+  'AI_SUGGESTION_TIMEOUT_MS',
   'TAVILY_MAX_RESULTS',
   'TAVILY_SEARCH_TIMEOUT_MS',
 ] as const;
@@ -24,15 +20,12 @@ type Environment = Record<string, unknown>;
 export function validateEnvironment(input: Environment): Environment {
   const environment = { ...input };
   const nodeEnv = getOptionalString(environment, 'NODE_ENV', 'development');
-  const aiProvider = getOptionalString(environment, 'AI_PROVIDER', 'openai');
   const logLevel = getOptionalString(environment, 'LOG_LEVEL', 'log');
 
   assertAllowedValue('NODE_ENV', nodeEnv, NODE_ENV_VALUES);
-  assertAllowedValue('AI_PROVIDER', aiProvider, AI_PROVIDER_VALUES);
   assertAllowedValue('LOG_LEVEL', logLevel, LOG_LEVEL_VALUES);
 
   environment.NODE_ENV = nodeEnv;
-  environment.AI_PROVIDER = aiProvider;
   environment.LOG_LEVEL = logLevel;
   environment.HOST = getOptionalString(environment, 'HOST', '0.0.0.0');
   environment.PORT = getIntegerInRange(environment, 'PORT', 8080, 1, 65_535);
@@ -55,9 +48,7 @@ export function validateEnvironment(input: Environment): Environment {
   );
   environment.TAVILY_SEARCH_DEPTH = searchDepth;
 
-  const providerApiKey =
-    aiProvider === 'groq' ? 'GROQ_API_KEY' : 'OPENAI_API_KEY';
-  environment[providerApiKey] = getRequiredString(environment, providerApiKey);
+  environment.AI_PROVIDER_API_KEY = getRequiredString(environment, 'AI_PROVIDER_API_KEY');
 
   for (const key of POSITIVE_INTEGER_KEYS) {
     const rawValue = getOptionalString(environment, key);

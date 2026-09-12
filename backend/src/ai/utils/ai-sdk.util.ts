@@ -29,17 +29,28 @@ const STANDALONE_SEARCH_QUERY_MAX_OUTPUT_TOKENS = 1000;
 const FINISH_REASON_CONTENT_FILTER = 'content-filter';
 const FINISH_REASON_LENGTH = 'length';
 
+// Groq requires structuredOutputs: false for JSON output on most models. Without
+// it the SDK attempts OpenAI-compatible structured outputs which Groq does not
+// fully support, causing generation to fail. The JSON instruction is appended to
+// the system prompt here rather than in the shared prompt constant so that all
+// Groq-specific concerns stay contained within this file.
+const GROQ_PROVIDER_OPTIONS: GenerateTextOptions['providerOptions'] = {
+  groq: { structuredOutputs: false },
+};
+
+const GROQ_SUGGESTION_SYSTEM_PROMPT =
+  `${SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT} Output the response as a JSON object containing a "questions" array.`;
+
 type GenerateTextOptions = Parameters<typeof generateText>[0];
 
 type AiSdkModel = GenerateTextOptions['model'];
 
-type ProviderLogger = Pick<Logger, 'error' | 'warn'>;
+type AiLogger = Pick<Logger, 'error' | 'warn'>;
 
-type ProviderBaseInput = {
-  providerName: string;
+type AiSdkBaseInput = {
   model: AiSdkModel;
   abortSignal?: AbortSignal;
-  logger: ProviderLogger;
+  logger: AiLogger;
 };
 
 /**
@@ -75,13 +86,13 @@ function getFinishReason(part: FullStreamPart): string {
   return '';
 }
 
-function getProviderStreamErrorDetail(errorPart: unknown): string {
+function getStreamErrorDetail(errorPart: unknown): string {
   if (!errorPart) {
-    return 'unknown provider error';
+    return 'unknown AI error';
   }
 
   if (typeof errorPart === 'string') {
-    return errorPart.trim() || 'unknown provider error';
+    return errorPart.trim() || 'unknown AI error';
   }
 
   if (typeof errorPart === 'object') {
@@ -90,9 +101,9 @@ function getProviderStreamErrorDetail(errorPart: unknown): string {
     // Unwrap it before reading fields, guarding against cycles.
     const wrapped = (errorPart as { error?: unknown }).error;
     if (wrapped && wrapped !== errorPart) {
-      const unwrappedDetail = getProviderStreamErrorDetail(wrapped);
+      const unwrappedDetail = getStreamErrorDetail(wrapped);
 
-      if (unwrappedDetail !== 'unknown provider error') {
+      if (unwrappedDetail !== 'unknown AI error') {
         return unwrappedDetail;
       }
     }
@@ -115,16 +126,15 @@ function getProviderStreamErrorDetail(errorPart: unknown): string {
     }
   }
 
-  return 'unknown provider error';
+  return 'unknown AI error';
 }
 
-export async function generateProviderAnswer({
-  providerName,
+export async function generateAnswer({
   model,
   input,
   abortSignal,
   logger,
-}: ProviderBaseInput & { input: GenerateAnswerInput }): Promise<string> {
+}: AiSdkBaseInput & { input: GenerateAnswerInput }): Promise<string> {
   try {
     const { text } = await generateText({
       model,
@@ -136,36 +146,31 @@ export async function generateProviderAnswer({
     const answerMarkdown = text.trim();
 
     if (!answerMarkdown) {
-      throw new InternalServerErrorException(
-        `${providerName} returned an empty answer`,
-      );
+      throw new InternalServerErrorException('AI returned an empty answer');
     }
 
     return answerMarkdown;
   } catch (error) {
-    if (isKnownProviderException(error)) {
+    if (isKnownAiException(error)) {
       throw error;
     }
 
     logger.error(
-      `${providerName} answer generation failed: ${getErrorMessage(error)}`,
+      `AI answer generation failed: ${getErrorMessage(error)}`,
       getErrorStack(error),
     );
 
-    throw new ServiceUnavailableException(
-      `${providerName} answer generation failed`,
-    );
+    throw new ServiceUnavailableException('AI answer generation failed');
   }
 }
 
-export async function* streamProviderAnswer({
-  providerName,
+export async function* streamAnswer({
   model,
   input,
   abortSignal,
   logger,
   timeoutMs,
-}: ProviderBaseInput & {
+}: AiSdkBaseInput & {
   input: GenerateAnswerInput;
   timeoutMs: number;
 }): AsyncIterable<string> {
@@ -192,13 +197,13 @@ export async function* streamProviderAnswer({
         }
 
         case 'error': {
-          const detail = getProviderStreamErrorDetail(part.error);
+          const detail = getStreamErrorDetail(part.error);
           logger.error(
-            `${providerName} answer stream error: ${detail}`,
+            `AI answer stream error: ${detail}`,
             getErrorStack(part.error),
           );
           throw new ServiceUnavailableException(
-            `${providerName} answer generation failed: ${detail}`,
+            `AI answer generation failed: ${detail}`,
           );
         }
 
@@ -217,60 +222,49 @@ export async function* streamProviderAnswer({
     if (!accumulatedAnswer.trim()) {
       if (finishReason === FINISH_REASON_CONTENT_FILTER) {
         throw new InternalServerErrorException(
-          `${providerName} response was blocked by the content filter`,
+          'AI response was blocked by the content filter',
         );
       }
 
       if (finishReason === FINISH_REASON_LENGTH) {
         throw new InternalServerErrorException(
-          `${providerName} answer was truncated before any content was generated`,
+          'AI answer was truncated before any content was generated',
         );
       }
 
-      throw new InternalServerErrorException(
-        `${providerName} returned an empty answer`,
-      );
+      throw new InternalServerErrorException('AI returned an empty answer');
     }
   } catch (error) {
-    if (isKnownProviderException(error)) {
+    if (isKnownAiException(error)) {
       throw error;
     }
 
     if (isTimeoutError(error)) {
-      throw new ServiceUnavailableException(
-        `${providerName} answer generation timed out`,
-      );
+      throw new ServiceUnavailableException('AI answer generation timed out');
     }
 
     logger.error(
-      `${providerName} answer streaming failed: ${getErrorMessage(error)}`,
+      `AI answer streaming failed: ${getErrorMessage(error)}`,
       getErrorStack(error),
     );
 
-    throw new ServiceUnavailableException(
-      `${providerName} answer streaming failed`,
-    );
+    throw new ServiceUnavailableException('AI answer streaming failed');
   }
 }
 
-export async function generateProviderSuggestedFollowUpQuestions({
-  providerName,
+export async function generateSuggestedFollowUpQuestions({
   model,
   input,
   abortSignal,
   logger,
-  systemPrompt = SUGGESTED_FOLLOW_UP_SYSTEM_PROMPT,
-  providerOptions,
-}: ProviderBaseInput & {
+}: AiSdkBaseInput & {
   input: GenerateSuggestedFollowUpQuestionsInput;
-  systemPrompt?: string;
-  providerOptions?: GenerateTextOptions['providerOptions'];
 }): Promise<string[]> {
   try {
     const { output } = await generateText({
       model,
       abortSignal,
-      system: systemPrompt,
+      system: GROQ_SUGGESTION_SYSTEM_PROMPT,
       prompt: createSuggestedFollowUpQuestionsPrompt(input),
       output: Output.object({
         schema: jsonSchema<{ questions: string[] }>({
@@ -288,7 +282,7 @@ export async function generateProviderSuggestedFollowUpQuestions({
           required: ['questions'],
         }),
       }),
-      providerOptions,
+      providerOptions: GROQ_PROVIDER_OPTIONS,
     });
 
     return sanitizeSuggestedFollowUpQuestions(output.questions);
@@ -298,24 +292,21 @@ export async function generateProviderSuggestedFollowUpQuestions({
     }
 
     logger.warn(
-      `${providerName} follow-up suggestion generation failed: ${getErrorMessage(
-        error,
-      )}`,
+      `AI follow-up suggestion generation failed: ${getErrorMessage(error)}`,
     );
 
     throw new ServiceUnavailableException(
-      `${providerName} follow-up suggestion generation failed`,
+      'AI follow-up suggestion generation failed',
     );
   }
 }
 
-export async function generateProviderStandaloneSearchQuery({
-  providerName,
+export async function generateStandaloneSearchQuery({
   model,
   input,
   abortSignal,
   logger,
-}: ProviderBaseInput & {
+}: AiSdkBaseInput & {
   input: GenerateStandaloneSearchQueryInput;
 }): Promise<string> {
   try {
@@ -330,29 +321,25 @@ export async function generateProviderStandaloneSearchQuery({
 
     if (!searchQuery) {
       throw new InternalServerErrorException(
-        `${providerName} returned an empty search query`,
+        'AI returned an empty search query',
       );
     }
 
     return searchQuery;
   } catch (error) {
-    if (isKnownProviderException(error)) {
+    if (isKnownAiException(error)) {
       throw error;
     }
 
     logger.warn(
-      `${providerName} search query generation failed: ${getErrorMessage(
-        error,
-      )}`,
+      `AI search query generation failed: ${getErrorMessage(error)}`,
     );
 
-    throw new ServiceUnavailableException(
-      `${providerName} search query generation failed`,
-    );
+    throw new ServiceUnavailableException('AI search query generation failed');
   }
 }
 
-function isKnownProviderException(
+function isKnownAiException(
   error: unknown,
 ): error is InternalServerErrorException | ServiceUnavailableException {
   return (
@@ -361,6 +348,8 @@ function isKnownProviderException(
   );
 }
 
+// The Vercel AI SDK does not export a named TimeoutError, so we match on the
+// error message. This is intentional — see https://sdk.vercel.ai/docs/reference.
 function isTimeoutError(error: unknown): boolean {
   return getErrorMessage(error).toLowerCase().includes('timed out');
 }

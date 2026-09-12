@@ -1,21 +1,40 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getOptionalTrimmedConfig } from '../common/utils/config.util';
+import { createGroq } from '@ai-sdk/groq';
+import {
+  getOptionalTrimmedConfig,
+  getPositiveIntegerConfig,
+  getRequiredTrimmedConfig,
+} from '../common/utils/config.util';
 import { getErrorMessage } from '../common/utils/error.util';
 import { withTimeout } from '../common/utils/with-timeout.util';
-import { OpenAiProviderService } from './openai-provider.service';
-import { GroqProviderService } from './groq-provider.service';
-import { AiProvider } from './types/ai-provider.interface';
-import type { PriorTurn } from './types/ai.types';
-import type { CreateTurnSourceInput } from '../sources/types/sources.types';
+import type { AnswerSource, PriorTurn } from './types/ai.types';
 import {
-  AI_PROVIDER_CONFIG_KEY,
-  DEFAULT_AI_PROVIDER,
+  AI_PROVIDER_API_KEY_CONFIG_KEY,
+  AI_DEFAULT_MODEL_CONFIG_KEY,
+  AI_FAST_MODEL_CONFIG_KEY,
+  AI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+  AI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+  AI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+  DEFAULT_AI_DEFAULT_MODEL,
+  DEFAULT_AI_FAST_MODEL,
+  DEFAULT_AI_ANSWER_TIMEOUT_MS,
+  DEFAULT_AI_QUERY_REWRITE_TIMEOUT_MS,
+  DEFAULT_AI_SUGGESTION_TIMEOUT_MS,
 } from './ai.constants';
+import {
+  generateAnswer,
+  generateStandaloneSearchQuery,
+  generateSuggestedFollowUpQuestions,
+  streamAnswer,
+} from './utils/ai-sdk.util';
 
 const QUERY_REWRITE_PRIOR_TURN_CONTEXT_LIMIT = 3;
 const QUERY_REWRITE_ANSWER_CONTEXT_MAX_LENGTH = 300;
-const SUPPORTED_AI_PROVIDERS = ['openai', 'groq'] as const;
+
+// The active model runs on Groq today, but callers only see generic `AI_*`
+// config. To swap vendors later, replace the SDK client created in the
+// constructor and keep this service's public API unchanged.
 
 function truncateForQueryRewrite(value: string): string {
   const normalizedValue = value.replace(/\s+/g, ' ').trim();
@@ -37,50 +56,26 @@ function getQueryRewritePriorTurns(priorTurns: PriorTurn[]): PriorTurn[] {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  private client?: ReturnType<typeof createGroq>;
 
-  constructor(
-    private readonly openAiProviderService: OpenAiProviderService,
-    private readonly configService: ConfigService,
-    private readonly groqProviderService: GroqProviderService,
-  ) {}
-
-  private resolveProvider(): { provider: AiProvider; name: string } {
-    const type = getOptionalTrimmedConfig(
-      this.configService,
-      AI_PROVIDER_CONFIG_KEY,
-      DEFAULT_AI_PROVIDER,
-    ).toLowerCase();
-
-    if (!SUPPORTED_AI_PROVIDERS.includes(type as (typeof SUPPORTED_AI_PROVIDERS)[number])) {
-      throw new ServiceUnavailableException(
-        `${AI_PROVIDER_CONFIG_KEY} must be one of: ${SUPPORTED_AI_PROVIDERS.join(
-          ', ',
-        )}`,
-      );
-    }
-
-    if (type === 'groq') {
-      return { provider: this.groqProviderService, name: 'Groq' };
-    }
-
-    return { provider: this.openAiProviderService, name: 'OpenAI' };
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   async generateAnswer(
     question: string,
     priorTurns: PriorTurn[],
-    sources: CreateTurnSourceInput[],
+    sources: AnswerSource[],
   ): Promise<string> {
-    const { provider, name } = this.resolveProvider();
     const abortController = new AbortController();
 
     return withTimeout(
-      provider.generateAnswer(
-        { question, priorTurns, sources },
-        abortController.signal,
-      ),
-      provider.getAnswerTimeoutMs(),
-      () => new ServiceUnavailableException(`${name} answer generation timed out`),
+      generateAnswer({
+        model: this.getClient()(this.getModel()),
+        input: { question, priorTurns, sources },
+        abortSignal: abortController.signal,
+        logger: this.logger,
+      }),
+      this.getAnswerTimeoutMs(),
+      () => new ServiceUnavailableException('AI answer generation timed out'),
       () => abortController.abort(),
     );
   }
@@ -88,15 +83,16 @@ export class AiService {
   streamAnswer(
     question: string,
     priorTurns: PriorTurn[],
-    sources: CreateTurnSourceInput[],
+    sources: AnswerSource[],
     abortSignal?: AbortSignal,
   ): AsyncIterable<string> {
-    const { provider } = this.resolveProvider();
-
-    return provider.streamAnswer(
-      { question, priorTurns, sources },
+    return streamAnswer({
+      model: this.getClient()(this.getModel()),
+      input: { question, priorTurns, sources },
       abortSignal,
-    );
+      logger: this.logger,
+      timeoutMs: this.getAnswerTimeoutMs(),
+    });
   }
 
   async resolveSearchQuery(
@@ -108,21 +104,23 @@ export class AiService {
       return question;
     }
 
-    const { provider, name } = this.resolveProvider();
     const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateStandaloneSearchQuery(
-          {
+        generateStandaloneSearchQuery({
+          model: this.getClient()(this.getFastModel()),
+          input: {
             question,
             threadTitle,
             priorTurns: getQueryRewritePriorTurns(priorTurns),
           },
-          abortController.signal,
-        ),
-        provider.getQueryRewriteTimeoutMs(),
-        () => new ServiceUnavailableException(`${name} search query rewrite timed out`),
+          abortSignal: abortController.signal,
+          logger: this.logger,
+        }),
+        this.getQueryRewriteTimeoutMs(),
+        () =>
+          new ServiceUnavailableException('AI search query rewrite timed out'),
         () => abortController.abort(),
       );
     } catch (error) {
@@ -140,24 +138,21 @@ export class AiService {
     question: string,
     answerMarkdown: string,
     priorTurns: PriorTurn[],
-    sources: CreateTurnSourceInput[],
+    sources: AnswerSource[],
   ): Promise<string[]> {
-    const { provider, name } = this.resolveProvider();
     const abortController = new AbortController();
 
     try {
       return await withTimeout(
-        provider.generateSuggestedFollowUpQuestions(
-          {
-            question,
-            answerMarkdown,
-            priorTurns,
-            sources,
-          },
-          abortController.signal,
-        ),
-        provider.getSuggestionTimeoutMs(),
-        () => new ServiceUnavailableException(`${name} suggestion generation timed out`),
+        generateSuggestedFollowUpQuestions({
+          model: this.getClient()(this.getFastModel()),
+          input: { question, answerMarkdown, priorTurns, sources },
+          abortSignal: abortController.signal,
+          logger: this.logger,
+        }),
+        this.getSuggestionTimeoutMs(),
+        () =>
+          new ServiceUnavailableException('AI suggestion generation timed out'),
         () => abortController.abort(),
       );
     } catch (error) {
@@ -169,5 +164,57 @@ export class AiService {
       );
       return [];
     }
+  }
+
+  getAnswerTimeoutMs(): number {
+    return getPositiveIntegerConfig(
+      this.configService,
+      AI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_AI_ANSWER_TIMEOUT_MS,
+    );
+  }
+
+  getQueryRewriteTimeoutMs(): number {
+    return getPositiveIntegerConfig(
+      this.configService,
+      AI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_AI_QUERY_REWRITE_TIMEOUT_MS,
+    );
+  }
+
+  getSuggestionTimeoutMs(): number {
+    return getPositiveIntegerConfig(
+      this.configService,
+      AI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
+      DEFAULT_AI_SUGGESTION_TIMEOUT_MS,
+    );
+  }
+
+  private getClient(): ReturnType<typeof createGroq> {
+    if (!this.client) {
+      const apiKey = getRequiredTrimmedConfig(
+        this.configService,
+        AI_PROVIDER_API_KEY_CONFIG_KEY,
+      );
+      this.client = createGroq({ apiKey });
+    }
+
+    return this.client;
+  }
+
+  private getModel(): string {
+    return getOptionalTrimmedConfig(
+      this.configService,
+      AI_DEFAULT_MODEL_CONFIG_KEY,
+      DEFAULT_AI_DEFAULT_MODEL,
+    );
+  }
+
+  private getFastModel(): string {
+    return getOptionalTrimmedConfig(
+      this.configService,
+      AI_FAST_MODEL_CONFIG_KEY,
+      DEFAULT_AI_FAST_MODEL,
+    );
   }
 }

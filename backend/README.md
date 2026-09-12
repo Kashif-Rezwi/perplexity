@@ -7,8 +7,42 @@ This is the backend API for the Perplexity clone, responsible for managing resea
 The backend exposes endpoints that allow the frontend to:
 * Submit questions and follow-ups.
 * Search the web for relevant context (using Tavily).
-* Generate answers using AI (OpenAI or Groq) with citation markers.
+* Generate answers using AI (Groq) with citation markers.
 * Retrieve past threads, turns, and sources.
+
+```text
+                     HTTP / SSE Request
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │   NestJS Controllers / DTO  │
+              │   Ask · Threads · Sources   │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │       AskService Flow       │
+              │  Orchestrates Search & LLM  │
+              └───┬─────────────────────┬───┘
+                  │                     │
+        ┌─────────┴─────────┐ ┌─────────┴─────────┐
+        │   SearchService   │ │     AiService     │
+        │   (Tavily API)    │ │ (Groq / AI SDK)   │
+        └─────────┬─────────┘ └─────────┬─────────┘
+                  │                     │
+                  └──────────┬──────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │     Prisma Persistence      │
+              │ Threads · Turns · Citations │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │     PostgreSQL Database     │
+              └─────────────────────────────┘
+```
 
 ## V2 Scope
 
@@ -21,7 +55,7 @@ not expose it as a public multi-user service until those guardrails are added.
 ### Prerequisites
 * Node.js (v20+)
 * PostgreSQL database (e.g., Neon)
-* API Keys for Tavily and your chosen AI provider (OpenAI or Groq).
+* API Keys for Tavily and your AI provider (Groq).
 
 ### Installation & Configuration
 
@@ -43,24 +77,13 @@ not expose it as a public multi-user service until those guardrails are added.
    * `TAVILY_API_KEY` (Required): API key for Tavily search.
    * `TAVILY_SEARCH_TIMEOUT_MS`: (Optional) Defaults to 6000.
 
-   **AI Provider Configs:**
-   * `AI_PROVIDER`: (Optional) Select active provider: `openai` or `groq`. Defaults to `openai`.
-
-   *OpenAI Options:*
-   * `OPENAI_API_KEY`: (Required if `AI_PROVIDER` is `openai`)
-   * `OPENAI_MODEL`: (Optional) Used for answer generation. Defaults to `gpt-4o-mini`.
-   * `OPENAI_UTILITY_MODEL`: (Optional) Used for query rewriting and follow-up suggestions. Defaults to `gpt-4o-mini`.
-   * `OPENAI_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
-   * `OPENAI_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
-   * `OPENAI_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.
-
-   *Groq Options:*
-   * `GROQ_API_KEY`: (Required if `AI_PROVIDER` is `groq`)
-   * `GROQ_MODEL`: (Optional) Used for answer generation. Defaults to `llama-3.3-70b-versatile`.
-   * `GROQ_UTILITY_MODEL`: (Optional) Used for query rewriting. Defaults to `llama-3.1-8b-instant`.
-   * `GROQ_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
-   * `GROQ_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
-   * `GROQ_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.
+   **AI Configs:**
+   * `AI_PROVIDER_API_KEY`: (Required) API key for the active AI provider (Groq).
+   * `AI_DEFAULT_MODEL`: (Optional) Used for answer generation. Defaults to `openai/gpt-oss-120b`.
+   * `AI_FAST_MODEL`: (Optional) Used for query rewriting and follow-up suggestions. Defaults to `openai/gpt-oss-20b`.
+   * `AI_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
+   * `AI_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
+   * `AI_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.
 
 3. Run database migrations:
    ```bash

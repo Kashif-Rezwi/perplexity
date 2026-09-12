@@ -33,7 +33,7 @@ V2 is intended for local, single-user use. It does not include authentication, u
 | Frontend state | TanStack Query v5 (server data), Zustand (UI/local history), `react-markdown` + `remark-gfm` + `rehype-highlight` |
 | Backend | NestJS 11, TypeScript |
 | Database | PostgreSQL 17, Prisma 6 (threads, turns, sources, citations) |
-| AI | Vercel AI SDK — provider-agnostic OpenAI and Groq |
+| AI | Vercel AI SDK — provider-agnostic behind generic `AI_*` config (Groq) |
 | Search | Tavily |
 | Infrastructure | Docker (multi-stage, non-root), Docker Compose |
 
@@ -42,22 +42,28 @@ V2 is intended for local, single-user use. It does not include authentication, u
 The backend is a modular monolith: NestJS controllers validate input (DTOs), services coordinate business logic (the ask pipeline and thread management), and Prisma repositories persist data. The frontend uses a feature-based modular layout under `src/features/` with one typed API client in `src/lib/api`.
 
 ```text
-┌──────────────────────────────┐
-│           Browser            │
-│ Next.js 16 (server-rendered) │
-│ React 19 · Tailwind CSS v4   │
-└──────────────┬───────────────┘
-               │ HTTPS /api/* proxy
-               ▼
-┌──────────────────────────────┐
-│        NestJS backend        │
-│  Ask · Threads · Sources     │
-└──────────────┬───────────────┘
-               ▼
-┌────────────┐ ┌────────────────┐
-│ PostgreSQL │ │Tavily · OpenAI │
-│ 17 + Prisma│ │ or Groq        │
-└────────────┘ └────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                        Browser                         │
+│         Next.js 16 · React 19 · Tailwind CSS v4        │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            │ HTTPS (/api/perplexity/* proxy)
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                     NestJS Backend                     │
+│         Ask · Threads · Sources · Ai · Search          │
+└───────────────┬────────────────────────┬───────────────┘
+                │                        │
+                │ DATABASE_URL           │ Outbound HTTPS
+                ▼                        ▼
+    ┌───────────────────────┐  ┌───────────────────┐
+    │      PostgreSQL       │  │   Tavily Search   │
+    │    17 + Prisma ORM    │  │   (Web Context)   │
+    └───────────────────────┘  └───────────────────┘
+                               ┌───────────────────┐
+                               │   Groq AI Cloud   │
+                               │ (LLM Answers/SSE) │
+                               └───────────────────┘
 ```
 
 ## How It Works
@@ -75,7 +81,7 @@ See [`_docs/ARCHITECTURE.md`](_docs/ARCHITECTURE.md) for the full data-flow walk
 backend/
 ├── prisma/schema.prisma      # Thread, Turn, Source, Citation models
 ├── src/ask/                  # Ask/retry endpoints, SSE streaming, citation linking
-├── src/ai/                   # Provider-agnostic AI service (OpenAI, Groq), prompts
+├── src/ai/                   # Provider-agnostic AI service (Groq), prompts
 ├── src/search/               # Tavily search integration
 ├── src/threads/              # Thread list/detail/rename/delete/pin + turn persistence
 ├── src/sources/              # Source listing endpoint
@@ -94,7 +100,7 @@ frontend/
 ### Prerequisites
 
 - Node.js 20.9 or newer (Docker images use Node 22 Alpine)
-- API keys: Tavily, plus OpenAI **or** Groq
+- API keys: Tavily and Groq (`AI_PROVIDER_API_KEY`)
 - Docker (for the Compose workflow) or a local PostgreSQL 17 instance
 
 ### Quick start with Docker Compose
@@ -104,7 +110,7 @@ For a production-shaped local stack:
 ```bash
 cp .env.example .env
 # Replace every placeholder in .env (POSTGRES_PASSWORD, TAVILY_API_KEY,
-# OPENAI_API_KEY or GROQ_API_KEY), then:
+# AI_PROVIDER_API_KEY), then:
 docker compose up -d --build
 docker compose ps -a
 ```
@@ -140,7 +146,7 @@ Enter a question in the prompt input on the home page, and the frontend will com
 | File | Purpose |
 | --- | --- |
 | `.env.example` (root) | Compose variables: Postgres credentials, runtime flags, provider/search keys |
-| `backend/.env.example` | Full backend reference: `DATABASE_URL`, `TAVILY_*`, `AI_PROVIDER`, `OPENAI_*` / `GROQ_*` models and timeouts |
+| `backend/.env.example` | Full backend reference: `DATABASE_URL`, `TAVILY_*`, `AI_*` models and timeouts |
 | `frontend/.env.example` | Server-only `BACKEND_URL` used by the Next.js `/api` proxy |
 
 The backend validates its environment at startup and names any missing or malformed value. Placeholder keys in the example files do not provide working external service access; real credentials belong in your local, git-ignored `.env` files.

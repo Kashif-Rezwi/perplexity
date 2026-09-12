@@ -117,7 +117,7 @@ event: final
 data: {"thread":{...},"turn":{...}}
 
 event: error
-data: {"message":"OpenAI answer generation failed","code":"ANSWER_FAILED","retryable":true}
+data: {"message":"AI answer generation failed","code":"ANSWER_FAILED","retryable":true}
 
 event: done
 data: {}

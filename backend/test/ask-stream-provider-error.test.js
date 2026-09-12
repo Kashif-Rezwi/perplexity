@@ -95,13 +95,13 @@ test('AskService emits ANSWER_FAILED without deltas when the AI stream completes
 });
 
 test('AskService propagates the AI empty-answer failure into the SSE error event', async () => {
-  const error = new InternalServerErrorException('OpenAI returned an empty answer');
+  const error = new InternalServerErrorException('AI returned an empty answer');
   const { calls, service } = createEmptyStreamAskService({ streamError: error });
 
   const events = await collectEvents(service);
 
   assert.deepEqual(events[4].data, {
-    message: 'OpenAI returned an empty answer',
+    message: 'AI returned an empty answer',
     code: 'ANSWER_FAILED',
     retryable: true,
   });
@@ -113,7 +113,7 @@ test('AskService propagates the AI empty-answer failure into the SSE error event
         {
           threadId,
           turnId,
-          errorMessage: 'OpenAI returned an empty answer',
+          errorMessage: 'AI returned an empty answer',
         },
       ],
     ],

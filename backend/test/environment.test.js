@@ -8,8 +8,7 @@ function validEnvironment(overrides = {}) {
   return {
     DATABASE_URL: 'postgresql://user:password@localhost:5432/perplexity',
     TAVILY_API_KEY: 'test-tavily-key',
-    AI_PROVIDER: 'openai',
-    OPENAI_API_KEY: 'sk-test-key',
+    AI_PROVIDER_API_KEY: 'test-ai-key',
     ...overrides,
   };
 }
@@ -24,16 +23,15 @@ test('validateEnvironment applies typed runtime defaults', () => {
   assert.equal(environment.CORS_ORIGINS, 'http://localhost:3001');
 });
 
-test('validateEnvironment requires the selected AI provider key', () => {
+test('validateEnvironment requires the AI key', () => {
   assert.throws(
     () =>
       validateEnvironment(
         validEnvironment({
-          AI_PROVIDER: 'groq',
-          OPENAI_API_KEY: undefined,
+          AI_PROVIDER_API_KEY: undefined,
         }),
       ),
-    /GROQ_API_KEY is required/,
+    /AI_PROVIDER_API_KEY is required/,
   );
 });
 

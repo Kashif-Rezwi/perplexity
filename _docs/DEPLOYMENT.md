@@ -22,14 +22,37 @@ The frontend's default `/api/*` proxy makes the second topology straightforward.
 
 ## 2. Prepared architecture
 
-```mermaid
-flowchart LR
-    U["Browser"] -->|"HTTPS"| F["Next.js frontend :3001"]
-    F -->|"/api/* proxy over private network"| B["NestJS backend :8080"]
-    B -->|"DATABASE_URL / TLS"| D[("PostgreSQL")]
-    B -->|"HTTPS"| T["Tavily"]
-    B -->|"HTTPS"| A["OpenAI or Groq"]
-    M["One-shot migration job"] -->|"prisma migrate deploy"| D
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Browser (Client Layer)                          │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     │ HTTPS
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  Next.js Frontend (:3001, App Router)                   │
+│           Rewrites & proxies /api/perplexity/* to backend URL           │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     │ /api/* (Internal Application Network)
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     NestJS Backend Service (:8080)                      │
+│                  AskController · AskService · AiService                 │
+└───────────┬─────────────────────────┬─────────────────────────┬─────────┘
+            │                         │                         │
+            │ DATABASE_URL / TLS      │ HTTPS (Web Search)      │ HTTPS (AI Provider)
+            ▼                         ▼                         ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│     PostgreSQL      │   │    Tavily Search    │   │    Groq AI Cloud    │
+│     Port: 5432      │   │    (Web Context)    │   │    (AI Provider)    │
+└──────────▲──────────┘   └─────────────────────┘   └─────────────────────┘
+           │
+           │ prisma migrate deploy
+┌──────────┴──────────┐
+│ One-Shot Migration  │
+│    (Prisma CLI)     │
+└─────────────────────┘
 ```
 
 The browser does not receive `BACKEND_URL`, `DATABASE_URL`, or provider keys.
@@ -67,9 +90,12 @@ wildcard CORS value, or invalid origin causes startup to fail clearly.
 | `PORT` | No | Defaults to `8080`. |
 | `DATABASE_URL` | Yes | PostgreSQL URL. Require TLS for a managed or remote database, normally with `sslmode=require`. |
 | `TAVILY_API_KEY` | Yes | Load from the platform secret manager. |
-| `AI_PROVIDER` | No | `openai` (default) or `groq`. |
-| `OPENAI_API_KEY` | Conditional | Required when `AI_PROVIDER=openai`. |
-| `GROQ_API_KEY` | Conditional | Required when `AI_PROVIDER=groq`. |
+| `AI_PROVIDER_API_KEY` | Yes | API key for the active AI provider (Groq). Load from the platform secret manager. |
+| `AI_DEFAULT_MODEL` | No | Answer-generation model. Defaults to `openai/gpt-oss-120b`. |
+| `AI_FAST_MODEL` | No | Query rewrite/suggestion model. Defaults to `openai/gpt-oss-20b`. |
+| `AI_ANSWER_TIMEOUT_MS` | No | Defaults to `16000`. |
+| `AI_QUERY_REWRITE_TIMEOUT_MS` | No | Defaults to `6000`. |
+| `AI_SUGGESTION_TIMEOUT_MS` | No | Defaults to `15000`. |
 | `CORS_ORIGINS` | No | Comma-separated exact origins, with no paths or trailing slashes. Leave empty when browsers use only the frontend proxy. `*` is rejected. |
 | `LOG_LEVEL` | No | `error`, `warn`, `log`, `debug`, or `verbose`; use `log` normally. |
 | `TRUST_PROXY` | No | Set `true` only when the backend is behind a trusted reverse proxy that controls forwarded headers. |
@@ -135,8 +161,7 @@ Edit `.env` and set:
 1. A long, URL-safe `POSTGRES_PASSWORD` (letters, digits, `_`, and `-` avoid URL
    encoding issues in the Compose-generated URL).
 2. A real `TAVILY_API_KEY`.
-3. `AI_PROVIDER=openai` plus `OPENAI_API_KEY`, or `AI_PROVIDER=groq` plus
-   `GROQ_API_KEY`.
+3. A real `AI_PROVIDER_API_KEY` for the active AI provider (Groq).
 
 The example placeholder values intentionally do not provide working external
 service access.
@@ -424,7 +449,7 @@ curl --include https://api-internal.example.com/health/ready
 - Alert on backend readiness failures, 5xx rate, high duration, restarts,
   database saturation, provider failures, and migration job failures.
 - Health checks deliberately do not call paid external providers. Verify
-  Tavily/OpenAI/Groq separately with synthetic checks at a controlled cadence.
+  Tavily/Groq separately with synthetic checks at a controlled cadence.
 - The application masks unexpected 500 responses, but expected provider
   failures may still return operational messages. Do not include secret values
   in thrown errors.
@@ -437,7 +462,7 @@ curl --include https://api-internal.example.com/health/ready
 ### Backend exits immediately
 
 Read startup logs. Environment validation names the missing or malformed key.
-Confirm `AI_PROVIDER` matches the provider key you supplied and that
+Confirm `AI_PROVIDER_API_KEY` is set and that
 `CORS_ORIGINS` uses exact origins without paths.
 
 ### Migration job fails

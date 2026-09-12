@@ -51,8 +51,10 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
-      async generateStandaloneSearchQuery() {
-        assert.fail('new asks must not rewrite search queries');
+      async resolveSearchQuery(input) {
+        // New asks carry no prior turns; AiService must not rewrite them.
+        assert.deepEqual(input.priorTurns, []);
+        return input.question;
       },
       async generateAnswer(input) {
         calls.push(['generateAnswer', input]);
@@ -446,8 +448,8 @@ test('AskService retry stream only uses turns before the failed turn as context'
   const service = createTestAskService(
     {
       ...DEFAULT_AI_TIMEOUTS,
-      async generateStandaloneSearchQuery(input) {
-        calls.push(['generateStandaloneSearchQuery', input]);
+      async resolveSearchQuery(input) {
+        calls.push(['resolveSearchQuery', input]);
         return standaloneSearchQuery;
       },
       async *streamAnswer(input) {
@@ -515,9 +517,9 @@ test('AskService retry stream only uses turns before the failed turn as context'
   }
 
   assert.deepEqual(
-    calls.find(([name]) => name === 'generateStandaloneSearchQuery'),
+    calls.find(([name]) => name === 'resolveSearchQuery'),
     [
-      'generateStandaloneSearchQuery',
+      'resolveSearchQuery',
       {
         question: failedQuestion,
         threadTitle: 'Explain Prisma relations',

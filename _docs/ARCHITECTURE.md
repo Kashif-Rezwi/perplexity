@@ -10,6 +10,57 @@ The project is a full-stack application split into two distinct layers:
 - **Frontend**: A server-rendered Next.js application that handles UI, state management, and markdown rendering.
 - **Backend**: A NestJS API that orchestrates database persistence, external web search, and AI provider integration.
 
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        FRONTEND (Next.js 16)                            │
+│                                                                         │
+│  ┌────────────────────┐  ┌───────────────────┐  ┌────────────────────┐  │
+│  │  Feature Modules   │  │    State Layer    │  │   UI / Rendering   │  │
+│  │ • thread (Turns)   │  │ • TanStack Query  │  │ • react-markdown   │  │
+│  │ • sidebar (History)│  │ • Zustand Stores  │  │ • CitationBadge    │  │
+│  │ • home (Composer)  │  │                   │  │ • Highlight / GFM  │  │
+│  └────────────────────┘  └─────────┬─────────┘  └────────────────────┘  │
+│                                    │                                    │
+│                                    ▼                                    │
+│                       ┌─────────────────────────┐                       │
+│                       │    Typed API Client     │                       │
+│                       │ (/api/perplexity proxy) │                       │
+│                       └────────────┬────────────┘                       │
+└────────────────────────────────────┴────────────────────────────────────┘
+                                     │
+                                     │ HTTP / SSE Stream
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         BACKEND (NestJS 11)                             │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │                   Controllers & DTO Validation                    │  │
+│  │     AskController  ·  ThreadsController  ·  SourcesController     │  │
+│  └───────────────────────────────────┬───────────────────────────────┘  │
+│                                      │                                  │
+│                                      ▼                                  │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │                         Service Layer                             │  │
+│  │     AskService  ────►  SearchService (Tavily)                     │  │
+│  │          │      ────►  AiService (Groq SDK)                       │  │
+│  │          ▼                                                        │  │
+│  │     ThreadsService / SourcesService                               │  │
+│  └───────────────────────────────────┬───────────────────────────────┘  │
+│                                      │                                  │
+│                                      ▼                                  │
+│  ┌───────────────────────────────────────────────────────────────────┐  │
+│  │                    Prisma ORM & Data Mappers                      │  │
+│  │          Thread  ·  Turn  ·  Source  ·  Citation Models           │  │
+│  └───────────────────────────────────┬───────────────────────────────┘  │
+└──────────────────────────────────────┴──────────────────────────────────┘
+                                       │
+                                       │ DATABASE_URL / TLS
+                                       ▼
+                         ┌───────────────────────────┐
+                         │   PostgreSQL 17 (Neon)    │
+                         └───────────────────────────┘
+```
+
 ### Frontend Architectural Style
 
 The frontend utilizes a **Feature-based Modular Structure**. Rather than grouping files strictly by type (e.g., all components in one folder, all hooks in another), code is organized by the product feature it belongs to.
@@ -39,6 +90,39 @@ We utilize the standard NestJS layered architecture to maintain clear separation
 
 The following describes the end-to-end data flow when a user submits a question.
 
+```text
+  Client                 Next.js Frontend             NestJS Backend              External APIs
+    │                           │                            │                          │
+    │  1. Submit question       │                            │                          │
+    ├──────────────────────────►│                            │                          │
+    │                           │  2. POST /ask/stream       │                          │
+    │                           ├───────────────────────────►│                          │
+    │                           │                            │ 3. Init Turn in DB       │
+    │                           │                            │                          │
+    │                           │                            │ 4. Rewrite query         │
+    │                           │                            ├─────────────────────────►│ Groq (AI_FAST)
+    │                           │                            │◄─────────────────────────┤ (clean query)
+    │                           │                            │                          │
+    │                           │                            │ 5. Search context        │
+    │                           │                            ├─────────────────────────►│ Tavily Search
+    │                           │                            │◄─────────────────────────┤ (web sources)
+    │                           │                            │                          │
+    │                           │  6. SSE: "answering"       │ 7. Stream answer text    │
+    │                           │◄───────────────────────────┤                          │
+    │                           │                            ├─────────────────────────►│ Groq (AI_DEFAULT)
+    │                           │  8. Live token deltas      │◄─────────────────────────┤ (token stream)
+    │                           │◄───────────────────────────┤                          │
+    │  9. Progressive render    │                            │                          │
+    │◄──────────────────────────┤                            │                          │
+    │                           │                            │ 10. Match [n] citations  │
+    │                           │                            │ 11. Persist to Postgres  │
+    │                           │  12. Final SSE event       │                          │
+    │                           │◄───────────────────────────┤                          │
+    │ 13. Hydrate & show chips  │                            │                          │
+    │◄──────────────────────────┤                            │                          │
+    │                           │                            │                          │
+```
+
 1.  **Input (Frontend)**: User types into the `AskInput` component.
 2.  **Submission (Frontend)**: Submitting triggers `POST /perplexity/ask/stream` for progressive rendering, with `POST /perplexity/ask` retained as a synchronous JSON fallback (see [`API.md`](API.md)).
 3.  **Routing (Frontend)**: The Next.js router navigates the user to `/thread/[threadId]`.
@@ -50,7 +134,7 @@ The following describes the end-to-end data flow when a user submits a question.
 7.  **Source Preparation**: The retrieved web results are normalized into source inputs for answer context and later persistence.
 8.  **AI Answer Generation**:
     *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.
-    *   The AI Service is provider-agnostic, supporting OpenAI and Groq based on environment variables.
+    *   The AI Service is provider-agnostic behind generic `AI_*` environment variables; the active model runs on Groq.
 9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence. The stream also emits lifecycle progress stages (`preparing`, `searching`, `answering`, `saving`, `completed`) so the UI can show specific status text.
 10. **Citation Linking**: After streaming completes, the backend maps markdown citations (e.g., `[1]`) to the persisted sources to construct `citations` objects.
 11. **Finalization (Backend)**: The final answer, sources, citations, and suggested follow-up questions are persisted, and the stream emits the same `{ thread, turn }` response shape used by the synchronous endpoint.
