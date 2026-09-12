@@ -22,14 +22,37 @@ The frontend's default `/api/*` proxy makes the second topology straightforward.
 
 ## 2. Prepared architecture
 
-```mermaid
-flowchart LR
-    U["Browser"] -->|"HTTPS"| F["Next.js frontend :3001"]
-    F -->|"/api/* proxy over private network"| B["NestJS backend :8080"]
-    B -->|"DATABASE_URL / TLS"| D[("PostgreSQL")]
-    B -->|"HTTPS"| T["Tavily"]
-    B -->|"HTTPS"| A["Groq (via AI API)"]
-    M["One-shot migration job"] -->|"prisma migrate deploy"| D
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Browser (Client Layer)                          │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     │ HTTPS
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  Next.js Frontend (:3001, App Router)                   │
+│           Rewrites & proxies /api/perplexity/* to backend URL           │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     │ /api/* (Internal Application Network)
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     NestJS Backend Service (:8080)                      │
+│                  AskController · AskService · AiService                 │
+└───────────┬─────────────────────────┬─────────────────────────┬─────────┘
+            │                         │                         │
+            │ DATABASE_URL / TLS      │ HTTPS (Web Search)      │ HTTPS (AI Provider)
+            ▼                         ▼                         ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│     PostgreSQL      │   │    Tavily Search    │   │    Groq AI Cloud    │
+│     Port: 5432      │   │    (Web Context)    │   │    (AI Provider)    │
+└──────────▲──────────┘   └─────────────────────┘   └─────────────────────┘
+           │
+           │ prisma migrate deploy
+┌──────────┴──────────┐
+│ One-Shot Migration  │
+│    (Prisma CLI)     │
+└─────────────────────┘
 ```
 
 The browser does not receive `BACKEND_URL`, `DATABASE_URL`, or provider keys.

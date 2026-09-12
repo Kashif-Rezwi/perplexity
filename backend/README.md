@@ -10,6 +10,40 @@ The backend exposes endpoints that allow the frontend to:
 * Generate answers using AI (Groq) with citation markers.
 * Retrieve past threads, turns, and sources.
 
+```text
+                     HTTP / SSE Request
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │   NestJS Controllers / DTO  │
+              │   Ask · Threads · Sources   │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │       AskService Flow       │
+              │  Orchestrates Search & LLM  │
+              └───┬─────────────────────┬───┘
+                  │                     │
+        ┌─────────┴─────────┐ ┌─────────┴─────────┐
+        │   SearchService   │ │     AiService     │
+        │   (Tavily API)    │ │ (Groq / AI SDK)   │
+        └─────────┬─────────┘ └─────────┬─────────┘
+                  │                     │
+                  └──────────┬──────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │     Prisma Persistence      │
+              │ Threads · Turns · Citations │
+              └──────────────┬──────────────┘
+                             │
+                             ▼
+              ┌─────────────────────────────┐
+              │     PostgreSQL Database     │
+              └─────────────────────────────┘
+```
+
 ## V2 Scope
 
 This backend is currently designed for local, single-user development. It does

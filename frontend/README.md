@@ -10,6 +10,30 @@ The frontend handles:
 * Rendering of complex AI answers using GitHub Flavored Markdown (GFM).
 * A custom citation system that maps inline markers (e.g., `[1]`) to interactive badges and source panels.
 
+```text
+┌───────────────────────────────────────────────────────────┐
+│                    Next.js App Router                     │
+│             (/, /thread/[threadId], /history)             │
+└─────────────────────────────┬─────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+┌──────────────────────────┐     ┌──────────────────────────┐
+│     Feature Modules      │     │       State Layer        │
+│ • thread  (Turn, Cite)   │     │ • TanStack Query (Server)│
+│ • sidebar (History)      │     │ • Zustand (Local & UI)   │
+│ • home    (Ask Composer) │     │                          │
+└─────────────┬────────────┘     └─────────────┬────────────┘
+              │                                │
+              └───────────────┬────────────────┘
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────┐
+│                     Typed API Client                      │
+│      (/api/perplexity/* proxy -> Backend SSE & REST)      │
+└───────────────────────────────────────────────────────────┘
+```
+
 Note: source favicons are loaded from Google's public favicon service. This is
 simple for V2 local use, but a production deployment should consider a
 first-party proxy/cache if privacy or CSP requirements demand it.

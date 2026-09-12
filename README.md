@@ -42,22 +42,28 @@ V2 is intended for local, single-user use. It does not include authentication, u
 The backend is a modular monolith: NestJS controllers validate input (DTOs), services coordinate business logic (the ask pipeline and thread management), and Prisma repositories persist data. The frontend uses a feature-based modular layout under `src/features/` with one typed API client in `src/lib/api`.
 
 ```text
-┌──────────────────────────────┐
-│           Browser            │
-│ Next.js 16 (server-rendered) │
-│ React 19 · Tailwind CSS v4   │
-└──────────────┬───────────────┘
-               │ HTTPS /api/* proxy
-               ▼
-┌──────────────────────────────┐
-│        NestJS backend        │
-│  Ask · Threads · Sources     │
-└──────────────┬───────────────┘
-               ▼
-┌────────────┐ ┌────────────────┐
-│ PostgreSQL │ │Tavily · Groq   │
-│ 17 + Prisma│ │ (AI API)       │
-└────────────┘ └────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                        Browser                         │
+│         Next.js 16 · React 19 · Tailwind CSS v4        │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            │ HTTPS (/api/perplexity/* proxy)
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                     NestJS Backend                     │
+│         Ask · Threads · Sources · Ai · Search          │
+└───────────────┬────────────────────────┬───────────────┘
+                │                        │
+                │ DATABASE_URL           │ Outbound HTTPS
+                ▼                        ▼
+    ┌───────────────────────┐  ┌───────────────────┐
+    │      PostgreSQL       │  │   Tavily Search   │
+    │    17 + Prisma ORM    │  │   (Web Context)   │
+    └───────────────────────┘  └───────────────────┘
+                               ┌───────────────────┐
+                               │   Groq AI Cloud   │
+                               │ (LLM Answers/SSE) │
+                               └───────────────────┘
 ```
 
 ## How It Works
