@@ -154,12 +154,12 @@ The backend validates its environment at startup and names any missing or malfor
 ## Testing
 
 ```bash
-# Backend — node:test + ts-node (18 test files: ask orchestration, AI
-# providers, search, sources, threads, citations, environment, routes)
+# Backend — node:test + ts-node (18 test files, 125 tests: ask orchestration,
+# AI service, search, sources, threads, citations, environment, routes)
 cd backend && npm test
 
-# Frontend — Vitest (14 test files: hooks, stores, SSE parser, markdown
-# citations, thread export, history/sidebar utilities)
+# Frontend — Vitest (14 test files, 57 tests: hooks, stores, SSE parser,
+# markdown citations, thread export, history/sidebar utilities)
 cd frontend && npm test
 
 # Linting
@@ -198,4 +198,4 @@ The repository uses a feature-branch workflow: topic branches (for example `v2`,
 
 ## License
 
-No license file is present, and the repository does not grant an implicit open-source license. `backend/package.json` still declares `ISC`; this metadata should be reconciled with a maintainer decision (add a `LICENSE` file or remove the declaration).
+No license file is present, and the repository does not grant an implicit open-source license. All rights are reserved by the author.

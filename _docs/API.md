@@ -239,8 +239,9 @@ Response:
 }
 ```
 
-Note: `mode=deep-research` currently returns an empty list because V1 only
-persists `web` threads. The frontend uses this endpoint as the source of truth
+Note: `mode=deep-research` currently returns an empty list because the
+current schema persists `web` threads (`ThreadMode.WEB`). Deep research is
+planned for V4. The frontend uses this endpoint as the source of truth
 for `/history` and sidebar recents, with local history retained only as an
 optimistic/offline fallback.
 
