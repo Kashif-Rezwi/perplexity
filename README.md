@@ -94,7 +94,7 @@ frontend/
 ### Prerequisites
 
 - Node.js 20.9 or newer (Docker images use Node 22 Alpine)
-- API keys: Tavily and Groq (`AI_API_KEY`)
+- API keys: Tavily and Groq (`AI_PROVIDER_API_KEY`)
 - Docker (for the Compose workflow) or a local PostgreSQL 17 instance
 
 ### Quick start with Docker Compose
@@ -104,7 +104,7 @@ For a production-shaped local stack:
 ```bash
 cp .env.example .env
 # Replace every placeholder in .env (POSTGRES_PASSWORD, TAVILY_API_KEY,
-# AI_API_KEY), then:
+# AI_PROVIDER_API_KEY), then:
 docker compose up -d --build
 docker compose ps -a
 ```

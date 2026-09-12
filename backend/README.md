@@ -44,9 +44,9 @@ not expose it as a public multi-user service until those guardrails are added.
    * `TAVILY_SEARCH_TIMEOUT_MS`: (Optional) Defaults to 6000.
 
    **AI Configs:**
-   * `AI_API_KEY`: (Required) API key for the active AI provider (Groq).
-   * `AI_MODEL`: (Optional) Used for answer generation. Defaults to `llama-3.3-70b-versatile`.
-   * `AI_UTILITY_MODEL`: (Optional) Used for query rewriting and follow-up suggestions. Defaults to `llama-3.1-8b-instant`.
+   * `AI_PROVIDER_API_KEY`: (Required) API key for the active AI provider (Groq).
+   * `AI_DEFAULT_MODEL`: (Optional) Used for answer generation. Defaults to `openai/gpt-oss-120b`.
+   * `AI_FAST_MODEL`: (Optional) Used for query rewriting and follow-up suggestions. Defaults to `openai/gpt-oss-20b`.
    * `AI_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
    * `AI_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
    * `AI_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.

@@ -10,17 +10,17 @@ import { getErrorMessage } from '../common/utils/error.util';
 import { withTimeout } from '../common/utils/with-timeout.util';
 import type { AnswerSource, PriorTurn } from './types/ai.types';
 import {
+  AI_PROVIDER_API_KEY_CONFIG_KEY,
+  AI_DEFAULT_MODEL_CONFIG_KEY,
+  AI_FAST_MODEL_CONFIG_KEY,
   AI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-  AI_API_KEY_CONFIG_KEY,
-  AI_MODEL_CONFIG_KEY,
   AI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
   AI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
-  AI_UTILITY_MODEL_CONFIG_KEY,
+  DEFAULT_AI_DEFAULT_MODEL,
+  DEFAULT_AI_FAST_MODEL,
   DEFAULT_AI_ANSWER_TIMEOUT_MS,
-  DEFAULT_AI_MODEL,
   DEFAULT_AI_QUERY_REWRITE_TIMEOUT_MS,
   DEFAULT_AI_SUGGESTION_TIMEOUT_MS,
-  DEFAULT_AI_UTILITY_MODEL,
 } from './ai.constants';
 import {
   generateAnswer,
@@ -109,7 +109,7 @@ export class AiService {
     try {
       return await withTimeout(
         generateStandaloneSearchQuery({
-          model: this.getClient()(this.getUtilityModel()),
+          model: this.getClient()(this.getFastModel()),
           input: {
             question,
             threadTitle,
@@ -145,7 +145,7 @@ export class AiService {
     try {
       return await withTimeout(
         generateSuggestedFollowUpQuestions({
-          model: this.getClient()(this.getUtilityModel()),
+          model: this.getClient()(this.getFastModel()),
           input: { question, answerMarkdown, priorTurns, sources },
           abortSignal: abortController.signal,
           logger: this.logger,
@@ -194,7 +194,7 @@ export class AiService {
     if (!this.client) {
       const apiKey = getRequiredTrimmedConfig(
         this.configService,
-        AI_API_KEY_CONFIG_KEY,
+        AI_PROVIDER_API_KEY_CONFIG_KEY,
       );
       this.client = createGroq({ apiKey });
     }
@@ -205,16 +205,16 @@ export class AiService {
   private getModel(): string {
     return getOptionalTrimmedConfig(
       this.configService,
-      AI_MODEL_CONFIG_KEY,
-      DEFAULT_AI_MODEL,
+      AI_DEFAULT_MODEL_CONFIG_KEY,
+      DEFAULT_AI_DEFAULT_MODEL,
     );
   }
 
-  private getUtilityModel(): string {
+  private getFastModel(): string {
     return getOptionalTrimmedConfig(
       this.configService,
-      AI_UTILITY_MODEL_CONFIG_KEY,
-      DEFAULT_AI_UTILITY_MODEL,
+      AI_FAST_MODEL_CONFIG_KEY,
+      DEFAULT_AI_FAST_MODEL,
     );
   }
 }

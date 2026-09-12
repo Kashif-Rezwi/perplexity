@@ -7,7 +7,7 @@ const { NestFactory } = require('@nestjs/core');
 const { PrismaClient } = require('@prisma/client');
 
 process.env.DATABASE_URL ??= 'postgresql://user:pass@localhost:5432/perplexity_test';
-process.env.AI_API_KEY ??= 'test-ai-key';
+process.env.AI_PROVIDER_API_KEY ??= 'test-ai-key';
 process.env.TAVILY_API_KEY ??= 'test-tavily-key';
 
 PrismaClient.prototype.$connect = async () => {};

@@ -17,7 +17,7 @@ require.cache[resolvedAiPath] = {
 const { AiService } = require('../src/ai/ai.service.ts');
 const {
   AI_ANSWER_TIMEOUT_MS_CONFIG_KEY,
-  AI_API_KEY_CONFIG_KEY,
+  AI_PROVIDER_API_KEY_CONFIG_KEY,
   AI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY,
   AI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY,
   DEFAULT_AI_ANSWER_TIMEOUT_MS,
@@ -35,21 +35,21 @@ function makeConfig(overrides = {}) {
   };
 }
 
-test('AiService constructor does not require AI_API_KEY eagerly', () => {
+test('AiService constructor does not require AI_PROVIDER_API_KEY eagerly', () => {
   assert.doesNotThrow(
-    () => new AiService(makeConfig({ [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY })),
+    () => new AiService(makeConfig({ [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY })),
   );
   assert.doesNotThrow(() => new AiService(makeConfig()));
 });
 
-test('AiService fails clearly when used without AI_API_KEY', async () => {
+test('AiService fails clearly when used without AI_PROVIDER_API_KEY', async () => {
   const service = new AiService(makeConfig());
 
   await assert.rejects(
     () => service.generateAnswer('Explain Prisma', [], []),
     (error) =>
       error instanceof ServiceUnavailableException &&
-      error.message === 'AI_API_KEY is not configured',
+      error.message === 'AI_PROVIDER_API_KEY is not configured',
   );
 });
 
@@ -65,7 +65,7 @@ test('AiService timeout getters throw when timeout config is invalid', () => {
       () =>
         new AiService(
           makeConfig({
-            [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY,
+            [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY,
             [key]: '0',
           }),
         )[method](),
@@ -78,7 +78,7 @@ test('AiService timeout getters throw when timeout config is invalid', () => {
 
 test('AiService uses default timeouts when env vars are absent', () => {
   const service = new AiService(
-    makeConfig({ [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
+    makeConfig({ [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
   );
 
   assert.equal(service.getAnswerTimeoutMs(), DEFAULT_AI_ANSWER_TIMEOUT_MS);
@@ -95,7 +95,7 @@ test('AiService uses default timeouts when env vars are absent', () => {
 test('AiService uses configured timeout values when present', () => {
   const service = new AiService(
     makeConfig({
-      [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY,
+      [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY,
       [AI_ANSWER_TIMEOUT_MS_CONFIG_KEY]: '20000',
       [AI_QUERY_REWRITE_TIMEOUT_MS_CONFIG_KEY]: '4000',
       [AI_SUGGESTION_TIMEOUT_MS_CONFIG_KEY]: '12000',
@@ -115,7 +115,7 @@ test('AiService returns the question unchanged when there is nothing to rewrite'
   };
 
   const service = new AiService(
-    makeConfig({ [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
+    makeConfig({ [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
   );
 
   const searchQuery = await service.resolveSearchQuery('What is Prisma?', []);
@@ -133,7 +133,7 @@ test('AiService rewrites follow-up questions using truncated thread context', as
   };
 
   const service = new AiService(
-    makeConfig({ [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
+    makeConfig({ [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
   );
 
   const searchQuery = await service.resolveSearchQuery('And pricing?', [
@@ -153,7 +153,7 @@ test('AiService falls back to the raw question when rewrite fails', async () => 
   };
 
   const service = new AiService(
-    makeConfig({ [AI_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
+    makeConfig({ [AI_PROVIDER_API_KEY_CONFIG_KEY]: VALID_API_KEY }),
   );
 
   const searchQuery = await service.resolveSearchQuery('And pricing?', [

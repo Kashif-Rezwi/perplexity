@@ -48,7 +48,7 @@ export function validateEnvironment(input: Environment): Environment {
   );
   environment.TAVILY_SEARCH_DEPTH = searchDepth;
 
-  environment.AI_API_KEY = getRequiredString(environment, 'AI_API_KEY');
+  environment.AI_PROVIDER_API_KEY = getRequiredString(environment, 'AI_PROVIDER_API_KEY');
 
   for (const key of POSITIVE_INTEGER_KEYS) {
     const rawValue = getOptionalString(environment, key);

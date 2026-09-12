@@ -67,9 +67,9 @@ wildcard CORS value, or invalid origin causes startup to fail clearly.
 | `PORT` | No | Defaults to `8080`. |
 | `DATABASE_URL` | Yes | PostgreSQL URL. Require TLS for a managed or remote database, normally with `sslmode=require`. |
 | `TAVILY_API_KEY` | Yes | Load from the platform secret manager. |
-| `AI_API_KEY` | Yes | API key for the active AI provider (Groq). Load from the platform secret manager. |
-| `AI_MODEL` | No | Answer-generation model. Defaults to `llama-3.3-70b-versatile`. |
-| `AI_UTILITY_MODEL` | No | Query rewrite/suggestion model. Defaults to `llama-3.1-8b-instant`. |
+| `AI_PROVIDER_API_KEY` | Yes | API key for the active AI provider (Groq). Load from the platform secret manager. |
+| `AI_DEFAULT_MODEL` | No | Answer-generation model. Defaults to `openai/gpt-oss-120b`. |
+| `AI_FAST_MODEL` | No | Query rewrite/suggestion model. Defaults to `openai/gpt-oss-20b`. |
 | `AI_ANSWER_TIMEOUT_MS` | No | Defaults to `16000`. |
 | `AI_QUERY_REWRITE_TIMEOUT_MS` | No | Defaults to `6000`. |
 | `AI_SUGGESTION_TIMEOUT_MS` | No | Defaults to `15000`. |
@@ -138,7 +138,7 @@ Edit `.env` and set:
 1. A long, URL-safe `POSTGRES_PASSWORD` (letters, digits, `_`, and `-` avoid URL
    encoding issues in the Compose-generated URL).
 2. A real `TAVILY_API_KEY`.
-3. A real `AI_API_KEY` for the active AI provider (Groq).
+3. A real `AI_PROVIDER_API_KEY` for the active AI provider (Groq).
 
 The example placeholder values intentionally do not provide working external
 service access.
@@ -439,7 +439,7 @@ curl --include https://api-internal.example.com/health/ready
 ### Backend exits immediately
 
 Read startup logs. Environment validation names the missing or malformed key.
-Confirm `AI_API_KEY` is set and that
+Confirm `AI_PROVIDER_API_KEY` is set and that
 `CORS_ORIGINS` uses exact origins without paths.
 
 ### Migration job fails
