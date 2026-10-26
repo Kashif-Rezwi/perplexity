@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue';
 
 export function useHistorySearch() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -36,6 +38,7 @@ export function useHistorySearch() {
   return {
     isSearchOpen,
     searchQuery,
+    debouncedSearchQuery,
     searchInputRef,
     searchContainerRef,
     openSearch: () => setIsSearchOpen(true),

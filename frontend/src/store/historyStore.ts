@@ -115,6 +115,11 @@ export const useHistoryStore = create<HistoryStore>()(
     }),
     {
       name: 'perplexity-history-storage',
+      // Bump this and add a `migrate` function whenever the persisted shape
+      // changes. Existing pre-version entries are dropped once on upgrade;
+      // the store is a server-backed convenience cache, so rehydrating from
+      // the API repopulates it.
+      version: 1,
     }
   )
 );

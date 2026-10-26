@@ -96,7 +96,7 @@ export function ThreadExportActions({ thread }: ThreadExportActionsProps) {
   };
 
   return (
-    <div ref={menuRef} className="relative ml-auto hidden sm:block shrink-0">
+    <div ref={menuRef} className="relative ml-auto shrink-0">
       <button
         type="button"
         aria-label="Open thread actions"

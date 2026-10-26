@@ -34,11 +34,11 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
     scrollContainerRef,
     handleSelectSourceTurn,
     handleCitationClick,
-    handleSubmitStart,
-    handleStreamStart,
-    handleSettled,
     retryThread,
     retryTurn,
+    submitAsk,
+    isAskPending,
+    askErrorMessage,
   } = useThreadPage(threadId);
 
   if (isPending) {
@@ -215,12 +215,11 @@ export function ThreadPage({ threadId }: ThreadPageProps) {
           <div className="pointer-events-auto">
             <AskInput
               ref={askInputRef}
-              threadId={threadId}
               autoFocus={false}
               placeholder="Ask a follow-up"
-              onSubmitStart={handleSubmitStart}
-              onStreamStart={handleStreamStart}
-              onSettled={handleSettled}
+              isPending={isAskPending}
+              errorMessage={askErrorMessage}
+              onSubmit={submitAsk}
             />
           </div>
         </div>

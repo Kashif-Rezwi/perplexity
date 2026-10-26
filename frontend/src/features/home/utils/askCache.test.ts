@@ -34,6 +34,7 @@ function startEvent(
     turnId,
     question,
     searchQuery: question,
+    mode: 'web',
   };
 }
 

@@ -80,9 +80,9 @@ with their date, outcome, and rationale.
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
 | BUG-01 | Error-body fallback reads an already-consumed body: when `response.json()` throws, the catch reads `response.text()` → "Body is unusable" (`client.ts:52-60`, `index.ts:148-158`). Masked today because the backend always returns JSON errors; bites on non-JSON upstream errors with a misleading `NetworkError` | ✔ | P0 | Fixed in Phase 1 (2026-10-27): shared `readErrorMessage` helper in `client.ts`, used by `apiClient` and `streamAskRequest`; review pass also hardened it against NestJS class-validator `message: string[]` bodies; covered by `client.test.ts` (5 tests) |
-| BUG-02 | SSE stream ending with neither `final` nor `error` (network truncation) leaves the turn spinning as pending forever — no watchdog; the `onDone` hook exists but is unconsumed | ◐ | P1 | Fix in Phase 2 (consume `onDone` for terminal-state detection + wire the existing `signal` abort param) |
-| BUG-03 | `remarkCitations` doesn't skip existing mdast `link` nodes — `[1]` inside Markdown link text could produce nested `<a>` | ❓ | P1 | Phase 2: write the reproduction test first; fix only if it fails |
-| BUG-04 | Cursor pagination edge cases: `skip: 1` against a deleted cursor row silently drops a row; mutable `updatedAt` sort key drifts between pages | ◐ | P2 | Phase 2 if trivial, else defer to Phase 5 with a note |
+| BUG-02 | SSE stream ending with neither `final` nor `error` (network truncation) leaves the turn spinning as pending forever — no watchdog; the `onDone` hook exists but is unconsumed | ✔ | P1 | Fixed in Phase 2 (2026-10-27): transport-level terminal watchdog throws `NetworkError` when the stream closes without `final`/`error` (the unused `onDone` hook was removed); `AbortController` wired through `useAskSubmit` with unmount cleanup; backend `createAskStream` gained a `finally` guard that re-checks the persisted turn status and only fails it if still PENDING, so an abandoned generator can neither strand a PENDING turn nor overwrite a completed one |
+| BUG-03 | `remarkCitations` doesn't skip existing mdast `link` nodes — `[1]` inside Markdown link text could produce nested `<a>` | ✔ | P1 | Fixed in Phase 2 (2026-10-27): reproduction test added first (failed), then `link` nodes were skipped alongside `code`/`inlineCode` |
+| BUG-04 | Cursor pagination edge cases: `skip: 1` against a deleted cursor row silently drops a row; mutable `updatedAt` sort key drifts between pages | ◐ | P2 | Deferred to Phase 5 (non-trivial keyset redesign; not a quick-wins item) |
 
 ## 3. Feature Gaps & Incomplete Implementations
 
@@ -91,8 +91,8 @@ with their date, outcome, and rationale.
 | FEAT-01 | Response caching (notebook feature) not implemented anywhere | ✅ | — | ✔ Resolved by decision (Register #1): answer caching rejected; V4 revisit trigger for search-result-level caching recorded. No implementation |
 | FEAT-02 | Deep-research groundwork only: DTO accepts `mode=deep-research`, service returns an empty list (`threads.service.ts:45-47`); `ThreadMode` = WEB only; frontend filter option exists. Documented stub (API.md:242-246) | ✅/💡 | P3 | Keep as stub; V4 scope |
 | FEAT-03 | Intentional placeholders: "Sign in" button (no handler), "Share" button (disabled "coming soon"), AskInput "Search" mode pill (decorative) | 💡 | — | Accepted deferrals (V5 auth; share deferred) |
-| FEAT-04 | Thread actions menu (rename/delete/export) is `hidden sm:block` — unavailable on mobile | ✅ | P2 | Complete in Phase 2 |
-| FEAT-05 | Turn-URL copy (`#turn-` deep links) not wired — `createTurnUrl` exists and auto-scroll supports the hash, but no UI copies it | ✅ | P2 | Wire it (or remove the builder) in Phase 2 |
+| FEAT-04 | Thread actions menu (rename/delete/export) is `hidden sm:block` — unavailable on mobile | ✔ | P2 | Fixed in Phase 2 (2026-10-27): menu is now visible at all breakpoints |
+| FEAT-05 | Turn-URL copy (`#turn-` deep links) not wired — `createTurnUrl` exists and auto-scroll supports the hash, but no UI copies it | ✔ | P2 | Fixed in Phase 2 (2026-10-27): "Copy link to this turn" action added to `TurnResponseActions` using `createTurnUrl` |
 
 ## 4. Architecture & Design Issues
 
@@ -101,17 +101,17 @@ with their date, outcome, and rationale.
 | ARCH-01 | `failTurn` on the latest turn marks the whole thread FAILED even with earlier completed turns — history shows "failed" on a mostly-good thread | ✅ (test-verified semantic choice) | — | ✔ Resolved by decision (Register #2): keep latest-activity semantics; rationale to be documented in Phase 3 |
 | ARCH-02 | No single-pending-turn invariant; latest-turn guard is check-then-act at READ COMMITTED. Unreachable from the current UI (submit disabled while pending) | ◐ | P2 | Document in Phase 3; enforce pre-V4 only if needed |
 | ARCH-03 | `GET /threads/:id` returns all turns+sources+citations unbounded — fine at V2 scale; V4 deep research will stress it | ✅ | P2 | Phase 5 (bound or paginate turns) |
-| ARCH-04 | Two `useAskSubmit` instances on the thread page (page-level retry + AskInput) — works, but duplicative orchestration | ✅ | P2 | Unify in Phase 2 |
-| ARCH-05 | Frontend seeds hardcode `mode: 'web'` (`useAskSubmit.ts:81-96`, `askCache.ts:37-56`) — forward-compat debt for FEAT-02 | ✅ | P2 | De-hardcode in Phase 2 |
+| ARCH-04 | Two `useAskSubmit` instances on the thread page (page-level retry + AskInput) — works, but duplicative orchestration | ✔ | P2 | Fixed in Phase 2 (2026-10-27): one `useAskSubmit` instance lives in `useThreadPage`; `AskInput` is now presentational (home page owns its instance via `HomeAskInput`). One `isPending` now gates both submit and retry, closing the concurrent-stream hole |
+| ARCH-05 | Frontend seeds hardcode `mode: 'web'` (`useAskSubmit.ts:81-96`, `askCache.ts:37-56`) — forward-compat debt for FEAT-02 | ✔ | P2 | Fixed in Phase 2 (2026-10-27): backend `start` event now carries `mode` (mapped through `THREAD_MODE_MAP`); frontend seeds use `event.mode` |
 
 ## 5. Code Quality & Technical Debt
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
 | DEBT-01 | Dead-code cluster (grep-verified zero call sites): `postAsk`, `getPinnedThreads`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `createTurnUrl` (→FEAT-05), `onDone` hook (→BUG-02), never-passed `signal` param (→BUG-02), unused `threadId/turnId` props on `TurnResponseActions`, unused `data-text-tab` attr; plus same-file-only exports `createStreamingTurn` and `findCitationSourceIndexByKey` (drop the unneeded `export`) | ✔ | P0 | Deleted in Phase 1 (2026-10-27): removed `postAsk`, `getPinnedThreads`, `PinnedThreadListQueryInput`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `TurnResponseActions` `threadId/turnId` props, `data-text-tab`; un-exported `createStreamingTurn` + `findCitationSourceIndexByKey`. `createTurnUrl`, `onDone`, and the unused `signal` param remain coupled to Phase 2 decisions |
-| DEBT-02 | API shape inconsistency: sources-list items omit `provider`/`providerScore`; thread-detail embedded sources include them | ✅ | P2 | Align in Phase 2 |
-| DEBT-03 | `historyStore` persisted to localStorage with no `version`/`migrate` — future shape changes will strand old data | ✅ | P2 | Optional (Phase 2) |
-| DEBT-04 | History search not debounced — one server query per keystroke | ✅ | P2 | Add ~300ms debounce in Phase 2 |
+| DEBT-02 | API shape inconsistency: sources-list items omit `provider`/`providerScore`; thread-detail embedded sources include them | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `provider`/`providerScore` added to the `/sources` contract (backend `SourceItem` + `mapSource`, frontend `SourceListItem`); API.md updated |
+| DEBT-03 | `historyStore` persisted to localStorage with no `version`/`migrate` — future shape changes will strand old data | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `version: 1` added with a comment; no `migrate` yet because the shape has not changed since introduction |
+| DEBT-04 | History search not debounced — one server query per keystroke | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `useDebouncedValue` (300ms) feeds the server query while the input and empty-state copy stay immediate |
 | DEBT-05 | Backend eslint configures `jest` globals though the runner is `node:test`; `strictPropertyInitialization: false` in tsconfig; **enable `noUnusedLocals` + `noUnusedParameters` (and ESLint unused-vars enforcement) in both apps so unused locals/params fail checks going forward** (approved 2026-10-26) | ✔ | P2 | Completed in Phase 1 (2026-10-27): removed stale `jest` globals from backend eslint; enabled `noUnusedLocals` + `noUnusedParameters` in both tsconfigs; set `@typescript-eslint/no-unused-vars` to `error` in both eslint configs |
 | DEBT-06 | Markdown-stripping duplicated across layers (backend `ask-text.util.ts` vs frontend `threadExport.markdownToPlainText`) — different purposes; acceptable | ✅ | — | Accepted; no refactor |
 | DEBT-07 | Sources inserted sequentially inside `completeTurn` (bounded ≤ `TAVILY_MAX_RESULTS`=5) | ✅ | — | Accepted; batch only if limits grow |
@@ -189,10 +189,10 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 |---|---|
 | 0 — Decisions | ✔ Complete (2026-10-26): ROAD-02 ✔, ARCH-01 ✔, SEC-01 ✔, KNOW-04 ✔, ROAD-03 ✔ — outcomes in the Decision Register |
 | 1 — Correctness & hygiene | ✔ Complete (2026-10-27): BUG-01 ✔, SEC-04 ✔, DEBT-01 ✔, DEBT-05 ✔, DOC-01 ✔ (KNOW-03 unblocked). Baseline: backend 125/125 tests, frontend 62/62 tests, tsc + ESLint clean both apps. |
-| 2 — Stream lifecycle & UX edges | BUG-02, BUG-03, BUG-04?, ARCH-04, ARCH-05, FEAT-04, FEAT-05, DEBT-02, DEBT-04, (DEBT-03) |
+| 2 — Stream lifecycle & UX edges | ✔ Complete (2026-10-27): BUG-02 ✔, BUG-03 ✔, ARCH-04 ✔, ARCH-05 ✔, FEAT-04 ✔, FEAT-05 ✔, DEBT-02 ✔, DEBT-03 ✔, DEBT-04 ✔; BUG-04 deferred to Phase 5. Baseline: backend 127/127 tests, frontend 71/71 tests, tsc + ESLint clean both apps. |
 | 3 — Documentation & knowledge base | DOC-02–DOC-11, ROAD-04, KNOW-01, SEC-01 (posture note in DEPLOYMENT.md) |
 | 4 — Verification & reliability | TEST-01–TEST-05, INFRA-01, INFRA-02 (KNOW-02), SEC-01 (backend-exposure check) |
-| 5 — V4 readiness gate + demo hardening | SEC-05, SEC-06 (LinkedIn launch gate), SEC-02, SEC-03, ARCH-02, ARCH-03, BUG-04? |
+| 5 — V4 readiness gate + demo hardening | SEC-05, SEC-06 (LinkedIn launch gate), SEC-02, SEC-03, ARCH-02, ARCH-03, BUG-04 |
 | V4 — Research Intelligence | ROAD-01, FEAT-02 (scoped after the Phase-5 gate) |
 
 `?` = included only if trivially resolvable in its earlier phase. FEAT-01 was removed from Phase 5 by the Phase-0 caching rejection.

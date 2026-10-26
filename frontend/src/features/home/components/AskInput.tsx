@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { ArrowUp, Loader2, Search } from 'lucide-react';
-import { useAskSubmit } from '../hooks/useAskSubmit';
-import type { AskStreamStartEvent } from '@/types/api.types';
-
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
 export interface AskInputRef {
   setQuestion: (q: string) => void;
@@ -12,39 +15,29 @@ export interface AskInputRef {
 }
 
 interface AskInputProps {
-  threadId?: string;
   autoFocus?: boolean;
   placeholder?: string;
-  /** Called immediately before the mutation fires, with the trimmed question. */
-  onSubmitStart?: (question: string) => void;
-  /** Called after the persisted streaming turn is available in the cache. */
-  onStreamStart?: (event: AskStreamStartEvent) => void;
-  /** Called when the mutation settles (success or error). */
-  onSettled?: () => void;
+  isPending: boolean;
+  errorMessage: string | null;
+  onSubmit: (question: string, threadId?: string) => boolean;
 }
 
 export const AskInput = forwardRef<AskInputRef, AskInputProps>(
-  function AskInput({
-    threadId,
-    autoFocus = true,
-    placeholder = 'Ask anything...',
-    onSubmitStart,
-    onStreamStart,
-    onSettled,
-  }, ref) {
+  function AskInput(
+    {
+      autoFocus = true,
+      placeholder = 'Ask anything...',
+      isPending,
+      errorMessage,
+      onSubmit,
+    },
+    ref,
+  ) {
     const [question, setQuestion] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const { submitAsk, isPending, errorMessage } = useAskSubmit({
-      threadId,
-      onSubmitStart,
-      onStreamStart,
-      onSettled: () => {
-        onSettled?.();
-      },
-    });
 
     const submit = (trimmed: string, overrideThreadId?: string) => {
-      if (submitAsk(trimmed, overrideThreadId)) {
+      if (onSubmit(trimmed, overrideThreadId)) {
         setQuestion('');
       }
     };
@@ -54,7 +47,6 @@ export const AskInput = forwardRef<AskInputRef, AskInputProps>(
         setQuestion(q);
       },
       submitQuestion: (q: string, overrideThreadId?: string) => {
-        // Follow-up chips submit directly — do not mirror text into the input.
         submit(q.trim(), overrideThreadId);
       },
     }));

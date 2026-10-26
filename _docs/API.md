@@ -105,7 +105,7 @@ Events:
 
 ```txt
 event: start
-data: {"threadId":"uuid","turnId":"uuid","question":"What changed in Next.js 15?","searchQuery":"What changed in Next.js 15?"}
+data: {"threadId":"uuid","turnId":"uuid","question":"What changed in Next.js 15?","searchQuery":"What changed in Next.js 15?","mode":"web"}
 
 event: progress
 data: {"stage":"searching","message":"Searching the web..."}
@@ -193,6 +193,8 @@ Response:
       "url": "https://example.com",
       "domain": "example.com",
       "snippet": "Relevant source snippet...",
+      "provider": "tavily",
+      "providerScore": 0.95,
       "publishedAt": null,
       "createdAt": "2026-06-04T00:00:00.000Z"
     }

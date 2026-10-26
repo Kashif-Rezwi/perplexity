@@ -1,8 +1,8 @@
 import type { SourcePreviewItem } from '@/types/api.types';
 
-export function sortSourcesForLinks(
-  sources: readonly SourcePreviewItem[],
-): SourcePreviewItem[] {
+export function sortSourcesForLinks<T extends SourcePreviewItem>(
+  sources: readonly T[],
+): T[] {
   return sources.slice().sort((a, b) => {
     const citationDiff = a.citationNumber - b.citationNumber;
     if (citationDiff !== 0) return citationDiff;

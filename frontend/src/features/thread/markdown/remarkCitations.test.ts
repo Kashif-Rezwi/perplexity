@@ -77,4 +77,30 @@ describe('remarkCitations', () => {
       },
     ]);
   });
+
+  it('does not create nested citation links inside existing link nodes', () => {
+    const tree = runRemarkCitations({
+      type: 'root',
+      children: [
+        {
+          type: 'paragraph',
+          children: [
+            {
+              type: 'link',
+              url: 'https://example.com',
+              children: [{ type: 'text', value: 'docs [1]' }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(tree.children?.[0].children).toEqual([
+      {
+        type: 'link',
+        url: 'https://example.com',
+        children: [{ type: 'text', value: 'docs [1]' }],
+      },
+    ]);
+  });
 });

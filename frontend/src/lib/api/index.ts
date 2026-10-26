@@ -130,15 +130,28 @@ async function streamAskRequest(
   handlers: AskStreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const response = await fetch(getApiUrl(path), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(getApiUrl(path), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new NetworkError('Ask stream was cancelled');
+    }
+
+    if (error instanceof Error) {
+      throw new NetworkError(error.message);
+    }
+
+    throw new NetworkError('Streaming request failed');
+  }
 
   if (!response.ok) {
     const errorMessage = await readErrorMessage(response);
@@ -152,6 +165,8 @@ async function streamAskRequest(
   const decoder = new TextDecoder();
   const reader = response.body.getReader();
   let streamError: AskStreamErrorEvent | null = null;
+  let sawTerminal = false;
+
   const parser = createSseParser((event) => {
     const data = JSON.parse(event.data);
 
@@ -171,11 +186,13 @@ async function streamAskRequest(
     }
 
     if (event.event === 'final') {
+      sawTerminal = true;
       handlers.onFinal?.(data as AskResponse);
       return;
     }
 
     if (event.event === 'error') {
+      sawTerminal = true;
       streamError = {
         message: String(data.message ?? 'Ask failed'),
         code: data.code ?? 'ASK_FAILED',
@@ -183,10 +200,6 @@ async function streamAskRequest(
       };
       handlers.onError?.(streamError);
       return;
-    }
-
-    if (event.event === 'done') {
-      handlers.onDone?.();
     }
   });
 
@@ -201,11 +214,19 @@ async function streamAskRequest(
     parser.feed(decoder.decode());
     parser.end();
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new NetworkError('Ask stream was cancelled');
+    }
+
     if (error instanceof Error) {
       throw new NetworkError(error.message);
     }
 
     throw new NetworkError('Streaming request failed');
+  }
+
+  if (!sawTerminal) {
+    throw new NetworkError('Stream ended before the answer completed');
   }
 
   const finalStreamError = streamError as AskStreamErrorEvent | null;

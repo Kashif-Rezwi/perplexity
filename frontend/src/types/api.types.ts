@@ -74,6 +74,7 @@ export type AskStreamStartEvent = {
   turnId: string;
   question: string;
   searchQuery: string;
+  mode: ApiThreadMode;
 };
 
 export type AskStreamProgressStage =
@@ -107,7 +108,6 @@ export type AskStreamHandlers = {
   onDelta?: (text: string) => void;
   onFinal?: (response: AskResponse) => void;
   onError?: (error: AskStreamErrorEvent) => void;
-  onDone?: () => void;
 };
 
 export type SourcePreviewItem = {
@@ -128,6 +128,8 @@ export type SourceItem = SourcePreviewItem & {
 
 // Source item with parent turn/thread context returned by GET /sources.
 export type SourceListItem = SourcePreviewItem & {
+  provider: string;
+  providerScore: number | null;
   turnId: string;
   threadId: string;
   threadTitle: string;

@@ -2,7 +2,7 @@
 
 **Purpose**: This document tracks the development phases of the full-stack Perplexity clone from its initial MVP to future enterprise capabilities.
 **Scope**: All backend infrastructure, API design, frontend UI, state management, and external integrations.
-**Current Phase**: V2 (Usability Improvements) hardening + the audit-driven **Foundation Track** below.
+**Current Phase**: V2 (Usability Improvements) hardening + the audit-driven **Foundation Track** below (Phases 0–2 complete; Phase 3 next).
 **Usage**: Mark capabilities as `(Completed)` when fully integrated and deployed to the `main` branch.
 
 ---
@@ -124,13 +124,22 @@ readiness pass. Research Intelligence scoping begins only after this track.
   - Enabled `noUnusedLocals`/`noUnusedParameters` in both tsconfigs and ESLint unused-vars as error; removed stale `jest` globals from backend eslint.
   - Corrected `ARCHITECTURE.md` ask-flow order and noted the pending-turn persistence model.
 
-### Phase 2 — Stream lifecycle & UX edges
+### Phase 2 — Stream lifecycle & UX edges ✔ Completed 2026-10-27
 
 - **Objective:** make the single-ask stream bulletproof and finish small UX gaps.
-- **Items:** BUG-02 (terminal-state handling via `onDone` + wire the `signal` abort param), BUG-03 (test-first investigation), ARCH-04 (unify ask orchestration), ARCH-05 (de-hardcode `mode: 'web'` seeds), FEAT-04 (mobile thread actions), FEAT-05 (turn-URL copy), DEBT-02 (sources shape), DEBT-04 (search debounce); BUG-04 only if trivial, else Phase 5.
+- **Items:** BUG-02 (terminal-state handling + wire the `signal` abort param), BUG-03 (test-first investigation), ARCH-04 (unify ask orchestration), ARCH-05 (de-hardcode `mode: 'web'` seeds), FEAT-04 (mobile thread actions), FEAT-05 (turn-URL copy), DEBT-02 (sources shape), DEBT-04 (search debounce); BUG-04 deferred to Phase 5.
 - **Serves the goal:** Research Intelligence will be long-running, multi-step streamed workflows; the single-ask stream lifecycle is its foundation and must be rock-solid first.
 - **Acceptance:** new unit tests for terminal-stream handling (and the BUG-03 fix, if reproduced); manual smoke of ask/follow-up/retry/delete; existing suites stay green.
 - **Risk note:** `useAskSubmit` is intricate and currently untested (TEST-03) — one jsdom safety-net test may be pulled forward into this phase.
+- **Outcomes:**
+  - BUG-02: transport watchdog (`NetworkError` when a stream ends without `final`/`error`), unused `onDone` handler removed, `AbortController` wired through `useAskSubmit` with unmount cleanup, and a backend `finally` guard that fails abandoned turns only while they are still PENDING (review pass caught and fixed an in-flight-completion race).
+  - BUG-03: reproduction test added first, then `link` nodes skipped by `remarkCitations`.
+  - ARCH-04: single `useAskSubmit` per page (`useThreadPage` owns the thread instance; `AskInput` is presentational; `HomeAskInput` owns the home instance).
+  - ARCH-05: backend `start` event carries `mode`; frontend seeds use `event.mode`.
+  - FEAT-04/FEAT-05: mobile thread-action menu visible at all breakpoints; "Copy link to this turn" wired via `createTurnUrl`.
+  - DEBT-02/DEBT-03/DEBT-04: `/sources` contract aligned (`provider`/`providerScore`); history store `version: 1`; 300ms history-search debounce.
+  - Added dev-only `@testing-library/react` + `happy-dom` and a `useAskSubmit` safety net.
+  - Baseline: backend 127/127 tests, frontend 71/71 tests, tsc + ESLint clean both apps.
 
 ### Phase 3 — Documentation & knowledge base
 

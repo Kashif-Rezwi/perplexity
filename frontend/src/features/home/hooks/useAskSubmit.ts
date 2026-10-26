@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { streamAsk, streamRetryAsk } from '@/lib/api';
 import { ApiError, NetworkError } from '@/lib/api/client';
@@ -60,6 +61,13 @@ export function useAskSubmit({
   const router = useRouter();
   const queryClient = useQueryClient();
   const addThread = useHistoryStore((state) => state.addThread);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   function applyFinalResponse(data: Parameters<typeof applyFinalAskResponse>[2]) {
     applyFinalAskResponse(queryClient, addThread, data);
@@ -82,7 +90,7 @@ export function useAskSubmit({
             addThread({
               id: event.threadId,
               title: event.question,
-              mode: 'web',
+              mode: event.mode,
               updatedAt: new Date().toISOString(),
             });
 
@@ -141,13 +149,21 @@ export function useAskSubmit({
         },
       };
 
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
       try {
         if (retryTurnId && activeThreadId) {
-          await streamRetryAsk(activeThreadId, retryTurnId, handlers);
+          await streamRetryAsk(
+            activeThreadId,
+            retryTurnId,
+            handlers,
+            abortController.signal,
+          );
           return;
         }
 
-        await streamAsk(question, activeThreadId, handlers);
+        await streamAsk(question, activeThreadId, handlers, abortController.signal);
       } catch (error) {
         if (streamThreadId && streamTurnId) {
           throw new PersistedTurnError(error, streamThreadId, streamTurnId);

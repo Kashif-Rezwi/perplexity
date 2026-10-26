@@ -263,6 +263,7 @@ test('AskService streams answer deltas, persists the final turn, and emits final
     turnId,
     question: 'Explain Prisma relations',
     searchQuery: 'Explain Prisma relations',
+    mode: 'web',
   });
   assert.deepEqual(
     events
@@ -1111,4 +1112,112 @@ test('AskService completes with sources and no citations when answer has no mark
     ],
     ['findThreadWithSingleTurn', threadId, turnId]
   ]);
+});
+
+test('AskService marks the pending turn failed when the stream is abandoned during search', async () => {
+  const calls = [];
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async resolveSearchQuery(input) {
+        return input.question;
+      },
+      async *streamAnswer() {
+        yield 'answer';
+      },
+    },
+    {
+      async search(input) {
+        calls.push(['search', input]);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn(input) {
+        calls.push(['createThreadWithPendingTurn', input]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async findThreadDetailById(id) {
+        calls.push(['findThreadDetailById', id]);
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  const stream = await service.askStream({ question: 'Explain Prisma relations' });
+  const iterator = stream[Symbol.asyncIterator]();
+  const first = await iterator.next();
+
+  assert.equal(first.value.event, 'start');
+  assert.equal(first.value.data.mode, 'web');
+
+  await iterator.return();
+
+  const failCall = calls.find((call) => call[0] === 'failTurn');
+  assert.ok(failCall, 'failTurn should be called when the stream is abandoned');
+  assert.equal(failCall[1].threadId, threadId);
+  assert.equal(failCall[1].turnId, turnId);
+  assert.equal(failCall[1].errorMessage, 'Stream abandoned before completion');
+});
+
+test('AskService does not fail an abandoned stream whose turn already completed', async () => {
+  const calls = [];
+  const service = createTestAskService(
+    {
+      ...DEFAULT_AI_TIMEOUTS,
+      async resolveSearchQuery(input) {
+        return input.question;
+      },
+      async *streamAnswer() {
+        yield 'answer';
+      },
+    },
+    {
+      async search() {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return [];
+      },
+    },
+    {
+      async createThreadWithPendingTurn() {
+        return createThreadRecord({
+          answerMarkdown: null,
+          answerPreview: null,
+          turnStatus: TurnStatus.PENDING,
+          completedAt: null,
+        });
+      },
+      async findThreadDetailById() {
+        return createThreadRecord();
+      },
+      async failTurn(input) {
+        calls.push(['failTurn', input]);
+      },
+    },
+  );
+
+  const stream = await service.askStream({ question: 'Explain Prisma relations' });
+  const iterator = stream[Symbol.asyncIterator]();
+  await iterator.next();
+  await iterator.return();
+
+  assert.equal(
+    calls.some((call) => call[0] === 'failTurn'),
+    false,
+    'a completed turn must not be marked failed',
+  );
 });

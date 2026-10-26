@@ -1,3 +1,4 @@
+import type { ApiThreadMode } from '../../threads/types/threads.types';
 import type { AskResponse } from './ask.types';
 
 export type AskStreamStartEvent = {
@@ -7,6 +8,7 @@ export type AskStreamStartEvent = {
     turnId: string;
     question: string;
     searchQuery: string;
+    mode: ApiThreadMode;
   };
 };
 

@@ -110,6 +110,8 @@ function createFallbackSourcesResponse(
       url: source.url,
       domain: source.domain,
       snippet: source.snippet,
+      provider: source.provider,
+      providerScore: source.providerScore,
       publishedAt: source.publishedAt,
       createdAt: source.createdAt,
     })),

@@ -12,6 +12,8 @@ export function mapSource(source: SourceRecord): SourceItem {
     url: source.url,
     domain: source.domain,
     snippet: source.snippet,
+    provider: source.provider,
+    providerScore: source.providerScore,
     publishedAt: source.publishedAt?.toISOString() ?? null,
     createdAt: source.createdAt.toISOString(),
   };

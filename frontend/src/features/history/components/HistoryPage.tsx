@@ -38,6 +38,7 @@ export function HistoryPage() {
   const {
     isSearchOpen,
     searchQuery,
+    debouncedSearchQuery,
     searchInputRef,
     searchContainerRef,
     openSearch,
@@ -54,7 +55,7 @@ export function HistoryPage() {
     localThreads: threads,
     typeFilter,
     sortOrder,
-    searchQuery,
+    searchQuery: debouncedSearchQuery,
   });
 
   const selectedCount = selectedThreadIds.size;

@@ -50,6 +50,8 @@ test('mapSource returns the correct API contract shape', () => {
     url: 'https://example.com/next-15',
     domain: 'example.com',
     snippet: 'Release notes snippet',
+    provider: 'tavily',
+    providerScore: 0.95,
     publishedAt: null,
     createdAt: createdAt.toISOString(),
   });

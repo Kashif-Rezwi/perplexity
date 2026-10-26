@@ -1,4 +1,4 @@
-import { AskInput } from '@/features/home/components/AskInput';
+import { HomeAskInput } from '@/features/home/components/HomeAskInput';
 
 
 export default function Home() {
@@ -10,7 +10,7 @@ export default function Home() {
         </h1>
 
         <div className="w-full">
-          <AskInput />
+          <HomeAskInput />
         </div>
       </div>
     </div>

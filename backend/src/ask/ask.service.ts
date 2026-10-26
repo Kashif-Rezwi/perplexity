@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TurnStatus } from '@prisma/client';
+import { THREAD_MODE_MAP } from '../threads/types/threads.types';
 import { AiService } from '../ai/ai.service';
 import { getErrorMessage, getErrorStack } from '../common/utils/error.util';
 import { TavilySearchService } from '../search/tavily-search.service';
@@ -239,19 +240,22 @@ export class AskService {
   ): AsyncIterable<AskStreamEvent> {
     const { thread, turn, priorTurns, searchQuery } = context;
     let failurePhase: AskStreamFailurePhase = 'answer';
-
-    yield {
-      event: 'start',
-      data: {
-        threadId: thread.id,
-        turnId: turn.id,
-        question: input.question,
-        searchQuery,
-      },
-    };
-    yield this.createProgressEvent('preparing');
+    let completed = false;
+    let failed = false;
 
     try {
+      yield {
+        event: 'start',
+        data: {
+          threadId: thread.id,
+          turnId: turn.id,
+          question: input.question,
+          searchQuery,
+          mode: THREAD_MODE_MAP[thread.mode],
+        },
+      };
+      yield this.createProgressEvent('preparing');
+
       yield this.createProgressEvent('searching');
       failurePhase = 'search';
       const sources = await this.searchSources(searchQuery);
@@ -292,12 +296,15 @@ export class AskService {
         event: 'final',
         data: response,
       };
+      completed = true;
       yield this.createProgressEvent('completed');
       yield {
         event: 'done',
         data: {},
       };
     } catch (error) {
+      failed = true;
+
       try {
         await this.handleAskFailure(thread.id, turn.id, error);
       } catch (failureError) {
@@ -318,7 +325,42 @@ export class AskService {
         event: 'done',
         data: {},
       };
+    } finally {
+      if (!completed && !failed) {
+        // The generator was abandoned (e.g., client disconnect). Only mark the
+        // turn failed if it is still PENDING; an in-flight completeAskTurn may
+        // have already persisted a completed answer.
+        try {
+          await this.failTurnIfStillPending(thread.id, turn.id);
+        } catch (failureError) {
+          this.logger.error(
+            `Failed to mark abandoned stream as failed for thread ${thread.id}, turn ${turn.id}: ${getErrorMessage(
+              failureError,
+              'Failure update failed',
+            )}`,
+            getErrorStack(failureError),
+          );
+        }
+      }
     }
+  }
+
+  private async failTurnIfStillPending(
+    threadId: string,
+    turnId: string,
+  ): Promise<void> {
+    const thread = await this.threadsService.findThreadDetailById(threadId);
+    const turn = thread?.turns.find((candidate) => candidate.id === turnId);
+
+    if (!turn || turn.status !== TurnStatus.PENDING) {
+      return;
+    }
+
+    await this.handleAskFailure(
+      threadId,
+      turnId,
+      new Error('Stream abandoned before completion'),
+    );
   }
 
   private async handleAskFailure(

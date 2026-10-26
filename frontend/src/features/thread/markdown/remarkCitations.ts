@@ -13,7 +13,13 @@ export function remarkCitations() {
   return (tree: AstNode) => {
     const walk = (node: AstNode) => {
       if (!node) return;
-      if (node.type === 'code' || node.type === 'inlineCode') return;
+      if (
+        node.type === 'code' ||
+        node.type === 'inlineCode' ||
+        node.type === 'link'
+      ) {
+        return;
+      }
 
       if (node.children) {
         const newChildren: AstNode[] = [];

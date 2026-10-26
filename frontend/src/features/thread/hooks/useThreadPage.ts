@@ -28,7 +28,12 @@ export function useThreadPage(threadId: string) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const queryClient = useQueryClient();
-  const { retryFailedTurn } = useAskSubmit({
+  const {
+    submitAsk,
+    retryFailedTurn,
+    isPending: isAskPending,
+    errorMessage: askErrorMessage,
+  } = useAskSubmit({
     threadId,
     onSubmitStart: handleSubmitStart,
     onStreamStart: handleStreamStart,
@@ -123,11 +128,12 @@ export function useThreadPage(threadId: string) {
     // Handlers
     handleSelectSourceTurn,
     handleCitationClick,
-    handleSubmitStart,
-    handleStreamStart,
-    handleSettled,
     retryThread,
     retryTurn,
+    // Ask state
+    submitAsk,
+    isAskPending,
+    askErrorMessage,
   };
 }
 

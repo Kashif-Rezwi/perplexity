@@ -47,6 +47,8 @@ export type SourceItem = {
   url: string;
   domain: string;
   snippet: string;
+  provider: string;
+  providerScore: number | null;
   publishedAt: string | null;
   createdAt: string;
 };

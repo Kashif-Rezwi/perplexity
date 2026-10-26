@@ -1,4 +1,4 @@
-import { Check, Copy, FileText, Share2 } from 'lucide-react';
+import { Check, Copy, FileText, Link2, Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Favicon } from '@/components/ui/Favicon';
 import { IconButton } from '@/components/ui/IconButton';
@@ -6,13 +6,16 @@ import { extractDomain } from '@/lib/utils/url';
 import { copyTextToClipboard } from '@/lib/utils/clipboard';
 import type { SourceItem, SourcePreviewItem } from '@/types/api.types';
 import {
+  createTurnUrl,
   serializeTurnMarkdown,
   serializeTurnPlainText,
 } from '../utils/threadExport';
 
-type CopiedAction = 'markdown' | 'text';
+type CopiedAction = 'link' | 'markdown' | 'text';
 
 type TurnResponseActionsProps = {
+  threadId: string;
+  turnId: string;
   question: string;
   answerMarkdown: string | null;
   sourceCount: number;
@@ -21,6 +24,8 @@ type TurnResponseActionsProps = {
 };
 
 export function TurnResponseActions({
+  threadId,
+  turnId,
   question,
   answerMarkdown,
   sourceCount,
@@ -66,6 +71,20 @@ export function TurnResponseActions({
     <div className="flex items-center justify-between gap-4 border-t border-[var(--color-border-subtle)] pt-4 mt-1">
       {/* Action icons */}
       <div className="flex items-center gap-3 text-[var(--color-text-muted)]">
+        <IconButton
+          label="Copy link to this turn"
+          active={copiedAction === 'link'}
+          onClick={() =>
+            void copyValue('link', createTurnUrl(threadId, turnId))
+          }
+          icon={
+            copiedAction === 'link' ? (
+              <Check size={16} />
+            ) : (
+              <Link2 size={16} />
+            )
+          }
+        />
         {/* Share — disabled, future implementation */}
         <IconButton
           label="Share (coming soon)"
