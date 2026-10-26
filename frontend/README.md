@@ -83,3 +83,4 @@ Deeper technical documentation is located in the root `_docs/` directory:
 * [Product Roadmap](../_docs/ROADMAP.md): Current development phase and future planned features.
 * [API Contracts](../_docs/API.md): API definitions for backend communication.
 * [Deployment Guide](../_docs/DEPLOYMENT.md): Docker images, proxy networking, production deployment, and verification.
+* [Findings Inventory](../_docs/FINDINGS.md): Traceable audit findings, decision register, and remediation dispositions.

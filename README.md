@@ -190,7 +190,7 @@ All application endpoints are scoped under `/perplexity`; full contracts live in
 
 ## Roadmap
 
-Current phase: **V2 — Usability Improvements**. V3 through V6 track deployment guardrails, deep-research agents, authentication and billing, and eventual service extraction. See [`_docs/ROADMAP.md`](_docs/ROADMAP.md).
+Ultimate objective: **V4 — Research Intelligence (deep-research agents)**, delivering a fully functional Perplexity clone. Current focus: V2 hardening plus the audit-driven **Foundation Track** (Phases 0–5) that forms the entry gate to V4. V5–V6 track productization (auth, billing) and eventual service extraction. See [`_docs/ROADMAP.md`](_docs/ROADMAP.md) for the phased plan and [`_docs/FINDINGS.md`](_docs/FINDINGS.md) for the traceable audit-findings inventory that drives it.
 
 ## Contributing
 

@@ -2,8 +2,26 @@
 
 **Purpose**: This document tracks the development phases of the full-stack Perplexity clone from its initial MVP to future enterprise capabilities.
 **Scope**: All backend infrastructure, API design, frontend UI, state management, and external integrations.
-**Current Phase**: V2 (Usability Improvements)
+**Current Phase**: V2 (Usability Improvements) hardening + the audit-driven **Foundation Track** below.
 **Usage**: Mark capabilities as `(Completed)` when fully integrated and deployed to the `main` branch.
+
+---
+
+## Ultimate Objective
+
+> **Complete Research Intelligence (V4 — Deep Research) and deliver a fully
+> functional Perplexity clone.**
+
+Every phase before V4 exists to make that feature reliable, affordable, and
+safe to build. The Foundation Track (Phases 0–5) is not the goal; it is the
+entry gate. Intermediate improvements must not become detours: a phase is
+justified only if it protects the core ask loop that Research Intelligence
+extends, removes a proven prerequisite, or preserves the engineering knowledge
+needed to design V4 well.
+
+**Guiding principles from the original design notes (notebook, 03/06/26):**
+build small but with clean boundaries; evolve version by version; choose the
+MVP vertical slice first; design APIs after the design is clear.
 
 **V2 deployment boundary**: V2 is local and single-user. Authentication,
 user-owned data, public rate limits, quotas, and billing limits are intentionally
@@ -48,6 +66,10 @@ Enhancements that improve the client experience once the core flow is stable.
 | **Frontend** | Source and citation polish | Links tab source actions, cited-source emphasis, citation tooltip open/copy actions |
 | **Frontend** | Share/export basics (Completed) | Copy response/thread URLs, Markdown, and plain text without public share records |
 
+**V2 state (verified by the October 2026 repository audit):** all V2 rows are
+implemented; backend 125/125 tests and frontend 57/57 tests pass; both apps
+typecheck and lint clean.
+
 ### Contribution Scope: Frontend Loading, History, Sources, And Citations
 
 Kashif's contribution for the V2 loading, skeleton, empty-state,
@@ -61,22 +83,91 @@ accessibility refinements, and focused frontend tests.
 Backend/API routes, database schema or persistence changes, object storage, and
 deployment changes were outside this feature's scope.
 
+---
+
+## Foundation Track — Audit-Driven Remediation (Pre-V4 Gate)
+
+**Source:** comprehensive repository audit reconciling the original design
+notebook (IMG_1087–IMG_1094, 03/06/26), the `_docs/` documentation, and the
+implementation. The complete, traceable findings inventory with stable IDs
+(BUG-01, DOC-02, …) lives in [FINDINGS.md](FINDINGS.md); this section only
+sequences the work.
+
+**Sequencing logic:** hygiene first (clean, green baseline) → stream-lifecycle
+robustness (touches the files hygiene just cleaned) → documentation (must
+describe final behavior, so it follows code changes) → verification
+infrastructure (protects everything after) → a short, decision-gated V4
+readiness pass. Research Intelligence scoping begins only after this track.
+
+### Phase 0 — Decisions (no code)
+
+- **Objective:** close open product/engineering decisions so later phases never guess.
+- **Items:** ROAD-02 (caching), ARCH-01 (thread failure semantics), SEC-01 (demo posture), KNOW-04 + ROAD-03 (notebook clarifications).
+- **Serves the goal:** caching and guardrail decisions directly shape V4 economics — deep research multiplies Tavily + Groq spend, so cost posture must be decided before designing it.
+- **Exit:** every [FINDINGS.md](FINDINGS.md) Decision Register row marked decided, deferred-with-reason, or rejected.
+
+### Phase 1 — Correctness & hygiene
+
+- **Objective:** fix the one confirmed logic defect, close the config hole, remove verified dead code, and correct the one inaccurate doc — all small, independent, test-covered.
+- **Items:** BUG-01 (error-body fallback), SEC-04 (`.env.*` gitignore), DEBT-01 (dead code), DEBT-05 (eslint/tsconfig hygiene), DOC-01 (architecture order inversion; unblocks KNOW-03).
+- **Serves the goal:** V4 branches off this codebase; the baseline must be trustworthy and the knowledge base accurate before public write-ups and new feature work.
+- **Acceptance:** backend 125 + frontend 57 tests green; `tsc --noEmit` and ESLint clean in both apps; grep confirms removed symbols have zero references; ARCHITECTURE.md order matches `ask.service.ts`.
+
+### Phase 2 — Stream lifecycle & UX edges
+
+- **Objective:** make the single-ask stream bulletproof and finish small UX gaps.
+- **Items:** BUG-02 (terminal-state handling via `onDone` + wire the `signal` abort param), BUG-03 (test-first investigation), ARCH-04 (unify ask orchestration), ARCH-05 (de-hardcode `mode: 'web'` seeds), FEAT-04 (mobile thread actions), FEAT-05 (turn-URL copy), DEBT-02 (sources shape), DEBT-04 (search debounce); BUG-04 only if trivial, else Phase 5.
+- **Serves the goal:** Research Intelligence will be long-running, multi-step streamed workflows; the single-ask stream lifecycle is its foundation and must be rock-solid first.
+- **Acceptance:** new unit tests for terminal-stream handling (and the BUG-03 fix, if reproduced); manual smoke of ask/follow-up/retry/delete; existing suites stay green.
+- **Risk note:** `useAskSubmit` is intricate and currently untested (TEST-03) — one jsdom safety-net test may be pulled forward into this phase.
+
+### Phase 3 — Documentation & knowledge base
+
+- **Objective:** preserve the original engineering thinking and reconcile every doc with the post-Phase-2 behavior.
+- **Items:** DOC-11/KNOW-01 (new design-decisions/journal doc holding DOC-02, DOC-03, DOC-04, DOC-05, DOC-08), DOC-06, DOC-07, DOC-09, DOC-10.
+- **Serves the goal:** accurate docs are the design surface for V4 — and the notebook's original reasoning (preserved, not rewritten) is the material for the public engineering write-ups.
+- **Why third:** writing docs before Phases 1–2 settle guarantees rework.
+- **Acceptance:** every notebook page maps to a documented decision or an explicitly recorded change; the DOC-01 correction is live.
+
+### Phase 4 — Verification & reliability
+
+- **Objective:** build the regression net and dynamically verify what the audit could only verify statically.
+- **Items:** TEST-03 (jsdom + hook/mutation tests), TEST-01 (HTTP-level controller + filter/interceptor tests), TEST-02 (minimal real-Postgres repository suite), TEST-04 (minimal CI: lint + typecheck + both suites), TEST-05 / INFRA-01 / INFRA-02 (docker build, full local e2e walkthrough per DEPLOYMENT.md §5, live SSE check) — satisfies KNOW-02.
+- **Serves the goal:** Research Intelligence is the most complex feature on the roadmap; CI plus integration tests are what make it safe to build fast without regressing the core loop.
+- **Acceptance:** CI green on a PR; the manual e2e checklist executed once end-to-end.
+
+### Phase 5 — V4 readiness gate (decision-gated items only)
+
+- **Objective:** close only the Phase-0-approved items that would otherwise become V4 rework.
+- **Items (each gated on its Phase-0 decision):** FEAT-01 (caching, if approved), SEC-01 (interim demo guardrails, if approved), SEC-02 (favicon proxy or accept), SEC-03 (CSP header), ARCH-03 (bound/paginate thread detail), ARCH-02 (document or enforce), BUG-04 (if deferred from Phase 2).
+- **Serves the goal:** this is deliberately small — it exists to clear the ROAD-01 prerequisite list, not to gold-plate V2.
+- **Exit gate to V4:** every ROAD-01 prerequisite is either resolved or consciously deferred with a recorded reason.
+
+---
+
 ## V3 - Deployment Readiness
 
 Operational work needed before the application is easier to run outside local development.
 
 | Area | Capability | Purpose |
 |---|---|---|
-| **Backend** | Dockerized deployment | Package the backend and dependencies consistently |
-| **Backend** | Public deployment guardrails | Add rate limits, secure configuration validation, and operational checks before exposing the API publicly |
+| **Backend** | Dockerized deployment (Completed) | Package the backend and dependencies consistently — multi-stage non-root Dockerfiles, one-shot migration target, and the `compose.yaml` stack are on `main` (verified by the October 2026 audit, ROAD-04) |
+| **Backend** | Public deployment guardrails | Add rate limits, secure configuration validation, and operational checks before exposing the API publicly — partially addressed by Foundation Track Phases 0/5 (SEC-01) |
 
-## V4 - Research Intelligence
+## V4 - Research Intelligence — **the ultimate objective**
 
 Higher-level reasoning features after the basic ask/search/answer loop is reliable.
 
 | Area | Capability | Purpose |
 |---|---|---|
 | **Backend** | Deep Research agents | Run multi-step research workflows instead of a single search pass |
+
+**Entry gate:** detailed V4 scoping begins only after the Foundation Track exit
+criteria are met (ROAD-01 prerequisites resolved or consciously deferred).
+Existing groundwork: the `mode` field on threads, the `deep-research` filter
+stub (`threads.service.ts` returns an empty list today, documented in API.md),
+and the streaming/persistence pipeline it will build on. This connects back to
+the original notebook note "Deep research (most important)" (IMG_1092).
 
 ## V5 - Productization
 
