@@ -99,12 +99,17 @@ describe final behavior, so it follows code changes) → verification
 infrastructure (protects everything after) → a short, decision-gated V4
 readiness pass. Research Intelligence scoping begins only after this track.
 
-### Phase 0 — Decisions (no code)
+### Phase 0 — Decisions (no code) — ✔ Completed 2026-10-26
 
 - **Objective:** close open product/engineering decisions so later phases never guess.
 - **Items:** ROAD-02 (caching), ARCH-01 (thread failure semantics), SEC-01 (demo posture), KNOW-04 + ROAD-03 (notebook clarifications).
 - **Serves the goal:** caching and guardrail decisions directly shape V4 economics — deep research multiplies Tavily + Groq spend, so cost posture must be decided before designing it.
-- **Exit:** every [FINDINGS.md](FINDINGS.md) Decision Register row marked decided, deferred-with-reason, or rejected.
+- **Outcomes (recorded in [FINDINGS.md](FINDINGS.md) Decision Register):**
+  1. **Answer-level caching rejected** — freshness contradicts the realtime differentiator, and follow-up rewrites make exact-match hit rates ≈ 0. Revisit trigger recorded for V4: *search-result-level* caching (short TTL, keyed by the rewritten `searchQuery`) if research loops show query overlap.
+  2. **Thread failure semantics kept** — thread status = latest-activity state; self-heals on retry; the per-turn failed card is the real user surface. Rationale documented in Phase 3.
+  3. **Demo posture: app-level demo-gate auth + rate limiting** before the LinkedIn launch (revised same day from platform-only protection): a single env-configured access credential → `/login` → signed HttpOnly session cookie, a global guard on `/perplexity/*`, and `@nestjs/throttler` rate limits (strict on `/ask*`). Explicitly **not** user accounts — threads stay single-tenant; full multi-user auth remains V5. Backend's direct public exposure verified in Phase 4.
+  4. **Credit-based usage clarified** — an intention, never built; consciously deferred (covered by V5 Billing/Limits).
+- **Exit:** every Decision Register row carries a recorded outcome. ✔ Met.
 
 ### Phase 1 — Correctness & hygiene
 
@@ -136,12 +141,12 @@ readiness pass. Research Intelligence scoping begins only after this track.
 - **Serves the goal:** Research Intelligence is the most complex feature on the roadmap; CI plus integration tests are what make it safe to build fast without regressing the core loop.
 - **Acceptance:** CI green on a PR; the manual e2e checklist executed once end-to-end.
 
-### Phase 5 — V4 readiness gate (decision-gated items only)
+### Phase 5 — V4 readiness gate & demo hardening
 
-- **Objective:** close only the Phase-0-approved items that would otherwise become V4 rework.
-- **Items (each gated on its Phase-0 decision):** FEAT-01 (caching, if approved), SEC-01 (interim demo guardrails, if approved), SEC-02 (favicon proxy or accept), SEC-03 (CSP header), ARCH-03 (bound/paginate thread detail), ARCH-02 (document or enforce), BUG-04 (if deferred from Phase 2).
-- **Serves the goal:** this is deliberately small — it exists to clear the ROAD-01 prerequisite list, not to gold-plate V2.
-- **Exit gate to V4:** every ROAD-01 prerequisite is either resolved or consciously deferred with a recorded reason.
+- **Objective:** close the remaining hardening items and make the deployed demo safe to publish — the LinkedIn launch gate.
+- **Items:** SEC-05 (demo-gate auth: env-configured credential → `/login` → signed HttpOnly session cookie; global guard on `/perplexity/*`), SEC-06 (rate limiting via `@nestjs/throttler`, strict on `/ask*`), SEC-02 (favicon proxy or accept), SEC-03 (CSP header), ARCH-03 (bound/paginate thread detail), ARCH-02 (document or enforce), BUG-04 (if deferred from Phase 2). *(Phase-0 outcomes removed FEAT-01 — answer caching rejected. SEC-01 was revised same-day from platform-only protection to app-level demo-gate auth + rate limiting.)*
+- **Serves the goal:** clears the ROAD-01 prerequisite list and makes the demo publishable **without** pulling full V5 user accounts forward and delaying V4.
+- **Exit gate to V4:** every ROAD-01 prerequisite is either resolved or consciously deferred with a recorded reason; the demo is publishable (auth gate + rate limits live; backend exposure verified in Phase 4).
 
 ---
 
@@ -175,7 +180,7 @@ Features needed when the product moves beyond a single-user V1 app.
 
 | Area | Capability | Purpose |
 |---|---|---|
-| **Backend/Frontend** | Authentication | User login, sign-up flows |
+| **Backend/Frontend** | Authentication | User login, sign-up flows — full multi-user auth (a single-credential demo gate ships earlier in Phase 5 as SEC-05; this row remains the real thing) |
 | **Backend/Frontend** | User-scoped Persistence | Ensure all threads, turns, sources, and citations are owned by a user |
 | **Backend** | Billing / Limits | Control cost, rate limits, and paid usage |
 
