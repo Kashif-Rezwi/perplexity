@@ -12,7 +12,7 @@ import type {
 
 type AddThreadToHistory = (thread: ThreadHistoryItem) => void;
 
-export function createStreamingTurn(event: AskStreamStartEvent): TurnItem {
+function createStreamingTurn(event: AskStreamStartEvent): TurnItem {
   const now = new Date().toISOString();
 
   return {

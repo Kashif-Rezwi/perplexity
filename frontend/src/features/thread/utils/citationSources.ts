@@ -26,7 +26,7 @@ export function getCitationSourceKey(source: SourcePreviewItem): string {
   return source.sourceId || `citation:${source.citationNumber}`;
 }
 
-export function findCitationSourceIndexByKey(
+function findCitationSourceIndexByKey(
   sources: SourcePreviewItem[],
   sourceKey?: string | null,
 ): number {

@@ -124,13 +124,13 @@ The following describes the end-to-end data flow when a user submits a question.
 ```
 
 1.  **Input (Frontend)**: User types into the `AskInput` component.
-2.  **Submission (Frontend)**: Submitting triggers `POST /perplexity/ask/stream` for progressive rendering, with `POST /perplexity/ask` retained as a synchronous JSON fallback (see [`API.md`](API.md)).
+2.  **Submission (Frontend)**: Submitting triggers `POST /perplexity/ask/stream` for progressive rendering (see [`API.md`](API.md)).
 3.  **Routing (Frontend)**: The Next.js router navigates the user to `/thread/[threadId]`.
 4.  **Backend Ask Module**: The `AskController` receives the request and passes it to the `AskService`.
-5.  **Thread/Turn Creation**: The `AskService` creates a new Thread (if needed) and a new Turn in the database to track the interaction.
-6.  **Search Context Generation**: 
-    *   The question is passed to the AI provider to rewrite it into an optimized web search query.
-    *   The `SearchService` executes the query against Tavily to fetch relevant external sources.
+5.  **Search Context Generation**:
+    *   The original question (plus prior turns and thread title for follow-ups) is passed to the AI provider to rewrite it into an optimized web search query.
+    *   The `SearchService` executes the rewritten query against Tavily to fetch relevant external sources.
+6.  **Thread/Turn Creation**: The `AskService` creates a new Thread (if needed) and a new Turn in `PENDING` state, persisting both the original question and the rewritten `searchQuery`. Creating the turn before the stream starts makes the failure/retry path self-healing: a failed turn remains in the database and can be retried without re-creating the interaction.
 7.  **Source Preparation**: The retrieved web results are normalized into source inputs for answer context and later persistence.
 8.  **AI Answer Generation**:
     *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.

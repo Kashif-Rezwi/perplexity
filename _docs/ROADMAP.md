@@ -111,12 +111,18 @@ readiness pass. Research Intelligence scoping begins only after this track.
   4. **Credit-based usage clarified** — an intention, never built; consciously deferred (covered by V5 Billing/Limits).
 - **Exit:** every Decision Register row carries a recorded outcome. ✔ Met.
 
-### Phase 1 — Correctness & hygiene
+### Phase 1 — Correctness & hygiene ✔ Completed 2026-10-27
 
 - **Objective:** fix the one confirmed logic defect, close the config hole, remove verified dead code, and correct the one inaccurate doc — all small, independent, test-covered.
 - **Items:** BUG-01 (error-body fallback), SEC-04 (`.env.*` gitignore), DEBT-01 (dead code), DEBT-05 (eslint/tsconfig hygiene), DOC-01 (architecture order inversion; unblocks KNOW-03).
 - **Serves the goal:** V4 branches off this codebase; the baseline must be trustworthy and the knowledge base accurate before public write-ups and new feature work.
-- **Acceptance:** backend 125 + frontend 57 tests green; `tsc --noEmit` and ESLint clean in both apps; grep confirms removed symbols have zero references; ARCHITECTURE.md order matches `ask.service.ts`.
+- **Acceptance:** backend 125 + frontend 62 tests green; `tsc --noEmit` and ESLint clean in both apps; grep confirms removed symbols have zero references; ARCHITECTURE.md order matches `ask.service.ts`.
+- **Outcomes:**
+  - Added `readErrorMessage` helper in `frontend/src/lib/api/client.ts` (handles JSON `message`, class-validator `message[]`, raw text, and statusText fallback) and covered it with `client.test.ts`.
+  - Deleted dead frontend code: `postAsk`, `getPinnedThreads`, `PinnedThreadListQueryInput`, unused query keys, unused props/attributes, and un-needed exports.
+  - Hardened `.gitignore` against `.env.*` variants.
+  - Enabled `noUnusedLocals`/`noUnusedParameters` in both tsconfigs and ESLint unused-vars as error; removed stale `jest` globals from backend eslint.
+  - Corrected `ARCHITECTURE.md` ask-flow order and noted the pending-turn persistence model.
 
 ### Phase 2 — Stream lifecycle & UX edges
 

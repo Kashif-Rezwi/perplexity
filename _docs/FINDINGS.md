@@ -63,7 +63,7 @@ with their date, outcome, and rationale.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| DOC-01 | ARCHITECTURE.md sequence + text invert the real order — code rewrites the query **before** persisting the pending turn (`ask.service.ts:105-136` vs `_docs/ARCHITECTURE.md:100-104,130-133`). Matters: the turn row stores the rewritten `searchQuery` at creation | ✅ | P0 | Fix in Phase 1 |
+| DOC-01 | ARCHITECTURE.md sequence + text invert the real order — code rewrites the query **before** persisting the pending turn (`ask.service.ts:105-136` vs `_docs/ARCHITECTURE.md:100-104,130-133`). Matters: the turn row stores the rewritten `searchQuery` at creation | ✔ | P0 | Fixed in Phase 1 (2026-10-27): reordered steps 5/6 in `ARCHITECTURE.md` to match `preparePendingAsk`; noted pending-turn persistence and stored `searchQuery` |
 | DOC-02 | Notebook caching thread (IMG_1091 "Caching"/"check for caching"/"cache the response"; IMG_1092 "caching response for similar query") absent from all docs — silently dropped | ✅ | P1 | Record decision outcome in Phase 3 (gated on Register #1) |
 | DOC-03 | Notebook lesson "built APIs in wrong order (sources→threads→ask); ask should be first" (IMG_1094) captured nowhere | ✅ | P1 | Capture in Phase 3 |
 | DOC-04 | Target-user persona + 3-way competitive test (IMG_1088/1089) — the *why* behind sources tab, follow-ups, clean UX — undocumented | ✅ | P1 | Capture in Phase 3 |
@@ -79,7 +79,7 @@ with their date, outcome, and rationale.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| BUG-01 | Error-body fallback reads an already-consumed body: when `response.json()` throws, the catch reads `response.text()` → "Body is unusable" (`client.ts:52-60`, `index.ts:148-158`). Masked today because the backend always returns JSON errors; bites on non-JSON upstream errors with a misleading `NetworkError` | ✅ | P0 | Fix in Phase 1 (read text once, then JSON-parse) |
+| BUG-01 | Error-body fallback reads an already-consumed body: when `response.json()` throws, the catch reads `response.text()` → "Body is unusable" (`client.ts:52-60`, `index.ts:148-158`). Masked today because the backend always returns JSON errors; bites on non-JSON upstream errors with a misleading `NetworkError` | ✔ | P0 | Fixed in Phase 1 (2026-10-27): shared `readErrorMessage` helper in `client.ts`, used by `apiClient` and `streamAskRequest`; review pass also hardened it against NestJS class-validator `message: string[]` bodies; covered by `client.test.ts` (5 tests) |
 | BUG-02 | SSE stream ending with neither `final` nor `error` (network truncation) leaves the turn spinning as pending forever — no watchdog; the `onDone` hook exists but is unconsumed | ◐ | P1 | Fix in Phase 2 (consume `onDone` for terminal-state detection + wire the existing `signal` abort param) |
 | BUG-03 | `remarkCitations` doesn't skip existing mdast `link` nodes — `[1]` inside Markdown link text could produce nested `<a>` | ❓ | P1 | Phase 2: write the reproduction test first; fix only if it fails |
 | BUG-04 | Cursor pagination edge cases: `skip: 1` against a deleted cursor row silently drops a row; mutable `updatedAt` sort key drifts between pages | ◐ | P2 | Phase 2 if trivial, else defer to Phase 5 with a note |
@@ -108,11 +108,11 @@ with their date, outcome, and rationale.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| DEBT-01 | Dead-code cluster (grep-verified zero call sites): `postAsk`, `getPinnedThreads`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `createTurnUrl` (→FEAT-05), `onDone` hook (→BUG-02), never-passed `signal` param (→BUG-02), unused `threadId/turnId` props on `TurnResponseActions`, unused `data-text-tab` attr; plus same-file-only exports `createStreamingTurn` and `findCitationSourceIndexByKey` (drop the unneeded `export`) | ✅ | P0 | Delete in Phase 1 (except the two symbols coupled to BUG-02/FEAT-05 decisions) |
+| DEBT-01 | Dead-code cluster (grep-verified zero call sites): `postAsk`, `getPinnedThreads`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `createTurnUrl` (→FEAT-05), `onDone` hook (→BUG-02), never-passed `signal` param (→BUG-02), unused `threadId/turnId` props on `TurnResponseActions`, unused `data-text-tab` attr; plus same-file-only exports `createStreamingTurn` and `findCitationSourceIndexByKey` (drop the unneeded `export`) | ✔ | P0 | Deleted in Phase 1 (2026-10-27): removed `postAsk`, `getPinnedThreads`, `PinnedThreadListQueryInput`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `TurnResponseActions` `threadId/turnId` props, `data-text-tab`; un-exported `createStreamingTurn` + `findCitationSourceIndexByKey`. `createTurnUrl`, `onDone`, and the unused `signal` param remain coupled to Phase 2 decisions |
 | DEBT-02 | API shape inconsistency: sources-list items omit `provider`/`providerScore`; thread-detail embedded sources include them | ✅ | P2 | Align in Phase 2 |
 | DEBT-03 | `historyStore` persisted to localStorage with no `version`/`migrate` — future shape changes will strand old data | ✅ | P2 | Optional (Phase 2) |
 | DEBT-04 | History search not debounced — one server query per keystroke | ✅ | P2 | Add ~300ms debounce in Phase 2 |
-| DEBT-05 | Backend eslint configures `jest` globals though the runner is `node:test`; `strictPropertyInitialization: false` in tsconfig; **enable `noUnusedLocals` + `noUnusedParameters` (and ESLint unused-vars enforcement) in both apps so unused locals/params fail checks going forward** (approved 2026-10-26) | ✅ | P2 | Hygiene in Phase 1 |
+| DEBT-05 | Backend eslint configures `jest` globals though the runner is `node:test`; `strictPropertyInitialization: false` in tsconfig; **enable `noUnusedLocals` + `noUnusedParameters` (and ESLint unused-vars enforcement) in both apps so unused locals/params fail checks going forward** (approved 2026-10-26) | ✔ | P2 | Completed in Phase 1 (2026-10-27): removed stale `jest` globals from backend eslint; enabled `noUnusedLocals` + `noUnusedParameters` in both tsconfigs; set `@typescript-eslint/no-unused-vars` to `error` in both eslint configs |
 | DEBT-06 | Markdown-stripping duplicated across layers (backend `ask-text.util.ts` vs frontend `threadExport.markdownToPlainText`) — different purposes; acceptable | ✅ | — | Accepted; no refactor |
 | DEBT-07 | Sources inserted sequentially inside `completeTurn` (bounded ≤ `TAVILY_MAX_RESULTS`=5) | ✅ | — | Accepted; batch only if limits grow |
 
@@ -133,7 +133,7 @@ with their date, outcome, and rationale.
 | SEC-01 | No auth/authz/user-scoping/rate limits on money-spending endpoints; public Vercel demo live. Documented, intentional V2 boundary (README:11-15, DEPLOYMENT.md §1) — real risk if the link circulates | ✅ | — | ✔ Decided (Register #3, revised): app-level demo-gate auth (SEC-05) + rate limiting (SEC-06) in Phase 5 before the LinkedIn launch; backend-exposure verification in Phase 4; DEPLOYMENT.md posture note in Phase 3 |
 | SEC-02 | Source favicons fetched from Google's `/s2/favicons` — every source domain leaks to a third party (flagged in frontend/README.md:37-39) | ✅ | P2 | Phase 5 (first-party proxy/cache or accept) |
 | SEC-03 | No CSP header (defense-in-depth; XSS surface already low — no `rehype-raw`, URL sanitization on) | ✅ | P2 | Phase 5 |
-| SEC-04 | Root `.gitignore` covers only `.env`/`.env.local` — `.env.production` etc. are committable | ✅ | P0 | Fix in Phase 1 |
+| SEC-04 | Root `.gitignore` covers only `.env`/`.env.local` — `.env.production` etc. are committable | ✔ | P0 | Fixed in Phase 1 (2026-10-27): `.gitignore` now ignores `.env.*` except `.env.example` |
 | SEC-05 | Demo-gate authentication (Register #3, revised 2026-10-26): single env-configured access credential; `/login` → signed HttpOnly session cookie; global guard on `/perplexity/*`. Explicitly NOT user accounts — threads stay single-tenant; full multi-user auth remains V5 | ✅ (decision) | P1 | Implement in Phase 5 (LinkedIn launch gate) |
 | SEC-06 | Rate limiting before public launch: `@nestjs/throttler` — strict limits on money-spending endpoints (`POST /perplexity/ask*`), lenient global/read limits; gateway-level limits still recommended per DEPLOYMENT.md | ✅ (decision) | P1 | Implement in Phase 5 (with SEC-05) |
 
@@ -170,7 +170,7 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 |---|---|---|---|---|
 | KNOW-01 | Original thinking preservation: notebook decisions (caching, API-ordering lesson, persona, competitive analysis, naming evolution) need a durable home → DOC-11 | ✅ | P1 | Phase 3 |
 | KNOW-02 | Public write-ups should follow dynamic verification (TEST-05) — don't publish flow claims you haven't watched run | 💡 | P1 | Phase 4 |
-| KNOW-03 | Fix DOC-01 before writing public posts, or the inverted order gets published | ✅ | P1 | Phase 1 (fix) → Phase 3 (docs pass) |
+| KNOW-03 | Fix DOC-01 before writing public posts, or the inverted order gets published | ✔ | P1 | Phase 1 fixed (2026-10-27) → Phase 3 docs pass |
 | KNOW-04 | Notebook ambiguities — answered by the author (Register #4): credit-usage intent clarified; IMG_1090 `list_recent` fields remain a best-effort reading `{context_id?, link?, status, title}` for the Phase-3 journal | ✔ | — | Resolved (Register #4) |
 
 ## 12. Other
@@ -188,7 +188,7 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 | Phase | Finding IDs |
 |---|---|
 | 0 — Decisions | ✔ Complete (2026-10-26): ROAD-02 ✔, ARCH-01 ✔, SEC-01 ✔, KNOW-04 ✔, ROAD-03 ✔ — outcomes in the Decision Register |
-| 1 — Correctness & hygiene | BUG-01, SEC-04, DEBT-01, DEBT-05, DOC-01 (KNOW-03) |
+| 1 — Correctness & hygiene | ✔ Complete (2026-10-27): BUG-01 ✔, SEC-04 ✔, DEBT-01 ✔, DEBT-05 ✔, DOC-01 ✔ (KNOW-03 unblocked). Baseline: backend 125/125 tests, frontend 62/62 tests, tsc + ESLint clean both apps. |
 | 2 — Stream lifecycle & UX edges | BUG-02, BUG-03, BUG-04?, ARCH-04, ARCH-05, FEAT-04, FEAT-05, DEBT-02, DEBT-04, (DEBT-03) |
 | 3 — Documentation & knowledge base | DOC-02–DOC-11, ROAD-04, KNOW-01, SEC-01 (posture note in DEPLOYMENT.md) |
 | 4 — Verification & reliability | TEST-01–TEST-05, INFRA-01, INFRA-02 (KNOW-02), SEC-01 (backend-exposure check) |

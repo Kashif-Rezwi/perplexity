@@ -13,8 +13,6 @@ import {
 type CopiedAction = 'markdown' | 'text';
 
 type TurnResponseActionsProps = {
-  threadId: string;
-  turnId: string;
   question: string;
   answerMarkdown: string | null;
   sourceCount: number;

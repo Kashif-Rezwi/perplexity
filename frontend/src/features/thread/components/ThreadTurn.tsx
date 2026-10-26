@@ -74,8 +74,6 @@ export function ThreadTurn({
 
         {turn.status === 'completed' && threadId ? (
           <TurnResponseActions
-            threadId={threadId}
-            turnId={turn.turnId}
             question={turn.question}
             answerMarkdown={turn.answerMarkdown}
             sourceCount={sourceCount}

@@ -28,10 +28,6 @@ export type ThreadListQueryInput = {
   excludePinned?: boolean;
 };
 
-export type PinnedThreadListQueryInput = {
-  limit?: number;
-};
-
 export type ThreadListResponse = {
   items: ThreadSummaryItem[];
   nextCursor: string | null;

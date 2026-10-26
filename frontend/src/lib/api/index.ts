@@ -1,4 +1,10 @@
-import { ApiError, NetworkError, apiClient, getApiUrl } from './client';
+import {
+  ApiError,
+  NetworkError,
+  apiClient,
+  getApiUrl,
+  readErrorMessage,
+} from './client';
 import { createSseParser } from './sse';
 import type {
   AskResponse,
@@ -7,7 +13,6 @@ import type {
   AskStreamProgressEvent,
   AskStreamStartEvent,
   BulkDeleteThreadsResponse,
-  PinnedThreadListQueryInput,
   SourcesResponse,
   ThreadDetailResponse,
   ThreadListQueryInput,
@@ -91,16 +96,6 @@ export async function getSources({
   return apiClient<SourcesResponse>(`/sources${query ? `?${query}` : ''}`);
 }
 
-export async function postAsk(
-  question: string,
-  threadId?: string,
-): Promise<AskResponse> {
-  return apiClient<AskResponse>('/ask', {
-    method: 'POST',
-    body: JSON.stringify({ question, threadId }),
-  });
-}
-
 export async function streamAsk(
   question: string,
   threadId: string | undefined,
@@ -146,14 +141,7 @@ async function streamAskRequest(
   });
 
   if (!response.ok) {
-    let errorMessage = 'An unexpected error occurred';
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorMessage;
-    } catch {
-      errorMessage = (await response.text()) || response.statusText || errorMessage;
-    }
-
+    const errorMessage = await readErrorMessage(response);
     throw new ApiError(response.status, errorMessage);
   }
 
@@ -268,18 +256,3 @@ export async function toggleThreadPin(
   });
 }
 
-export async function getPinnedThreads({
-  limit,
-}: PinnedThreadListQueryInput = {}): Promise<ThreadSummaryItem[]> {
-  const params = new URLSearchParams();
-
-  if (limit) {
-    params.set('limit', String(limit));
-  }
-
-  const query = params.toString();
-
-  return apiClient<ThreadSummaryItem[]>(
-    `/threads/pinned${query ? `?${query}` : ''}`,
-  );
-}

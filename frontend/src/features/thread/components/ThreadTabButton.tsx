@@ -18,7 +18,6 @@ export function ThreadTabButton({
   return (
     <button
       type="button"
-      data-text-tab="true"
       disabled={disabled}
       onClick={onClick}
       className={[

@@ -27,6 +27,34 @@ export class NetworkError extends Error {
   }
 }
 
+export async function readErrorMessage(response: Response): Promise<string> {
+  const fallback = 'An unexpected error occurred';
+  const text = await response.text();
+
+  if (!text) {
+    return response.statusText || fallback;
+  }
+
+  try {
+    const errorData: unknown = JSON.parse(text);
+    if (errorData && typeof errorData === 'object') {
+      const message = (errorData as { message?: unknown }).message;
+      // NestJS emits `message` as a string for most errors, but as string[]
+      // for class-validator failures (see GlobalExceptionFilter).
+      if (typeof message === 'string' && message) {
+        return message;
+      }
+      if (Array.isArray(message) && message.length > 0) {
+        return message.join('; ');
+      }
+    }
+  } catch {
+    // Not JSON — fall through to the raw text below.
+  }
+
+  return text || response.statusText || fallback;
+}
+
 export function getApiUrl(path: string): string {
   const isServer = typeof window === 'undefined';
   const baseUrl = isServer ? `${BACKEND_URL}/perplexity` : '/api/perplexity';
@@ -50,15 +78,7 @@ export async function apiClient<T>(
     });
 
     if (!response.ok) {
-      let errorMessage = 'An unexpected error occurred';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
-      } catch {
-        // Fallback to text or generic message
-        errorMessage = await response.text() || response.statusText || errorMessage;
-      }
-
+      const errorMessage = await readErrorMessage(response);
       throw new ApiError(response.status, errorMessage);
     }
 
