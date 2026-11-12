@@ -6,8 +6,7 @@ This is the backend API for the Perplexity clone, responsible for managing resea
 
 The backend exposes endpoints that allow the frontend to:
 * Submit questions and follow-ups.
-* Search the web for relevant context (using Tavily).
-* Generate answers using AI (Groq) with citation markers.
+* Receive answers that the backend creates with Tavily search and Groq.
 * Retrieve past threads, turns, and sources.
 
 ```text
@@ -26,7 +25,7 @@ The backend exposes endpoints that allow the frontend to:
               └───┬─────────────────────┬───┘
                   │                     │
         ┌─────────┴─────────┐ ┌─────────┴─────────┐
-        │   SearchService   │ │     AiService     │
+        │ TavilySearchService │ │     AiService     │
         │   (Tavily API)    │ │ (Groq / AI SDK)   │
         └─────────┬─────────┘ └─────────┬─────────┘
                   │                     │
@@ -35,7 +34,8 @@ The backend exposes endpoints that allow the frontend to:
                              ▼
               ┌─────────────────────────────┐
               │     Prisma Persistence      │
-              │ Threads · Turns · Citations │
+              │ Threads · Turns · Sources  │
+              │         Citations          │
               └──────────────┬──────────────┘
                              │
                              ▼
@@ -53,11 +53,13 @@ not expose it as a public multi-user service until those guardrails are added.
 ## Getting Started
 
 ### Prerequisites
-* Node.js (v20+)
-* PostgreSQL database (e.g., Neon)
+* Node.js 20.9 or newer. The Docker images use Node.js 22 Alpine.
+* A reachable PostgreSQL database. Compose selects PostgreSQL 17; Neon is optional.
 * API Keys for Tavily and your AI provider (Groq).
 
 ### Installation & Configuration
+
+Run these commands from `backend/`.
 
 1. Install dependencies:
    ```bash
@@ -75,6 +77,8 @@ not expose it as a public multi-user service until those guardrails are added.
 
    **Web Search Configs:**
    * `TAVILY_API_KEY` (Required): API key for Tavily search.
+   * `TAVILY_MAX_RESULTS`: (Optional) Defaults to 5.
+   * `TAVILY_SEARCH_DEPTH`: (Optional) Defaults to `basic`.
    * `TAVILY_SEARCH_TIMEOUT_MS`: (Optional) Defaults to 6000.
 
    **AI Configs:**
@@ -84,6 +88,9 @@ not expose it as a public multi-user service until those guardrails are added.
    * `AI_ANSWER_TIMEOUT_MS`: (Optional) Defaults to 16000.
    * `AI_QUERY_REWRITE_TIMEOUT_MS`: (Optional) Defaults to 6000.
    * `AI_SUGGESTION_TIMEOUT_MS`: (Optional) Defaults to 15000.
+
+   The implementation uses the Groq adapter. Changing providers requires code changes.
+   See [Deployment](../_docs/DEPLOYMENT.md#4-environment-variables) for the full runtime configuration.
 
 3. Run database migrations:
    ```bash
@@ -119,6 +126,7 @@ npm test
 The tests cover ask orchestration and retry semantics, stream failure handling,
 AI provider services, Tavily search, source and thread persistence, mappers,
 citation parsing, environment validation, and route smoke tests.
+Repository tests use mocked database methods. Route smoke tests inspect registered routes; they do not exercise the production HTTP bootstrap.
 
 ### Linting
 

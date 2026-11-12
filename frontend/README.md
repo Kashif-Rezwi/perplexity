@@ -41,10 +41,12 @@ first-party proxy/cache if privacy or CSP requirements demand it.
 ## Getting Started
 
 ### Prerequisites
-* Node.js (v20+)
+* Node.js 20.9 or newer. The Docker images use Node.js 22 Alpine.
 * A running instance of the Perplexity Backend (defaults to `http://localhost:8080`).
 
 ### Installation & Configuration
+
+Run these commands from `frontend/`.
 
 1. Install dependencies:
    ```bash
@@ -74,6 +76,9 @@ The development and production start scripts both serve the app on
 npm test          # Vitest unit tests
 npm run lint      # ESLint (Next.js + TypeScript configs)
 ```
+
+Vitest uses Node by default. DOM hook tests select `happy-dom` and use Testing Library.
+The suite includes three ask-hook tests; it does not provide a complete browser workflow test.
 
 ## Documentation
 

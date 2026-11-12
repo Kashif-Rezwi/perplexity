@@ -6,6 +6,9 @@ This guide covers the production-shaped Docker Compose setup in this repository
 and a platform-neutral deployment where PostgreSQL, the NestJS backend, and the
 Next.js frontend are deployed as separate services.
 
+The files and commands describe the prepared setup. They are not evidence of a successful deployment.
+Container builds, live provider calls, and the deployed SSE path remain unverified in this repository cross-check.
+
 ## 1. Important security boundary
 
 The current product is a single-user V2 application. It does **not** implement
@@ -15,12 +18,14 @@ internet deployment, use one of these controls until application-level auth is
 implemented:
 
 - Put the whole application behind an identity-aware proxy or private VPN.
-- Allow public traffic only to the frontend and keep the backend on a private
-  service network.
+- Require an access gate at the public frontend and keep the backend on a
+  private service network.
 - If a public backend is unavoidable, put an API gateway with authentication,
   strict rate limits, request-size limits, and spend controls in front of it.
 
-The frontend's default `/api/*` proxy makes the second topology straightforward.
+The frontend's default `/api/*` proxy supports the second topology. The proxy does not enforce access control itself.
+A public frontend without an access gate still exposes the backend operations through that proxy.
+The roadmap plans a demo access gate and application rate limits in Foundation Phase 5. Those controls are not implemented yet.
 
 ## 2. Prepared architecture
 
@@ -36,7 +41,7 @@ The frontend's default `/api/*` proxy makes the second topology straightforward.
 │           Rewrites & proxies /api/perplexity/* to backend URL           │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
-                                     │ /api/* (Internal Application Network)
+                                     │ /perplexity/* (Internal Network)
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                     NestJS Backend Service (:8080)                      │
@@ -57,11 +62,11 @@ The frontend's default `/api/*` proxy makes the second topology straightforward.
 └─────────────────────┘
 ```
 
-The browser does not receive `BACKEND_URL`, `DATABASE_URL`, or provider keys.
+Browser API calls use relative URLs and do not require backend or provider credentials.
 Browser requests use `/api/perplexity/*`; Next.js forwards them to
-`BACKEND_URL`. In Compose, the frontend and backend share the `application`
-network, while only the backend and migration job share the internal `database`
-network.
+`BACKEND_URL`. In Compose, the frontend and backend share the `application` network.
+PostgreSQL, the backend, and the migration job join the internal `database` network; the frontend does not.
+Compose publishes ports 8080 and 3001 on the host. It does not publish PostgreSQL.
 
 ## 3. Deployment artifacts
 
@@ -87,7 +92,7 @@ wildcard CORS value, or invalid origin causes startup to fail clearly.
 
 | Variable | Required | Production guidance |
 | --- | --- | --- |
-| `NODE_ENV` | Yes | Set to `production`. |
+| `NODE_ENV` | No | Defaults to `development`; explicitly set `production` for production. |
 | `HOST` | No | Defaults to `0.0.0.0`; keep this in containers. |
 | `PORT` | No | Defaults to `8080`. |
 | `DATABASE_URL` | Yes | PostgreSQL URL. Require TLS for a managed or remote database, normally with `sslmode=require`. |
@@ -98,11 +103,12 @@ wildcard CORS value, or invalid origin causes startup to fail clearly.
 | `AI_ANSWER_TIMEOUT_MS` | No | Defaults to `16000`. |
 | `AI_QUERY_REWRITE_TIMEOUT_MS` | No | Defaults to `6000`. |
 | `AI_SUGGESTION_TIMEOUT_MS` | No | Defaults to `15000`. |
-| `CORS_ORIGINS` | No | Comma-separated exact origins, with no paths or trailing slashes. Leave empty when browsers use only the frontend proxy. `*` is rejected. |
+| `CORS_ORIGINS` | No | Exact origins without paths or trailing slashes. Default: `http://localhost:3001` outside production; empty in production. `*` is rejected. |
 | `LOG_LEVEL` | No | `error`, `warn`, `log`, `debug`, or `verbose`; use `log` normally. |
 | `TRUST_PROXY` | No | Set `true` only when the backend is behind a trusted reverse proxy that controls forwarded headers. |
-| Provider model/timeouts | No | See `backend/.env.example`; defaults are applied when omitted. |
-| Tavily result/depth/timeout settings | No | See `backend/.env.example`. |
+| `TAVILY_MAX_RESULTS` | No | Defaults to `5`. The application validates a positive integer; this is not a hard five-result cap. |
+| `TAVILY_SEARCH_DEPTH` | No | Defaults to `basic`; accepts `basic`, `advanced`, `fast`, or `ultra-fast`. |
+| `TAVILY_SEARCH_TIMEOUT_MS` | No | Defaults to `6000`. |
 
 Use a database URL similar to:
 
@@ -176,7 +182,7 @@ docker compose build
 ```
 
 The frontend build uses `http://backend:8080`, the private Compose service name.
-The database image is not published to the host.
+The database port is not published to the host.
 
 ### Step 3: start the stack
 
@@ -270,9 +276,8 @@ Set `BACKEND_URL` in `.env.local` before building. The frontend listens on port
 
 ## 7. Deploy services independently
 
-The exact console names vary by provider, but the order and settings below work
-for a VM, Kubernetes, ECS, Cloud Run-like containers, or a PaaS with private
-service networking.
+The steps below describe a deployment pattern. Adapt ingress, networking, health probes, and stream timeouts to the selected platform.
+The repository does not verify these settings on every hosting service.
 
 ### Step 1: provision PostgreSQL
 
@@ -338,19 +343,25 @@ Configure the backend container as follows:
   concurrent AI spend are bounded
 
 Set all backend variables from Section 4. Application logs go to stdout/stderr.
-HTTP completion and failure records contain request ID, method, path, status,
-and duration; internal exceptions retain stack traces in server logs while
-unexpected clients receive only `Internal server error`. Forward the
+HTTP completion records contain request ID, method, path, status, and duration.
+Exception-filter failure records contain request ID, method, path, status, exception, and message, but no duration.
+Unexpected exceptions return `Internal server error`; known HTTP exceptions retain their public messages. Forward the
 `X-Request-Id` response value into support and tracing workflows.
+
+SSE operation failures can still produce an HTTP-200 completion record because the controller emits an error event without throwing.
+Use service logs and stream error events as well as HTTP status for diagnosis.
 
 The AI endpoint streams Server-Sent Events. At every load balancer or reverse
 proxy in front of it:
 
-- Disable response buffering and caching for `/api/perplexity/ask/*`.
+- Disable response buffering and caching for `/api/perplexity/ask/*` at the frontend proxy and `/perplexity/ask/*` at backend ingress.
 - Allow streaming/chunked responses.
-- Use an idle/request timeout longer than the configured search and AI
-  timeouts; 90 seconds is a reasonable initial value.
-- Preserve client disconnects so the backend can abort provider work.
+- Allow the sum of query rewrite, search, answer, suggestions, and database work. Defaults total up to 43 seconds before database/network overhead.
+  A 90-second request timeout is an initial example, not an application guarantee.
+- Preserve client disconnects so the backend can cancel answer generation.
+
+The code passes caller cancellation to answer generation only. Rewrite, search, and suggestions use their own timeout behavior.
+The application search timeout does not cancel the underlying Tavily request. SSE has no heartbeat or whole-request timeout.
 
 ### Step 5: build and publish the frontend image
 
@@ -422,16 +433,15 @@ Then verify:
 - The frontend response includes `X-Content-Type-Options: nosniff` and
   `X-Frame-Options: DENY`.
 - The backend does not expose `X-Powered-By`.
-- `/health/live` remains healthy during a database outage, while
-  `/health/ready` returns 503. This distinguishes process health from traffic
-  readiness.
+- In a running process, `/health/live` does not query the database. If the readiness query fails, `/health/ready` returns 503.
+  Database-client timeouts affect how quickly readiness fails. A startup database failure can prevent the process from listening at all.
 - A real streamed question emits incremental events without proxy buffering.
 - The completed thread is visible after refresh and from another browser
   session allowed by the access gateway.
 - A deliberately invalid API request returns a 4xx response with a
   `requestId`, and the same ID appears in backend logs.
-- Application containers cannot connect directly to PostgreSQL from the public
-  internet, and the frontend environment contains no provider/database keys.
+- PostgreSQL is unreachable from the public internet. Backend and migration jobs can reach it on the private network; frontend cannot.
+  The frontend environment contains no provider/database keys.
 - Backup status, error-rate alerts, latency alerts, disk/storage alerts, and
   provider spend alerts are active.
 

@@ -8,15 +8,17 @@ The project is a monorepo: a **NestJS** backend that orchestrates web search and
 
 Start with [Docs](_docs/README.md) for the recommended reading order, frontend and backend code entry points, and links to all project documentation.
 
-## Live Demo
+## Demo Link
 
-A deployment is available at <https://perplexity-lilac.vercel.app>.
+Documented demo URL: [Perplexity Clone](https://perplexity-lilac.vercel.app).
 
-This deployment runs the V2 application as-is. V2 is single-user and has no authentication, user-scoped data, rate limits, or billing guardrails, so the deployment does not limit or isolate usage. Keep this in mind if you share the link.
+This repository contains a single-user V2 application without authentication, user-scoped data, rate limits, or billing controls.
+The demo's current availability, deployed revision, and platform access controls were not verified in the repository review.
 
 ## V2 Scope
 
-V2 is intended for local, single-user use. It does not include authentication, user-scoped data access, rate limits, billing limits, or public multi-tenant deployment guardrails yet. Those concerns are tracked as later productization work in the roadmap.
+V2 is intended for local, single-user use. It does not include authentication, user-scoped data access, rate limits, or billing limits.
+The Foundation Track plans a demo access gate and rate limits before public launch. Full user accounts, record ownership, and billing remain V5 work.
 
 ## Features
 
@@ -37,7 +39,7 @@ V2 is intended for local, single-user use. It does not include authentication, u
 | Frontend state | TanStack Query v5 (server data), Zustand (UI/local history), `react-markdown` + `remark-gfm` + `rehype-highlight` |
 | Backend | NestJS 11, TypeScript |
 | Database | PostgreSQL 17, Prisma 6 (threads, turns, sources, citations) |
-| AI | Vercel AI SDK — provider-agnostic behind generic `AI_*` config (Groq) |
+| AI | Vercel AI SDK with the Groq adapter; models and keys use `AI_*` config |
 | Search | Tavily |
 | Infrastructure | Docker (multi-stage, non-root), Docker Compose |
 
@@ -75,7 +77,7 @@ The backend is a modular monolith: NestJS controllers validate input (DTOs), ser
 1. You submit a question. If it is a follow-up, the AI provider first rewrites it into a standalone search query using recent thread context.
 2. The backend creates a pending turn, searches Tavily, and streams the LLM answer back token by token while buffering the full Markdown.
 3. After streaming, the backend matches `[n]` markers to sources, persists the turn, sources, citations, and suggested follow-ups, and emits a final event.
-4. The frontend hydrates its React Query cache so the thread page renders immediately; the sidebar and history reconcile with `GET /perplexity/threads`.
+4. The frontend seeds temporary query data on `start`, appends streamed text, and replaces it with the saved `final` result. Direct thread visits use server prefetch and cache hydration. Sidebar and history queries use `GET /perplexity/threads`.
 
 See [`_docs/ARCHITECTURE.md`](_docs/ARCHITECTURE.md) for the full data-flow walkthrough.
 
@@ -85,7 +87,7 @@ See [`_docs/ARCHITECTURE.md`](_docs/ARCHITECTURE.md) for the full data-flow walk
 backend/
 ├── prisma/schema.prisma      # Thread, Turn, Source, Citation models
 ├── src/ask/                  # Ask/retry endpoints, SSE streaming, citation linking
-├── src/ai/                   # Provider-agnostic AI service (Groq), prompts
+├── src/ai/                   # AI service, Groq adapter, prompts
 ├── src/search/               # Tavily search integration
 ├── src/threads/              # Thread list/detail/rename/delete/pin + turn persistence
 ├── src/sources/              # Source listing endpoint
@@ -96,7 +98,7 @@ frontend/
 ├── src/features/             # home, thread, history, sidebar, thread-management
 ├── src/lib/api/              # Typed API client + SSE parser
 ├── src/store/                # Zustand history store
-└── src/types/                # Shared API payload types
+└── src/types/                # Frontend API payload types
 ```
 
 ## Getting Started
@@ -158,11 +160,11 @@ The backend validates its environment at startup and names any missing or malfor
 ## Testing
 
 ```bash
-# Backend — node:test + ts-node (18 test files, 125 tests: ask orchestration,
+# Backend — node:test + ts-node (18 test files, 127 tests: ask orchestration,
 # AI service, search, sources, threads, citations, environment, routes)
 cd backend && npm test
 
-# Frontend — Vitest (14 test files, 57 tests: hooks, stores, SSE parser,
+# Frontend — Vitest (18 test files, 71 tests: hooks, stores, SSE parser,
 # markdown citations, thread export, history/sidebar utilities)
 cd frontend && npm test
 
@@ -190,7 +192,7 @@ All application endpoints are scoped under `/perplexity`; full contracts live in
 
 - `compose.yaml` provides a production-shaped local stack.
 - [`_docs/DEPLOYMENT.md`](_docs/DEPLOYMENT.md) covers independent service deployment, migrations, secret management, proxy/SSE buffering guidance, and verification. The frontend's `/api/*` proxy keeps provider and database keys out of the browser.
-- A live deployment currently runs on Vercel (see Live Demo above). Because V2 has no authentication or rate limits, do not expose the backend directly to the public internet without the gateway controls described in the guide.
+- The documented demo URL uses Vercel; its deployed revision is unverified. Public access requires the controls in the deployment guide. The frontend proxy does not enforce access control.
 
 ## Roadmap
 
