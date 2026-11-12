@@ -20,7 +20,7 @@ The frontend handles:
               ▼                               ▼
 ┌──────────────────────────┐     ┌──────────────────────────┐
 │     Feature Modules      │     │       State Layer        │
-│ • thread  (Turn, Cite)   │     │ • TanStack Query (Server)│
+│ • thread  (Turn, Cite)   │     │ • React Query (Server)  │
 │ • sidebar (History)      │     │ • Zustand (Local & UI)   │
 │ • home    (Ask Composer) │     │                          │
 └─────────────┬────────────┘     └─────────────┬────────────┘

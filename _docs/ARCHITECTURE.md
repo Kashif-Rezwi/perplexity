@@ -18,7 +18,7 @@ The project is a full-stack application split into two distinct layers:
 │                                                                         │
 │  ┌────────────────────┐  ┌───────────────────┐  ┌────────────────────┐  │
 │  │  Feature Modules   │  │    State Layer    │  │   UI / Rendering   │  │
-│  │ • thread (Turns)   │  │ • TanStack Query  │  │ • react-markdown   │  │
+│  │ • thread (Turns)   │  │ • React Query    │  │ • react-markdown   │  │
 │  │ • sidebar (History)│  │ • Zustand Stores  │  │ • CitationBadge    │  │
 │  │ • home (Composer)  │  │                   │  │ • Highlight / GFM  │  │
 │  └────────────────────┘  └─────────┬─────────┘  └────────────────────┘  │

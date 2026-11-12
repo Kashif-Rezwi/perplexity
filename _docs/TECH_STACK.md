@@ -11,7 +11,7 @@ This document captures the technology stack for the Perplexity clone. For struct
 | **Framework** | Next.js 16 (App Router) | Supplies pages, server thread prefetch, and the API proxy. Interactive features use client components. |
 | **Language** | TypeScript | Checks code and declared API shapes at compile time. The frontend does not validate response bodies against a runtime schema. |
 | **Styling** | Tailwind CSS v4 | Rapid utility-first styling. V4 introduces simplified configuration and CSS-native custom properties. |
-| **Server State** | TanStack Query v5 | Handles caching, loading states, and error handling for asynchronous backend data. |
+| **Server State** | React Query v5 | Handles caching, loading states, and error handling for asynchronous backend data. |
 | **UI State** | Zustand | Stores sidebar state and up to 50 persisted local history summaries. Component state holds other UI choices. |
 | **Markdown** | `react-markdown` + `remark-gfm` + `rehype-highlight` | Renders Markdown, GFM features, and highlighted code. The local citation plugin creates source badges. |
 

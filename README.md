@@ -36,7 +36,7 @@ The Foundation Track plans a demo access gate and rate limits before public laun
 | Layer | Technology |
 | --- | --- |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 |
-| Frontend state | TanStack Query v5 (server data), Zustand (UI/local history), `react-markdown` + `remark-gfm` + `rehype-highlight` |
+| Frontend state | React Query v5 (server data), Zustand (UI/local history), `react-markdown` + `remark-gfm` + `rehype-highlight` |
 | Backend | NestJS 11, TypeScript |
 | Database | PostgreSQL 17, Prisma 6 (threads, turns, sources, citations) |
 | AI | Vercel AI SDK with the Groq adapter; models and keys use `AI_*` config |
