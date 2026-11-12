@@ -1,5 +1,7 @@
 # Technology Stack
 
+[Docs](README.md)
+
 This document captures the technology stack for the Perplexity clone. For structural patterns and data flow, please see the [System Architecture](ARCHITECTURE.md).
 
 ## Frontend Technology Stack

@@ -77,10 +77,4 @@ npm run lint      # ESLint (Next.js + TypeScript configs)
 
 ## Documentation
 
-Deeper technical documentation is located in the root `_docs/` directory:
-
-* [System Architecture](../_docs/ARCHITECTURE.md): Frontend structure, backend interaction, and state management.
-* [Product Roadmap](../_docs/ROADMAP.md): Current development phase and future planned features.
-* [API Contracts](../_docs/API.md): API definitions for backend communication.
-* [Deployment Guide](../_docs/DEPLOYMENT.md): Docker images, proxy networking, production deployment, and verification.
-* [Findings Inventory](../_docs/FINDINGS.md): Traceable audit findings, decision register, and remediation dispositions.
+Use [Docs](../_docs/README.md) for the reading order, code entry points, and complete document index.

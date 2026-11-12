@@ -4,6 +4,10 @@ A full-stack AI answer engine that takes a question, searches the web for curren
 
 The project is a monorepo: a **NestJS** backend that orchestrates web search and LLM generation, a **Next.js** frontend that renders streamed answers with interactive citation badges, and **PostgreSQL** persistence via Prisma.
 
+## Docs
+
+Start with [Docs](_docs/README.md) for the recommended reading order, frontend and backend code entry points, and links to all project documentation.
+
 ## Live Demo
 
 A deployment is available at <https://perplexity-lilac.vercel.app>.

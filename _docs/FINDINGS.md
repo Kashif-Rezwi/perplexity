@@ -1,5 +1,7 @@
 # Engineering Findings Inventory
 
+[Docs](README.md)
+
 **Purpose:** Complete, traceable inventory of every finding from the
 comprehensive repository audit, used to drive the Foundation Track phases in
 [ROADMAP.md](ROADMAP.md). This file is the tracker: update dispositions and

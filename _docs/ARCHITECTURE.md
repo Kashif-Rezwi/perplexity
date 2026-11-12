@@ -1,5 +1,7 @@
 # System Architecture & Tech Stack
 
+[Docs](README.md)
+
 This document describes how the full-stack Perplexity clone is structured, the technology choices made, and how data flows through the system.
 
 ---

@@ -1,5 +1,7 @@
 # Deployment Guide
 
+[Docs](README.md)
+
 This guide covers the production-shaped Docker Compose setup in this repository
 and a platform-neutral deployment where PostgreSQL, the NestJS backend, and the
 Next.js frontend are deployed as separate services.

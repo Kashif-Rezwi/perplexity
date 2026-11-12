@@ -1,5 +1,7 @@
 # Product Roadmap
 
+[Docs](README.md)
+
 **Purpose**: This document tracks the development phases of the full-stack Perplexity clone from its initial MVP to future enterprise capabilities.
 **Scope**: All backend infrastructure, API design, frontend UI, state management, and external integrations.
 **Current Phase**: V2 (Usability Improvements) hardening + the audit-driven **Foundation Track** below (Phases 0–2 complete; Phase 3 next).

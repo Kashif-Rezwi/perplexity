@@ -128,10 +128,4 @@ npm run lint
 
 ## Documentation
 
-Deeper technical documentation is located in the root `_docs/` directory:
-
-* [System Architecture](../_docs/ARCHITECTURE.md): System design, component interaction, and design patterns.
-* [Product Roadmap](../_docs/ROADMAP.md): Current development phase and future planned features.
-* [API Contracts](../_docs/API.md): Detailed request/response payloads for all endpoints.
-* [Deployment Guide](../_docs/DEPLOYMENT.md): Containers, production variables, migrations, health checks, and deployment order.
-* [Findings Inventory](../_docs/FINDINGS.md): Traceable audit findings, decision register, and remediation dispositions.
+Use [Docs](../_docs/README.md) for the reading order, code entry points, and complete document index.

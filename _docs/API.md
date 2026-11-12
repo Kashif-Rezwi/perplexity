@@ -1,5 +1,7 @@
 # Perplexity API Contracts
 
+[Docs](README.md)
+
 ## POST /perplexity/ask
 
 Creates a new thread with one turn, or appends a follow-up turn to an existing
