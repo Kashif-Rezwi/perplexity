@@ -2,10 +2,47 @@
 
 [Docs](README.md)
 
+## Conventions and Validation
+
+Paths below are backend paths. Browser requests add `/api`, which Next.js removes before forwarding to the backend.
+Application routes have the `/perplexity` prefix. Health routes do not.
+
+Requests use JSON. The global validation pipe transforms DTO fields, trims configured strings, and rejects unknown fields.
+Identifiers must be UUIDs. Examples use placeholder identifiers; replace them with real UUIDs before sending requests.
+Question text must contain 1–2,000 characters after trimming. `threadId` is optional only on ask requests.
+
+The code defines these contracts. Live providers and the deployed HTTP path require separate runtime verification.
+
+## Errors
+
+Before SSE starts, the exception filter returns normal HTTP errors with this shape:
+
+```json
+{
+  "statusCode": 400,
+  "message": ["question must be longer than or equal to 1 characters"],
+  "error": "Bad Request",
+  "requestId": "request-identifier",
+  "timestamp": "2026-11-12T00:00:00.000Z",
+  "path": "/perplexity/ask"
+}
+```
+
+`message` can be a string or a string array. `error` is optional.
+`requestId` can be absent when failure occurs before the request interceptor. Proxy or middleware errors can use a different format.
+Unexpected exceptions return `Internal server error`; known HTTP exceptions retain their public messages.
+The request interceptor also sets the `X-Request-Id` header.
+
+After SSE starts, HTTP status stays 200. Operation failures use an `error` event followed by `done`.
+Search and answer failures set `retryable: true`; completion-stage failures set `retryable: false` with `SAVE_FAILED`.
+The browser client represents a stream error as `ApiError(503, ...)`; that is not another HTTP response.
+
 ## POST /perplexity/ask
 
 Creates a new thread with one turn, or appends a follow-up turn to an existing
 thread, searches the web for context, and generates an AI answer.
+
+The current frontend uses the stream route. This JSON route remains available to other API clients.
 
 Request:
 
@@ -77,9 +114,12 @@ Load the full source list for the returned turn with
 best-effort; if generation fails or times out, the API returns an empty array.
 `thread.totalSourceCount` is the sum of sources across all turns in the thread;
 `turn.sourceCount` is the source count for the current turn only.
+Query rewrite uses at most 3 recent completed turns and truncated prior answers.
+Without completed context, the original question becomes the search query without a rewrite call.
+Rewrite failure also uses the original question.
 
 ### AI Output Formatting Strategy
-- **Markdown Format**: `answerMarkdown` strictly uses GitHub Flavored Markdown (GFM). The frontend must use a compatible parser to render it.
+- **Markdown Format**: The prompt requests Markdown. The frontend supports GFM, but the backend does not enforce a Markdown format schema.
 - **Citation Markers**: Citations are embedded in the text using standard numeric brackets (e.g., `[1]`, `[2]`). The frontend is responsible for detecting these and mapping them to the `citations` array.
 - **Streaming Context**: `POST /perplexity/ask` remains the synchronous JSON fallback. New clients can use `POST /perplexity/ask/stream` to render answer text progressively and receive the same final response shape.
 
@@ -103,7 +143,7 @@ Response content type:
 text/event-stream
 ```
 
-Events:
+Event shapes below show both possible outcomes. A successful stream sends `final`; a failed stream sends `error`.
 
 ```txt
 event: start
@@ -127,6 +167,7 @@ data: {}
 
 Notes:
 
+- Query preparation and optional rewrite finish before the backend creates the pending turn and opens SSE.
 - The backend creates the pending turn before emitting `start`.
 - `progress` events describe lifecycle stages: `preparing`, `searching`,
   `answering`, `saving`, and `completed`.
@@ -136,11 +177,14 @@ Notes:
   `POST /perplexity/ask`.
 - The backend persists the final answer, sources, citations, and suggested
   follow-up questions after answer streaming completes.
+- The `saving` stage includes suggestion generation. Suggestion failure returns an empty array without failing the answer.
 - Stream `error` events use `{ message, code, retryable }`, where `code` is one
   of `SEARCH_FAILED`, `ANSWER_TIMEOUT`, `ANSWER_FAILED`, `SAVE_FAILED`, or
   `ASK_FAILED`.
 - Validation errors and missing `threadId` targets return normal HTTP errors
   before the event stream starts.
+- Success order: `start`, preparation/search progress, answer progress and deltas, save progress, `final`, completion progress, `done`.
+- The frontend rejects a stream that ends without `final` or `error`; `done` alone does not confirm success.
 
 ## POST /perplexity/ask/retry
 
@@ -165,11 +209,13 @@ text/event-stream
 Events are identical to `POST /perplexity/ask/stream`. If the target turn does
 not exist, does not belong to the thread, or is not failed, the endpoint returns
 a normal HTTP error before the event stream starts.
+Missing targets return 404. A target that exists but is not failed returns 400.
+Retry uses completed context from before the failed turn and appends the attempt at the end of the current thread.
 
 
 ## GET /perplexity/sources
 
-Lists recent sources ordered by `createdAt` descending.
+Lists saved sources ordered by `createdAt`, then `id`, both descending.
 
 Query:
 
@@ -205,6 +251,9 @@ Response:
 }
 ```
 
+Without `turnId`, this route lists sources across the shared database.
+The current Links hook requests only the first page per completed turn; it does not follow `nextCursor`.
+
 ## GET /perplexity/threads
 
 Lists persisted thread summaries for server-backed sidebar and history views.
@@ -216,7 +265,7 @@ limit?: number, 1-50, default 20
 cursor?: uuid, pagination cursor from the previous response
 sort?: "newest" | "oldest", default "newest"
 mode?: "all" | "web" | "deep-research", default "all"
-q?: string, trimmed title search
+q?: string, case-insensitive title substring, 120 characters maximum after trimming
 excludePinned?: boolean, omits pinned threads when true
 ```
 
@@ -248,11 +297,15 @@ current schema persists `web` threads (`ThreadMode.WEB`). Deep research is
 planned for V4. The frontend uses this endpoint as the source of truth
 for `/history` and sidebar recents, with local history retained only as an
 optimistic/offline fallback.
+Results sort by `updatedAt`, then `id`, both in the selected direction.
+Cursor pagination does not provide a fixed snapshot while threads change. See BUG-04 in [Findings](FINDINGS.md).
 
 ## GET /perplexity/threads/pinned
 
 Lists pinned thread summaries ordered by most recently pinned first. This
-endpoint is used by sidebar/history controls that need a compact pinned list.
+endpoint has no current frontend caller. The sidebar groups pinned records
+from the first normal thread-list page, so older pins can be absent there.
+The secondary sort is `id` descending. The response is an array without a pagination cursor.
 
 Query:
 
@@ -318,6 +371,8 @@ to the top of a newest-first history list.
 
 Pins or unpins a thread. Pinning sets `pinnedAt` to the current time; unpinning
 sets `pinnedAt` to `null`.
+The operation preserves `updatedAt`, so it does not change normal history order.
+The request body requires a Boolean `isPinned` value.
 
 Request:
 
@@ -366,12 +421,15 @@ Response:
 }
 ```
 
-Note: `threadIds` accepts 1-50 UUIDs. Duplicate IDs are de-duped server-side.
+Note: `threadIds` accepts 1–50 distinct UUIDs after trimming and deduplication.
+`requestedCount` counts distinct requested identifiers. Proxies must preserve the JSON DELETE body.
 Missing or already-deleted IDs are ignored so bulk delete is idempotent.
 
 ## GET /perplexity/threads/:threadId
 
 Loads a full research session with all turns, sources, and citations.
+The response has no turn limit or cursor. Turns sort by `createdAt` ascending; source and citation arrays sort by `citationNumber` ascending.
+Thread status describes the latest activity, not the success of every turn. A failed latest turn leaves earlier completed answers available.
 
 Response:
 
@@ -384,7 +442,7 @@ Response:
   "answerPreview": "Short answer preview...",
   "isPinned": false,
   "pinnedAt": null,
-  "totalSourceCount": 3,
+  "totalSourceCount": 1,
   "turnCount": 1,
   "createdAt": "2026-06-04T00:00:00.000Z",
   "updatedAt": "2026-06-04T00:00:00.000Z",
@@ -438,6 +496,8 @@ Deletes a thread and all associated turns, sources, and citations.
 
 Response: `204 No Content`
 
+A valid but absent identifier also returns 204. Database cascades remove the child records.
+
 ## GET /health
 
 Database-aware readiness check. Returns `200` with the readiness payload when
@@ -472,7 +532,6 @@ Response:
 
 ## GET /health/ready
 
-Alias of `GET /health` with the same database-aware readiness semantics. Both
-the backend Docker image and `compose.yaml` use `/health/ready` as the
-readiness probe, while `/health/live` distinguishes process health from traffic
-readiness.
+Runs the same database-aware readiness check as `GET /health`.
+The backend Dockerfile defines `/health/ready` as its health check; Compose uses that image health check for startup ordering.
+These routes execute `SELECT 1`. They do not test provider access or migration compatibility.

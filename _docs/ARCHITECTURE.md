@@ -9,7 +9,7 @@ This document describes how the full-stack Perplexity clone is structured, the t
 ## 1. High-Level Architecture
 
 The project is a full-stack application split into two distinct layers:
-- **Frontend**: A server-rendered Next.js application that handles UI, state management, and markdown rendering.
+- **Frontend**: A Next.js application with server-rendered pages, thread-data prefetch, and client components for UI, state, and Markdown rendering.
 - **Backend**: A NestJS API that orchestrates database persistence, external web search, and AI provider integration.
 
 ```text
@@ -43,8 +43,8 @@ The project is a full-stack application split into two distinct layers:
 │                                      ▼                                  │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │                         Service Layer                             │  │
-│  │     AskService  ────►  SearchService (Tavily)                     │  │
-│  │          │      ────►  AiService (Groq SDK)                       │  │
+│  │     AskService  ────►  TavilySearchService                        │  │
+│  │          │      ────►  AiService (Groq via AI SDK)                 │  │
 │  │          ▼                                                        │  │
 │  │     ThreadsService / SourcesService                               │  │
 │  └───────────────────────────────────┬───────────────────────────────┘  │
@@ -56,32 +56,40 @@ The project is a full-stack application split into two distinct layers:
 │  └───────────────────────────────────┬───────────────────────────────┘  │
 └──────────────────────────────────────┴──────────────────────────────────┘
                                        │
-                                       │ DATABASE_URL / TLS
+                                       │ DATABASE_URL
                                        ▼
                          ┌───────────────────────────┐
-                         │   PostgreSQL 17 (Neon)    │
+                         │        PostgreSQL        │
                          └───────────────────────────┘
 ```
 
 ### Frontend Architectural Style
 
-The frontend utilizes a **Feature-based Modular Structure**. Rather than grouping files strictly by type (e.g., all components in one folder, all hooks in another), code is organized by the product feature it belongs to.
+The frontend uses a **feature-based modular structure**. Product features live under `frontend/src/features/`.
+Pages live separately under `src/app/`, while shared UI, API functions, and stores have their own directories.
 
 #### Feature Pattern
-Inside `frontend/src/features/`, you will find directories like `thread/`, `home/`, and `sidebar/`. Each feature module follows a strict hierarchy:
+
+The main responsibilities are:
+
 1.  **Pages**: Next.js route components that compose features together.
 2.  **Features**: The high-level orchestrators (e.g., `ThreadPage.tsx`).
-3.  **Components**: Dumb/presentational UI pieces (e.g., `ThreadTurn.tsx`, `CitationBadge.tsx`).
+3.  **Components**: UI pieces, some with their own interaction state (e.g., `ThreadTurn.tsx`, `CitationBadge.tsx`).
 4.  **Hooks**: Custom React hooks handling business logic or API data fetching (e.g., `useThreadPage.ts`).
 5.  **API Services**: Strongly typed wrapper functions around native `fetch` for communicating with the backend. These wrappers are centralized in `frontend/src/lib/api` so route components, feature hooks, and cache helpers share one contract boundary.
 
 ### Backend Architectural Style
 
-The backend follows a **Modular Monolith** architecture. As the application grows, keeping the system unified in a single repository and deployment unit minimizes operational overhead, while strict module boundaries prepare the codebase for future microservice extraction if needed.
+The backend is a **modular monolith**: Ask, AI, Search, Threads, Sources, and Database modules run in one NestJS process.
+Next.js and PostgreSQL run separately. There is no research worker or job queue.
+The current implementation uses Groq through the AI SDK. Changing providers requires code changes; generic `AI_*` variables do not select a provider.
+Compose selects PostgreSQL 17. `DATABASE_URL` selects the database host and TLS settings; the code does not require Neon.
 
 #### Core Patterns
+
 We utilize the standard NestJS layered architecture to maintain clear separation of concerns:
-1.  **Controllers**: Entry points that handle HTTP requests, validate input via DTOs, and route to the appropriate services.
+
+1.  **Controllers**: Entry points that receive HTTP requests and call services. A global validation pipe applies DTO rules.
 2.  **Services**: Core business logic. Services coordinate between different domains (e.g., asking the Search Service for context and the AI Service for an answer).
 3.  **Repositories/Prisma**: Data access layer responsible for reading and writing to the PostgreSQL database.
 4.  **Mappers**: Helper utilities that transform raw database models into the clean API contracts defined in [`API.md`](API.md).
@@ -90,71 +98,129 @@ We utilize the standard NestJS layered architecture to maintain clear separation
 
 ## 2. Data Flow: Asking a Question
 
-The following describes the end-to-end data flow when a user submits a question.
+The stream path follows this order. The JSON ask route shares query preparation and completion, but returns one result after completion.
 
 ```text
   Client                 Next.js Frontend             NestJS Backend              External APIs
     │                           │                            │                          │
     │  1. Submit question       │                            │                          │
     ├──────────────────────────►│                            │                          │
-    │                           │  2. POST /ask/stream       │                          │
+    │                           │  1. Forward ask/stream     │                          │
     │                           ├───────────────────────────►│                          │
-    │                           │                            │ 3. Init Turn in DB       │
+    │                           │                            │ 2. Validate, load context│
     │                           │                            │                          │
-    │                           │                            │ 4. Rewrite query         │
+    │                           │                            │ 3. Rewrite if context    │
     │                           │                            ├─────────────────────────►│ Groq (AI_FAST)
-    │                           │                            │◄─────────────────────────┤ (clean query)
+    │                           │                            │◄─────────────────────────┤ (resolved query)
     │                           │                            │                          │
-    │                           │                            │ 5. Search context        │
+    │                           │                            │ 4. Create PENDING turn   │
+    │                           │                            │    in PostgreSQL         │
+    │                           │  5. SSE: start, progress   │                          │
+    │                           │◄───────────────────────────┤                          │
+    │  Seed cache; new-thread   │                            │                          │
+    │  navigation on start      │                            │                          │
+    │◄──────────────────────────┤                            │                          │
+    │                           │                            │                          │
+    │                           │                            │ 6. Search context        │
     │                           │                            ├─────────────────────────►│ Tavily Search
     │                           │                            │◄─────────────────────────┤ (web sources)
+    │                           │                            │    Prepare sources       │
     │                           │                            │                          │
-    │                           │  6. SSE: "answering"       │ 7. Stream answer text    │
+    │                           │  7. SSE: answering         │                          │
     │                           │◄───────────────────────────┤                          │
+    │                           │                            │ 7. Generate answer       │
     │                           │                            ├─────────────────────────►│ Groq (AI_DEFAULT)
-    │                           │  8. Live token deltas      │◄─────────────────────────┤ (token stream)
+    │                           │                            │◄─────────────────────────┤ (text stream)
+    │                           │                            │    Buffer answer text    │
+    │                           │  SSE: answer deltas        │                          │
     │                           │◄───────────────────────────┤                          │
-    │  9. Progressive render    │                            │                          │
+    │  Progressive render       │                            │                          │
     │◄──────────────────────────┤                            │                          │
-    │                           │                            │ 10. Match [n] citations  │
-    │                           │                            │ 11. Persist to Postgres  │
-    │                           │  12. Final SSE event       │                          │
+    │                           │                            │                          │
+    │                           │  8. SSE: saving            │                          │
     │                           │◄───────────────────────────┤                          │
-    │ 13. Hydrate & show chips  │                            │                          │
+    │                           │                            │ 8. Normalize citations   │
+    │                           │                            │    Suggest follow-ups    │
+    │                           │                            ├─────────────────────────►│ Groq (AI_FAST)
+    │                           │                            │◄─────────────────────────┤ (questions or [])
+    │                           │                            │                          │
+    │                           │                            │ 9. Save transaction      │
+    │                           │                            │    in PostgreSQL         │
+    │                           │                            │    Reload saved result   │
+    │                           │  10. SSE: final            │                          │
+    │                           │      completed, done       │                          │
+    │                           │◄───────────────────────────┤                          │
+    │  Update cache; show chips │                            │                          │
     │◄──────────────────────────┤                            │                          │
     │                           │                            │                          │
 ```
 
-1.  **Input (Frontend)**: User types into the `AskInput` component.
-2.  **Submission (Frontend)**: Submitting triggers `POST /perplexity/ask/stream` for progressive rendering (see [`API.md`](API.md)).
-3.  **Routing (Frontend)**: The Next.js router navigates the user to `/thread/[threadId]`.
-4.  **Backend Ask Module**: The `AskController` receives the request and passes it to the `AskService`.
-5.  **Search Context Generation**:
-    *   The original question (plus prior turns and thread title for follow-ups) is passed to the AI provider to rewrite it into an optimized web search query.
-    *   The `SearchService` executes the rewritten query against Tavily to fetch relevant external sources.
-6.  **Thread/Turn Creation**: The `AskService` creates a new Thread (if needed) and a new Turn in `PENDING` state, persisting both the original question and the rewritten `searchQuery`. Creating the turn before the stream starts makes the failure/retry path self-healing: a failed turn remains in the database and can be retried without re-creating the interaction.
-7.  **Source Preparation**: The retrieved web results are normalized into source inputs for answer context and later persistence.
-8.  **AI Answer Generation**:
-    *   The `AiService` uses the fetched sources as context to stream answer text through the active provider.
-    *   The AI Service is provider-agnostic behind generic `AI_*` environment variables; the active model runs on Groq.
-9.  **Streaming Buffer (Backend)**: While answer deltas are emitted to the frontend, the backend buffers the full markdown answer in memory for final persistence. The stream also emits lifecycle progress stages (`preparing`, `searching`, `answering`, `saving`, `completed`) so the UI can show specific status text.
-10. **Citation Linking**: After streaming completes, the backend maps markdown citations (e.g., `[1]`) to the persisted sources to construct `citations` objects.
-11. **Finalization (Backend)**: The final answer, sources, citations, and suggested follow-up questions are persisted, and the stream emits the same `{ thread, turn }` response shape used by the synchronous endpoint.
-12. **Hydration (Frontend)**:
-    *   If the ask was a new thread, the initial turn data is passed into React Query's cache.
-    *   If the user navigates directly to a URL, `useThreadPage` fetches the full thread via `GET /perplexity/threads/:threadId` (see [`API.md`](API.md)).
-13. **Server History (Frontend)**:
-    *   The sidebar and `/history` prefer `GET /perplexity/threads` for persisted thread summaries.
-    *   Local history remains as an optimistic/offline fallback so newly-created threads appear quickly before the server list reconciles.
-14. **Rendering Markdown (Frontend)**: The answer text is passed to `react-markdown`. A custom plugin parses `[n]` citation markers and replaces them with interactive `CitationBadge` React components.
-15. **Recovery (Frontend/Backend)**: Failed turns can be retried through `POST /perplexity/ask/retry`. Retry preserves the failed turn and appends a new streamed turn using the failed turn's original question.
-16. **Share/Export (Frontend)**: V2 sharing is frontend-only. The client can copy thread URLs, response URLs, Markdown, and plain text without creating public share records.
+1. **Submit:** `useAskSubmit` sends the question through `streamAsk`. Browser requests use the Next.js `/api` proxy.
+2. **Prepare context:** `AskService` loads an existing thread when `threadId` is present.
+   The context helper selects up to five completed turns with answers.
+3. **Resolve the query:** Without completed context, `AiService` uses the original question and makes no rewrite call.
+   With context, the fast model receives at most three recent turns. Each prior answer uses 300 characters before an optional ellipsis.
+   Rewrite failure falls back to the original question.
+4. **Create the turn:** The repository saves the original question and resolved `searchQuery` in a new `PENDING` turn.
+   It creates a thread when necessary and sets the thread to `RUNNING`.
+5. **Start the stream:** Only after preparation does the controller open SSE and emit `start` with the saved identifiers.
+   The browser seeds a temporary cached turn. For a new thread, its `start` handler navigates to `/thread/[threadId]`.
+6. **Search:** `TavilySearchService` searches with the resolved query.
+   The source mapper removes duplicate trimmed URLs and assigns citation numbers from 1.
+7. **Generate the answer:** Groq receives the question, up to five completed prior turns, and numbered source snippets.
+   Each snippet uses 1,200 characters before an optional ellipsis. The backend buffers answer text while it emits deltas.
+8. **Prepare completion:** The citation helper normalizes supported number groups and extracts valid source numbers.
+   The fast model then generates suggested follow-up questions. Suggestion failure returns an empty array without failing the answer.
+9. **Save:** A transaction inserts sources and matching citations, then completes the turn.
+   It updates the thread preview and status only if this turn is latest.
+10. **Finish:** The backend reloads the saved turn and emits `final`, completion progress, and `done`.
+    The frontend replaces temporary cached text with the saved result and invalidates thread-list queries.
 
----
+The `preparing` event occurs after query rewrite. The `saving` stage includes suggestion generation and the database write.
+Citation records identify valid saved sources; they do not verify whether each generated claim has adequate evidence.
 
-## 3. Future Architectural Considerations
+### Reading, sources, and history
 
-*   **Streaming**: The streaming ask endpoint uses SSE over `fetch()` with a POST body. Provider services yield text deltas, while the Ask service buffers the final response and persists one completed turn after the stream finishes.
-*   **Retry Semantics**: Retry appends a new turn instead of mutating a failed turn, preserving the conversation timeline and failure evidence.
-*   **Share/Export Scope**: Copy/share actions serialize existing thread and turn data client-side. Public share links, auth-scoped sharing, and downloadable files are deferred.
-*   **Authentication Flow**: Future authentication will introduce Guards at the controller level to scope database queries by user ID.
+Direct thread navigation prefetches detail in the Next.js server route and hydrates the browser query cache.
+`useThreadPage` reads the same query and can fetch detail in the browser when needed.
+Thread detail contains all turns, sources, and citations; it has no turn pagination.
+
+The ask result includes previews for cited sources. The Links tab lazily requests saved sources for each completed turn.
+The current source hook consumes the first page only. `react-markdown`, `remark-gfm`, and `remarkCitations` render answers and citation badges.
+
+History uses server thread summaries with search, filters, sort, and cursor pagination.
+The sidebar displays the first normal history page and groups its pinned records; it does not call the dedicated pinned-list route.
+Zustand retains up to 50 local history summaries for optimistic display and fallback. It does not store full answers for offline use.
+
+### Status, recovery, and current limits
+
+Thread status describes the latest activity. A failed latest turn can coexist with earlier completed answers.
+A successful appended retry can restore the thread's completed state. This follows the [recorded status decision](FINDINGS.md#decision-register).
+
+The client rejects a stream that ends without `final` or `error`. It can refetch detail after a failure with known turn identifiers.
+The ask hook aborts on unmount. The backend passes disconnect cancellation to answer generation and attempts pending-turn failure cleanup.
+Query rewrite, Tavily search, and suggestions do not receive the caller's abort signal. Their own timeouts apply.
+Cleanup checks saved status before a separate failure write; it is not an atomic pending-only transition.
+There is no durable recovery job for a process stop and no stream-resume route.
+
+One hook blocks overlapping submissions on its page. Separate tabs or direct API clients can still submit concurrent turns.
+The database has no single-pending-turn constraint. See ARCH-02 and the open lifecycle findings in [Findings](FINDINGS.md).
+
+Implementation: [ask service](../backend/src/ask/ask.service.ts), [AI service](../backend/src/ai/ai.service.ts),
+[thread repository](../backend/src/threads/repositories/threads.repository.ts),
+[ask hook](../frontend/src/features/home/hooks/useAskSubmit.ts), and [thread server route](../frontend/src/app/thread/[threadId]/page.tsx).
+
+## 3. Feature Status and Remaining Work
+
+1. **Streaming — implemented.** The browser uses SSE over a POST `fetch` request.
+   The backend saves a pending turn before streaming and persists the completed result after answer generation.
+   Request-lifecycle limits are described above; deployed streaming still requires runtime verification.
+2. **Retry semantics — implemented.** Retry validates a failed turn and appends a new attempt.
+   It uses the original question and completed context from before the failed turn. The previous timeline remains intact.
+3. **Share/export — partially implemented.** Users can copy thread URLs, turn URLs, Markdown, and plain text in the browser.
+   Public share records, access-scoped sharing, and downloadable files are not implemented. The response Share button remains disabled.
+4. **Authentication — not implemented.** The backend has no login guard, user model, or user-scoped queries.
+   The roadmap first plans a single-credential demo gate and rate limits. Full user accounts and record ownership remain V5 work.
+
+Deep Research is also planned, not implemented. The schema supports only `WEB`; `mode=deep-research` is a history-filter stub that returns no records.
+The complete implementation plan remains in [Roadmap](ROADMAP.md).
