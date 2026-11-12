@@ -4,8 +4,9 @@
 
 **Purpose**: This document tracks the development phases of the full-stack Perplexity clone from its initial MVP to future enterprise capabilities.
 **Scope**: All backend infrastructure, API design, frontend UI, state management, and external integrations.
-**Current Phase**: V2 (Usability Improvements) hardening + the audit-driven **Foundation Track** below (Phases 0–2 complete; Phase 3 next).
-**Usage**: Mark capabilities as `(Completed)` when fully integrated and deployed to the `main` branch.
+**Current Phase**: V2 hardening and the **Foundation Track**. Phases 0–2 have recorded implementation checkpoints; Phase 3 documentation is in progress.
+**Status convention**: Implemented means code exists in the reviewed checkout. Partial means only the stated subset exists. Planned means implementation is absent.
+Recorded phase checkpoints are historical. A successful build, browser workflow, or live release needs separate evidence; none is implied by a code status.
 
 ---
 
@@ -31,7 +32,7 @@ out of scope until productization/deployment phases.
 
 ---
 
-## V1 - MVP Foundation (Completed)
+## V1 - MVP Foundation (Implemented)
 
 Core capabilities required to make the first complete product loop work.
 
@@ -47,6 +48,8 @@ Core capabilities required to make the first complete product loop work.
 
 ### V1 Verification Checklist
 
+This is a runtime checklist. It was not executed during the documentation cross-check.
+
 - Submit a new ask and confirm navigation to `/thread/:threadId`.
 - Ask a follow-up and confirm the same thread receives a new turn.
 - Click a citation and confirm the Links tab opens and highlights the matching source.
@@ -54,23 +57,24 @@ Core capabilities required to make the first complete product loop work.
 - Delete a thread and confirm the sidebar/cache history updates.
 - Open `/history`, select a thread, and confirm the conversation loads.
 
-## V2 - Usability Improvements
+## V2 - Usability Improvements (Core implemented; sharing partial)
 
 Enhancements that improve the client experience once the core flow is stable.
 
 | Area | Capability | Purpose |
 |---|---|---|
-| **Backend/Frontend** | Streaming responses | Return and render answer tokens progressively via SSE |
-| **Backend/Frontend** | Progress and recovery | Show ask lifecycle stages, structured stream errors, and retry failed turns by appending a new turn |
-| **Backend/Frontend** | Server-backed history | Load sidebar and `/history` from `GET /perplexity/threads`, with local history as an optimistic fallback |
-| **Backend** | Pagination support | Load large lists such as thread history and source lists in stable chunks |
-| **Backend/Frontend** | Expanded Thread Management | History/sidebar rename, delete, bulk delete, pin/unpin, and richer server-backed history controls |
-| **Frontend** | Source and citation polish | Links tab source actions, cited-source emphasis, citation tooltip open/copy actions |
-| **Frontend** | Share/export basics (Completed) | Copy response/thread URLs, Markdown, and plain text without public share records |
+| **Backend/Frontend** | Streaming responses (Implemented) | Return and render answer text progressively via SSE |
+| **Backend/Frontend** | Progress and recovery (Implemented) | Lifecycle stages, structured errors, and appended retry attempts; lifecycle limits remain in ARCH-02/ARCH-06 |
+| **Backend/Frontend** | Server-backed history (Implemented) | Server summaries with local optimistic/fallback history |
+| **Backend** | List pagination (Implemented) | Cursor pages for history and sources; thread detail remains unbounded and BUG-04 remains open |
+| **Backend/Frontend** | Thread management (Implemented) | Rename, delete, bulk delete, and pin/unpin |
+| **Frontend** | Source and citation controls (Implemented) | Links actions, cited-source emphasis, and citation tooltip actions |
+| **Frontend** | Share/export (Partial) | URL, Markdown, and plain-text copy work. Public sharing, access-scoped records, and file downloads are absent |
 
-**V2 state (verified by the October 2026 repository audit):** all V2 rows are
-implemented; backend 125/125 tests and frontend 57/57 tests pass; both apps
-typecheck and lint clean.
+**Current verification, 12 November 2026:** backend 127/127 tests and frontend 71/71 tests across 18 files pass.
+Both applications pass TypeScript and ESLint checks. These checks do not verify a live deployment or complete browser workflows.
+The sidebar groups pins from its first history page. The Links hook consumes the first source page per turn.
+Deep Research, authentication, rate limits, and billing are not implemented.
 
 ### Contribution Scope: Frontend Loading, History, Sources, And Citations
 
@@ -107,9 +111,9 @@ readiness pass. Research Intelligence scoping begins only after this track.
 - **Items:** ROAD-02 (caching), ARCH-01 (thread failure semantics), SEC-01 (demo posture), KNOW-04 + ROAD-03 (notebook clarifications).
 - **Serves the goal:** caching and guardrail decisions directly shape V4 economics — deep research multiplies Tavily + Groq spend, so cost posture must be decided before designing it.
 - **Outcomes (recorded in [FINDINGS.md](FINDINGS.md) Decision Register):**
-  1. **Answer-level caching rejected** — freshness contradicts the realtime differentiator, and follow-up rewrites make exact-match hit rates ≈ 0. Revisit trigger recorded for V4: *search-result-level* caching (short TTL, keyed by the rewritten `searchQuery`) if research loops show query overlap.
+  1. **Answer-level caching rejected** — the recorded rationale prioritizes freshness and expects low reuse for contextual questions. This is a decision, not a measured cache-hit result. Revisit search-result caching in V4 if research loops show actual query overlap.
   2. **Thread failure semantics kept** — thread status = latest-activity state; self-heals on retry; the per-turn failed card is the real user surface. Rationale documented in Phase 3.
-  3. **Demo posture: app-level demo-gate auth + rate limiting** before the LinkedIn launch (revised same day from platform-only protection): a single env-configured access credential → `/login` → signed HttpOnly session cookie, a global guard on `/perplexity/*`, and `@nestjs/throttler` rate limits (strict on `/ask*`). Explicitly **not** user accounts — threads stay single-tenant; full multi-user auth remains V5. Backend's direct public exposure verified in Phase 4.
+  3. **Demo posture: app-level demo-gate auth + rate limiting** before the LinkedIn launch: a single env-configured credential, `/login`, signed HttpOnly session cookie, global `/perplexity/*` guard, and strict ask limits. These are planned Phase-5 controls; full multi-user auth remains V5. Backend-exposure verification is still Phase-4 work.
   4. **Credit-based usage clarified** — an intention, never built; consciously deferred (covered by V5 Billing/Limits).
 - **Exit:** every Decision Register row carries a recorded outcome. ✔ Met.
 
@@ -124,17 +128,17 @@ readiness pass. Research Intelligence scoping begins only after this track.
   - Deleted dead frontend code: `postAsk`, `getPinnedThreads`, `PinnedThreadListQueryInput`, unused query keys, unused props/attributes, and un-needed exports.
   - Hardened `.gitignore` against `.env.*` variants.
   - Enabled `noUnusedLocals`/`noUnusedParameters` in both tsconfigs and ESLint unused-vars as error; removed stale `jest` globals from backend eslint.
-  - Corrected `ARCHITECTURE.md` ask-flow order and noted the pending-turn persistence model.
+  - Recorded an ask-flow documentation correction. The complete diagram/prose order was rechecked and corrected on 2026-11-12 under DOC-01.
 
 ### Phase 2 — Stream lifecycle & UX edges ✔ Completed 2026-10-27
 
-- **Objective:** make the single-ask stream bulletproof and finish small UX gaps.
+- **Objective:** improve the single-ask stream lifecycle and finish small UX gaps.
 - **Items:** BUG-02 (terminal-state handling + wire the `signal` abort param), BUG-03 (test-first investigation), ARCH-04 (unify ask orchestration), ARCH-05 (de-hardcode `mode: 'web'` seeds), FEAT-04 (mobile thread actions), FEAT-05 (turn-URL copy), DEBT-02 (sources shape), DEBT-04 (search debounce); BUG-04 deferred to Phase 5.
 - **Serves the goal:** Research Intelligence will be long-running, multi-step streamed workflows; the single-ask stream lifecycle is its foundation and must be rock-solid first.
 - **Acceptance:** new unit tests for terminal-stream handling (and the BUG-03 fix, if reproduced); manual smoke of ask/follow-up/retry/delete; existing suites stay green.
-- **Risk note:** `useAskSubmit` is intricate and currently untested (TEST-03) — one jsdom safety-net test may be pulled forward into this phase.
+- **Current coverage:** Phase 2 added three `useAskSubmit` tests with Testing Library and `happy-dom`. Broader mutation, route-transition, and workflow coverage remains TEST-03.
 - **Outcomes:**
-  - BUG-02: transport watchdog (`NetworkError` when a stream ends without `final`/`error`), unused `onDone` handler removed, `AbortController` wired through `useAskSubmit` with unmount cleanup, and a backend `finally` guard that fails abandoned turns only while they are still PENDING (review pass caught and fixed an in-flight-completion race).
+  - BUG-02: terminal-event check, removal of `onDone`, browser cancellation, and backend cleanup that reads status before failure. Atomic cleanup and process-stop recovery are not guaranteed; see ARCH-02/ARCH-06.
   - BUG-03: reproduction test added first, then `link` nodes skipped by `remarkCitations`.
   - ARCH-04: single `useAskSubmit` per page (`useThreadPage` owns the thread instance; `AskInput` is presentational; `HomeAskInput` owns the home instance).
   - ARCH-05: backend `start` event carries `mode`; frontend seeds use `event.mode`.
@@ -148,20 +152,21 @@ readiness pass. Research Intelligence scoping begins only after this track.
 - **Objective:** preserve the original engineering thinking and reconcile every doc with the post-Phase-2 behavior.
 - **Items:** DOC-11/KNOW-01 (new design-decisions/journal doc holding DOC-02, DOC-03, DOC-04, DOC-05, DOC-08), DOC-06, DOC-07, DOC-09, DOC-10.
 - **Serves the goal:** accurate docs are the design surface for V4 — and the notebook's original reasoning (preserved, not rewritten) is the material for the public engineering write-ups.
-- **Why third:** writing docs before Phases 1–2 settle guarantees rework.
+- **Why third:** these docs describe the post-Phase-2 implementation.
 - **Acceptance:** every notebook page maps to a documented decision or an explicitly recorded change; the DOC-01 correction is live.
+- **Progress, 12 November 2026:** the Docs index and cross-file claim review are complete. DOC-01, DOC-06, DOC-09, DOC-10, and DOC-12 are corrected. The notebook/design-history account and remaining attribution/rationale work are still open; this does not complete Phase 3.
 
 ### Phase 4 — Verification & reliability
 
 - **Objective:** build the regression net and dynamically verify what the audit could only verify statically.
-- **Items:** TEST-03 (jsdom + hook/mutation tests), TEST-01 (HTTP-level controller + filter/interceptor tests), TEST-02 (minimal real-Postgres repository suite), TEST-04 (minimal CI: lint + typecheck + both suites), TEST-05 / INFRA-01 / INFRA-02 (docker build, full local e2e walkthrough per DEPLOYMENT.md §5, live SSE check) — satisfies KNOW-02.
+- **Items:** TEST-03 (extend existing `happy-dom` hook tests with mutations and route workflows), TEST-01 (HTTP controller, filter, and interceptor tests), TEST-02 (real-Postgres repository suite), TEST-04 (CI for lint, types, and both suites), TEST-05 / INFRA-01 / INFRA-02 (container builds, full local walkthrough, and deployed SSE verification). These runtime checks remain open.
 - **Serves the goal:** Research Intelligence is the most complex feature on the roadmap; CI plus integration tests are what make it safe to build fast without regressing the core loop.
 - **Acceptance:** CI green on a PR; the manual e2e checklist executed once end-to-end.
 
 ### Phase 5 — V4 readiness gate & demo hardening
 
 - **Objective:** close the remaining hardening items and make the deployed demo safe to publish — the LinkedIn launch gate.
-- **Items:** SEC-05 (demo-gate auth: env-configured credential → `/login` → signed HttpOnly session cookie; global guard on `/perplexity/*`), SEC-06 (rate limiting via `@nestjs/throttler`, strict on `/ask*`), SEC-02 (favicon proxy or accept), SEC-03 (CSP header), ARCH-03 (bound/paginate thread detail), ARCH-02 (document or enforce), BUG-04 (if deferred from Phase 2). *(Phase-0 outcomes removed FEAT-01 — answer caching rejected. SEC-01 was revised same-day from platform-only protection to app-level demo-gate auth + rate limiting.)*
+- **Items:** SEC-05 (demo access gate), SEC-06 (application rate limits), SEC-02 (favicon proxy or recorded acceptance), SEC-03 (CSP), ARCH-03 (bounded thread detail), ARCH-02 (concurrency policy; limits are now documented), ARCH-06 (cancellation/recovery policy), and BUG-04 (pagination investigation). Answer caching remains rejected under the Phase-0 decision.
 - **Serves the goal:** clears the ROAD-01 prerequisite list and makes the demo publishable **without** pulling full V5 user accounts forward and delaying V4.
 - **Exit gate to V4:** every ROAD-01 prerequisite is either resolved or consciously deferred with a recorded reason; the demo is publishable (auth gate + rate limits live; backend exposure verified in Phase 4).
 
@@ -173,8 +178,8 @@ Operational work needed before the application is easier to run outside local de
 
 | Area | Capability | Purpose |
 |---|---|---|
-| **Backend** | Dockerized deployment (Completed) | Package the backend and dependencies consistently — multi-stage non-root Dockerfiles, one-shot migration target, and the `compose.yaml` stack are on `main` (verified by the October 2026 audit, ROAD-04) |
-| **Backend** | Public deployment guardrails | Add rate limits, secure configuration validation, and operational checks before exposing the API publicly — partially addressed by Foundation Track Phases 0/5 (SEC-01) |
+| **Backend/Frontend** | Docker/Compose artifacts (Implemented; runtime unverified) | Both Dockerfiles, migration target, health checks, and Compose exist. Build and rollout verification remain INFRA-01/02 |
+| **Backend/Frontend** | Public deployment controls (Partial) | Environment validation, response headers, explicit-origin CORS, and health routes exist. Demo authentication and rate limits remain planned Phase-5 work |
 
 ## V4 - Research Intelligence — **the ultimate objective**
 

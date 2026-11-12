@@ -3,6 +3,8 @@
 Start with the [project README](../README.md) for the product scope and local setup.
 Use the reading order below to understand the application. Each linked document keeps its own subject details.
 
+The [12 November 2026 cross-check](FINDINGS.md#documentation-cross-check--12-november-2026) records current code evidence and verification limits.
+
 ## Read in this order
 
 1. **[Project README](../README.md): product and scope.**

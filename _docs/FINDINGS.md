@@ -2,15 +2,31 @@
 
 [Docs](README.md)
 
-**Purpose:** Complete, traceable inventory of every finding from the
-comprehensive repository audit, used to drive the Foundation Track phases in
+**Purpose:** Traceable inventory of recorded findings from the
+repository audit, used to drive the Foundation Track phases in
 [ROADMAP.md](ROADMAP.md). This file is the tracker: update dispositions and
 statuses here as decisions are made and work completes.
 
-**Source of truth:** Repository audit + reconciliation against the original
+**Historical source:** Repository audit + reconciliation against the original
 design notebook (photos IMG_1087–IMG_1094, dated 03/06/26). Verification
 performed during the audit: backend 125/125 tests, frontend 57/57 tests,
 `tsc --noEmit` and ESLint clean in both apps.
+
+## Documentation Cross-Check — 12 November 2026
+
+All ten project Markdown files were checked against the current checkout at `7ff6c25`.
+Evidence included controllers, DTOs, services, repositories, UI callers, tests, package files, environment examples, Prisma, and Docker configuration.
+
+- Architecture now separates implemented streaming/retry, partial copy/export, and absent authentication.
+- The ask sequence now agrees with code: query resolution, pending turn, SSE start, search, answer, suggestions, transaction, final result.
+- API details now cover validation, errors, ordering, pagination limits, and actual frontend callers.
+- Setup requirements, provider coupling, deployment probes, cancellation, and logging claims now match the checked-in code.
+- Stale findings and roadmap claims were corrected below. Historical phase baselines retain their dates.
+- Fresh checks passed: backend 127 tests, frontend 71 tests across 18 files, plus ESLint and TypeScript in both applications.
+- Document checks passed: 14 route headings matched controllers, 17 API JSON examples parsed, and 52 local links/anchors resolved.
+
+Live providers, PostgreSQL integration, container builds, deployment revision, and browser workflows were not exercised in this check.
+The original notebook images are not in this checkout. Their recorded decisions remain inherited history, not newly verified notebook evidence.
 
 ---
 
@@ -44,6 +60,7 @@ performed during the audit: backend 125/125 tests, frontend 57/57 tests,
 3. When work completes, mark the finding ✔ Resolved with the evidence
    (commit, test, or doc reference).
 4. Add new findings at the end of their category with the next free ID.
+5. Resolved rows retain historical problem descriptions. Read the disposition for current behavior; a recorded decision does not imply implemented code.
 
 ---
 
@@ -54,10 +71,10 @@ with their date, outcome, and rationale.
 
 | # | Question | Findings | Decision (2026-10-26) | Status |
 |---|---|---|---|---|
-| 1 | **Response caching**: notebook listed it three times; code and docs dropped it. Implement, roadmap, or deliberately reject? | ROAD-02 / DOC-02 / FEAT-01 | **Rejected for answer-level caching** — freshness contradicts the realtime differentiator (notebook IMG_1088), and follow-up query rewrites make exact-match hit rates ≈ 0 at single-user scale. **V4 revisit trigger recorded:** re-evaluate *search-result-level* caching (short TTL keyed by the rewritten `searchQuery`) if multi-step research loops show real query overlap | ✅ Decided |
-| 2 | **Thread failure semantics**: latest-turn failure currently marks the whole thread FAILED even with earlier completed turns. Keep or recompute? | ARCH-01 | **Keep + document** — thread status = latest-activity state; test-verified; self-heals to COMPLETED on retry success; thread-level status is barely rendered (the per-turn failed card is the real user surface). Rationale to be documented in Phase 3 | ✅ Decided |
-| 3 | **Public demo posture**: no auth/rate limits on paid-API endpoints; Vercel demo is live. Accept / add an edge gate / take private? | SEC-01 | **Revised same day:** app-level **demo-gate auth + rate limiting** before the LinkedIn launch — a single env-configured access credential (no user accounts; threads stay single-tenant), `/login` page → signed HttpOnly session cookie, global guard on `/perplexity/*`, plus `@nestjs/throttler` limits (strict on `/ask*`, lenient on reads). Platform-level protection remains an optional extra. Backend's direct public exposure verified in Phase 4. New work items: SEC-05, SEC-06 (Phase 5) | ✅ Decided (revised) |
-| 4 | **Notebook clarifications**: (a) IMG_1090 `list_recent` response fields (`context_id`? `link`?); (b) IMG_1092 "credit based usage" checkbox — done or decided? (c) is caching still intent? | KNOW-04 / ROAD-03 | **Answered** — "credit based usage" was an intended feature, never built; consciously deferred as not necessary now (remains covered by V5 Billing/Limits; no new work). (a) stays a best-effort reading `{context_id?, link?, status, title}` — the Phase-3 journal marks it partially legible. (c) resolved by Register #1 | ✅ Answered |
+| 1 | **Response caching**: notebook listed it three times; code and docs dropped it. Implement, roadmap, or deliberately reject? | ROAD-02 / DOC-02 / FEAT-01 | **Rejected for answer-level caching** — the recorded rationale prioritizes fresh answers and expects low reuse for contextual single-user questions. No measured cache-hit rate is available. **V4 revisit trigger:** evaluate short-lived search-result caching by rewritten `searchQuery` if research loops show query overlap | ✅ Decided |
+| 2 | **Thread failure semantics**: latest-turn failure marks the thread FAILED even with earlier completed turns. Keep or recompute? | ARCH-01 | **Keep + document** — thread status describes latest activity; successful retry can restore COMPLETED. This behavior is test-covered and now documented in ARCHITECTURE.md | ✅ Decided |
+| 3 | **Public demo posture**: no application auth or rate limits on paid-API endpoints; a Vercel demo URL is documented. Accept / add an edge gate / take private? | SEC-01 | **Revised same day:** plan a single-credential demo gate, `/login`, signed HttpOnly session cookie, and a global `/perplexity/*` guard. Add strict ask limits and lenient read limits with `@nestjs/throttler`. Threads remain single-tenant; full accounts stay V5. Backend-exposure verification is still scheduled for Phase 4. SEC-05 and SEC-06 remain unimplemented Phase-5 work | ✅ Decided (revised) |
+| 4 | **Notebook clarifications**: (a) IMG_1090 `list_recent` fields; (b) IMG_1092 credit-based usage; (c) caching intent | KNOW-04 / ROAD-03 | **Recorded author answers:** credit usage was intended but not built and remains V5 work. The best-effort reading of (a) is `{context_id?, link?, status, title}`; the planned journal must preserve that uncertainty. Caching follows Register #1 | ✅ Answered |
 
 ---
 
@@ -65,58 +82,60 @@ with their date, outcome, and rationale.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| DOC-01 | ARCHITECTURE.md sequence + text invert the real order — code rewrites the query **before** persisting the pending turn (`ask.service.ts:105-136` vs `_docs/ARCHITECTURE.md:100-104,130-133`). Matters: the turn row stores the rewritten `searchQuery` at creation | ✔ | P0 | Fixed in Phase 1 (2026-10-27): reordered steps 5/6 in `ARCHITECTURE.md` to match `preparePendingAsk`; noted pending-turn persistence and stored `searchQuery` |
-| DOC-02 | Notebook caching thread (IMG_1091 "Caching"/"check for caching"/"cache the response"; IMG_1092 "caching response for similar query") absent from all docs — silently dropped | ✅ | P1 | Record decision outcome in Phase 3 (gated on Register #1) |
-| DOC-03 | Notebook lesson "built APIs in wrong order (sources→threads→ask); ask should be first" (IMG_1094) captured nowhere | ✅ | P1 | Capture in Phase 3 |
+| DOC-01 | Ask-flow documentation disagreed with `AskService.preparePendingAsk` and `createAskStream` | ✔ | P0 | Rechecked and corrected on 2026-11-12: both the diagram and prose now place query resolution before pending-turn creation and search after SSE start. This supersedes the incomplete Phase-1 correction claim |
+| DOC-02 | Recorded notebook caching notes need a durable design-history account | ◐ | P1 | The decision is already in Register #1. Its separate journal account remains Phase-3 work; caching is not an unmade decision |
+| DOC-03 | Recorded notebook lesson: build the ask vertical slice before sources/threads APIs | ◐ | P1 | The lesson is captured in this inventory; the planned Phase-3 journal remains pending |
 | DOC-04 | Target-user persona + 3-way competitive test (IMG_1088/1089) — the *why* behind sources tab, follow-ups, clean UX — undocumented | ✅ | P1 | Capture in Phase 3 |
 | DOC-05 | Endpoint naming evolution unrecorded: `perplexity-ask`→`POST /ask`, `list_recent`→`GET /threads` + `GET /sources`, `query_str`→`question` | ✅ | P2 | Optional note in Phase 3 |
-| DOC-06 | ARCHITECTURE.md omits two real design decisions: citation-marker normalization safety net; 3-turn (rewrite) vs 5-turn (answer) context split | ✅ | P2 | Add in Phase 3 |
-| DOC-07 | ROADMAP.md "Contribution Scope" paragraph (lines 51-62) is a personal attribution note misplaced in a phase-tracking doc | ✅ | P2 | Move to journal doc in Phase 3 |
-| DOC-08 | Trade-offs unrecorded: SSE-over-POST, raw-SQL rename (`@updatedAt` bypass), Groq consolidation, `fullStream` error handling | ✅ | P2 | Capture in Phase 3 |
-| DOC-09 | API.md could add: error envelope shape; "HTTP stays 200 once streaming starts; failures arrive as in-stream error events" | ✅ | P2 | Add in Phase 3 |
-| DOC-10 | Minor: "PostgreSQL 17 (Neon)" vs "e.g., Neon" wording divergence; README live-demo claim is external/unverifiable from repo | ✅/💡 | P2 | Minor wording in Phase 3 |
+| DOC-06 | Architecture omitted citation normalization and the 3-turn rewrite / 5-turn answer context split | ✔ | P2 | Added on 2026-11-12 with source references. Normalization does not establish factual support for claims |
+| DOC-07 | ROADMAP.md still contains the personal "Contribution Scope" account within phase tracking | ✅ | P2 | Move to the planned journal in Phase 3; preserve the recorded attribution |
+| DOC-08 | Technical mechanisms need a design-history account: POST SSE, SQL timestamp preservation, Groq adapter, and `fullStream` errors | ◐ | P2 | Mechanisms appear in code and current API/architecture docs. Historical rationale and trade-offs remain Phase-3 journal work |
+| DOC-09 | API documentation omitted the error envelope and HTTP-200 stream failure semantics | ✔ | P2 | Added on 2026-11-12, including string/array messages, retryable flags, and client-side ApiError behavior |
+| DOC-10 | Database-host wording and live-demo assertions exceeded repository evidence | ✔ | P2 | Corrected on 2026-11-12: Compose selects PostgreSQL 17; Neon is optional; the demo URL is documented but runtime state is unverified |
 | DOC-11 | Proposal (not a defect): a design-decisions/journal doc as the durable home for DOC-02/03/04/05/08 — preserves original thinking for public write-ups | 💡 | P1 | Create in Phase 3 |
+| DOC-12 | Current features appeared under future work; test, runtime, provider, and deployment claims drifted across docs | ✔ | P1 | Cross-checked all ten Markdown files on 2026-11-12. Corrected feature status, Node minimum, test coverage, provider coupling, API details, and deployment/logging/cancellation limits; verification scope is recorded above |
 
 ## 2. Bugs & Functional Issues
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| BUG-01 | Error-body fallback reads an already-consumed body: when `response.json()` throws, the catch reads `response.text()` → "Body is unusable" (`client.ts:52-60`, `index.ts:148-158`). Masked today because the backend always returns JSON errors; bites on non-JSON upstream errors with a misleading `NetworkError` | ✔ | P0 | Fixed in Phase 1 (2026-10-27): shared `readErrorMessage` helper in `client.ts`, used by `apiClient` and `streamAskRequest`; review pass also hardened it against NestJS class-validator `message: string[]` bodies; covered by `client.test.ts` (5 tests) |
-| BUG-02 | SSE stream ending with neither `final` nor `error` (network truncation) leaves the turn spinning as pending forever — no watchdog; the `onDone` hook exists but is unconsumed | ✔ | P1 | Fixed in Phase 2 (2026-10-27): transport-level terminal watchdog throws `NetworkError` when the stream closes without `final`/`error` (the unused `onDone` hook was removed); `AbortController` wired through `useAskSubmit` with unmount cleanup; backend `createAskStream` gained a `finally` guard that re-checks the persisted turn status and only fails it if still PENDING, so an abandoned generator can neither strand a PENDING turn nor overwrite a completed one |
-| BUG-03 | `remarkCitations` doesn't skip existing mdast `link` nodes — `[1]` inside Markdown link text could produce nested `<a>` | ✔ | P1 | Fixed in Phase 2 (2026-10-27): reproduction test added first (failed), then `link` nodes were skipped alongside `code`/`inlineCode` |
-| BUG-04 | Cursor pagination edge cases: `skip: 1` against a deleted cursor row silently drops a row; mutable `updatedAt` sort key drifts between pages | ◐ | P2 | Deferred to Phase 5 (non-trivial keyset redesign; not a quick-wins item) |
+| BUG-01 | Before Phase 1, error handling could read a consumed response body twice and mask non-JSON errors | ✔ | P0 | `readErrorMessage` now reads text once and handles JSON strings, validation arrays, raw text, and empty bodies. Used by both API paths; five client tests cover the behavior |
+| BUG-02 | Before Phase 2, a stream without `final` or `error` had no terminal-event check | ✔ | P1 | Phase 2 added the terminal check, removed `onDone`, wired browser cancellation, and added backend cleanup that reads saved status before failure. This does not guarantee recovery after process termination or make cleanup atomic; see ARCH-02 and ARCH-06 |
+| BUG-03 | Before Phase 2, citation conversion could enter existing Markdown links and create nested links | ✔ | P1 | The plugin now skips `link`, `code`, and `inlineCode` nodes; the reproduction test remains in the suite |
+| BUG-04 | Cursor behavior for a deleted cursor and changing `updatedAt` sort keys lacks real-database coverage | ◐ | P2 | Phase 5 investigation/keyset design. The query uses an ID cursor and `skip: 1`; exact missing-cursor behavior requires PostgreSQL reproduction, not a claim of verified silent row loss |
 
 ## 3. Feature Gaps & Incomplete Implementations
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| FEAT-01 | Response caching (notebook feature) not implemented anywhere | ✅ | — | ✔ Resolved by decision (Register #1): answer caching rejected; V4 revisit trigger for search-result-level caching recorded. No implementation |
-| FEAT-02 | Deep-research groundwork only: DTO accepts `mode=deep-research`, service returns an empty list (`threads.service.ts:45-47`); `ThreadMode` = WEB only; frontend filter option exists. Documented stub (API.md:242-246) | ✅/💡 | P3 | Keep as stub; V4 scope |
+| FEAT-01 | Provider-result and answer caching are absent; browser query/history caches do exist | ✔ | — | Resolved by decision, not implementation: answer caching rejected in Register #1. Revisit search-result caching only on measured research-query overlap |
+| FEAT-02 | `ThreadListQueryDto` accepts `mode=deep-research`; `ThreadsService.listThreads` returns an empty list; schema mode remains WEB only | ✅/💡 | P3 | Filter stub only. No Deep Research execution exists; V4 scope |
 | FEAT-03 | Intentional placeholders: "Sign in" button (no handler), "Share" button (disabled "coming soon"), AskInput "Search" mode pill (decorative) | 💡 | — | Accepted deferrals (V5 auth; share deferred) |
-| FEAT-04 | Thread actions menu (rename/delete/export) is `hidden sm:block` — unavailable on mobile | ✔ | P2 | Fixed in Phase 2 (2026-10-27): menu is now visible at all breakpoints |
-| FEAT-05 | Turn-URL copy (`#turn-` deep links) not wired — `createTurnUrl` exists and auto-scroll supports the hash, but no UI copies it | ✔ | P2 | Fixed in Phase 2 (2026-10-27): "Copy link to this turn" action added to `TurnResponseActions` using `createTurnUrl` |
+| FEAT-04 | Before Phase 2, the thread actions menu was hidden on small screens | ✔ | P2 | The current menu has no small-screen visibility restriction |
+| FEAT-05 | Before Phase 2, the UI did not expose the existing turn-URL helper | ✔ | P2 | `TurnResponseActions` now uses `createTurnUrl` for "Copy link to this turn" |
 
 ## 4. Architecture & Design Issues
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| ARCH-01 | `failTurn` on the latest turn marks the whole thread FAILED even with earlier completed turns — history shows "failed" on a mostly-good thread | ✅ (test-verified semantic choice) | — | ✔ Resolved by decision (Register #2): keep latest-activity semantics; rationale to be documented in Phase 3 |
-| ARCH-02 | No single-pending-turn invariant; latest-turn guard is check-then-act at READ COMMITTED. Unreachable from the current UI (submit disabled while pending) | ◐ | P2 | Document in Phase 3; enforce pre-V4 only if needed |
-| ARCH-03 | `GET /threads/:id` returns all turns+sources+citations unbounded — fine at V2 scale; V4 deep research will stress it | ✅ | P2 | Phase 5 (bound or paginate turns) |
-| ARCH-04 | Two `useAskSubmit` instances on the thread page (page-level retry + AskInput) — works, but duplicative orchestration | ✔ | P2 | Fixed in Phase 2 (2026-10-27): one `useAskSubmit` instance lives in `useThreadPage`; `AskInput` is now presentational (home page owns its instance via `HomeAskInput`). One `isPending` now gates both submit and retry, closing the concurrent-stream hole |
-| ARCH-05 | Frontend seeds hardcode `mode: 'web'` (`useAskSubmit.ts:81-96`, `askCache.ts:37-56`) — forward-compat debt for FEAT-02 | ✔ | P2 | Fixed in Phase 2 (2026-10-27): backend `start` event now carries `mode` (mapped through `THREAD_MODE_MAP`); frontend seeds use `event.mode` |
+| ARCH-01 | The thread API can report FAILED while earlier turns remain COMPLETED | ✔ | — | Accepted latest-activity semantics, test-covered and documented in ARCHITECTURE.md. Successful appended retry can restore COMPLETED |
+| ARCH-02 | No single-pending-turn constraint. Latest-turn and abandoned-turn status guards use separate reads and writes | ◐ | P2 | Now documented. One hook blocks concurrent submission on its page; separate tabs/direct clients can overlap. No explicit serialization or atomic pending-only cleanup is enforced; runtime races need database integration tests |
+| ARCH-03 | Thread detail returns all turns, sources, and citations without a bound. Ask preparation also loads full detail before selecting recent context | ✅ | P2 | Phase 5: bound context reads and define turn pagination. Production capacity has not been measured |
+| ARCH-04 | Before Phase 2, the thread page had two independent ask hooks | ✔ | P2 | One hook in `useThreadPage` now gates submit and retry on that page. `AskInput` is presentational; `HomeAskInput` owns the home instance. This is not a cross-tab concurrency constraint |
+| ARCH-05 | Before Phase 2, temporary frontend thread data hardcoded web mode | ✔ | P2 | The backend start event now supplies mapped `mode`; frontend cache seeds use `event.mode`. The schema still supports WEB only |
+| ARCH-06 | Request-lifecycle limits: rewrite, search, and suggestions lack caller cancellation; no durable pending-turn recovery exists | ✅ | P2 | Confirmed in `AskService`, `AiService`, and `TavilySearchService`. Caller abort reaches answer generation only. Search timeout ends the application wait without aborting Tavily; define broader recovery before long research workflows |
 
 ## 5. Code Quality & Technical Debt
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| DEBT-01 | Dead-code cluster (grep-verified zero call sites): `postAsk`, `getPinnedThreads`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `createTurnUrl` (→FEAT-05), `onDone` hook (→BUG-02), never-passed `signal` param (→BUG-02), unused `threadId/turnId` props on `TurnResponseActions`, unused `data-text-tab` attr; plus same-file-only exports `createStreamingTurn` and `findCitationSourceIndexByKey` (drop the unneeded `export`) | ✔ | P0 | Deleted in Phase 1 (2026-10-27): removed `postAsk`, `getPinnedThreads`, `PinnedThreadListQueryInput`, `queryKeys.{threadsPinned,threadsSidebar,sourcesRoot}`, `TurnResponseActions` `threadId/turnId` props, `data-text-tab`; un-exported `createStreamingTurn` + `findCitationSourceIndexByKey`. `createTurnUrl`, `onDone`, and the unused `signal` param remain coupled to Phase 2 decisions |
-| DEBT-02 | API shape inconsistency: sources-list items omit `provider`/`providerScore`; thread-detail embedded sources include them | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `provider`/`providerScore` added to the `/sources` contract (backend `SourceItem` + `mapSource`, frontend `SourceListItem`); API.md updated |
-| DEBT-03 | `historyStore` persisted to localStorage with no `version`/`migrate` — future shape changes will strand old data | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `version: 1` added with a comment; no `migrate` yet because the shape has not changed since introduction |
-| DEBT-04 | History search not debounced — one server query per keystroke | ✔ | P2 | Fixed in Phase 2 (2026-10-27): `useDebouncedValue` (300ms) feeds the server query while the input and empty-state copy stay immediate |
-| DEBT-05 | Backend eslint configures `jest` globals though the runner is `node:test`; `strictPropertyInitialization: false` in tsconfig; **enable `noUnusedLocals` + `noUnusedParameters` (and ESLint unused-vars enforcement) in both apps so unused locals/params fail checks going forward** (approved 2026-10-26) | ✔ | P2 | Completed in Phase 1 (2026-10-27): removed stale `jest` globals from backend eslint; enabled `noUnusedLocals` + `noUnusedParameters` in both tsconfigs; set `@typescript-eslint/no-unused-vars` to `error` in both eslint configs |
+| DEBT-01 | Historical unused wrappers, query keys, exports, props, and callbacks | ✔ | P0 | Phase 1 removed unused wrappers/keys and exports. Phase 2 removed `onDone`, wired `signal`, and used `createTurnUrl`. `TurnResponseActions` now requires `threadId`/`turnId` for the implemented turn-link action; these are no longer unused props |
+| DEBT-02 | Before Phase 2, source-list and embedded-source provider fields differed | ✔ | P2 | Both contracts now include `provider` and `providerScore`; backend mapper and frontend types agree |
+| DEBT-03 | The local history store previously lacked a storage version | ✔ | P2 | It now uses `version: 1`. A migration function is still absent; the store is a summary cache, not the answer database |
+| DEBT-04 | Before Phase 2, history search queried on each keystroke | ✔ | P2 | Server search now uses a 300 ms debounce; input text updates immediately |
+| DEBT-05 | Earlier tooling used stale Jest globals and lacked unused-code checks | ✔ | P2 | Both tsconfigs enable `noUnusedLocals`/`noUnusedParameters`; ESLint enforces unused variables. Backend globals are Node-only. `strictPropertyInitialization` remains false; Phase 1 did not change that setting |
 | DEBT-06 | Markdown-stripping duplicated across layers (backend `ask-text.util.ts` vs frontend `threadExport.markdownToPlainText`) — different purposes; acceptable | ✅ | — | Accepted; no refactor |
-| DEBT-07 | Sources inserted sequentially inside `completeTurn` (bounded ≤ `TAVILY_MAX_RESULTS`=5) | ✅ | — | Accepted; batch only if limits grow |
+| DEBT-07 | `completeTurn` inserts mapped sources sequentially. Tavily requests five results by default; `TAVILY_MAX_RESULTS` is configurable | ✅ | — | Accepted at the default size. Five is not a hard application cap; evaluate batching if source counts grow |
 
 ## 6. Testing & Reliability Gaps
 
@@ -124,7 +143,7 @@ with their date, outcome, and rationale.
 |---|---|---|---|---|
 | TEST-01 | No HTTP-level/e2e tests: controllers only route-smoke-tested; exception filter, logging interceptor, SSE abort wiring, CORS/bootstrap untested | ✅ | P1 | Phase 4 |
 | TEST-02 | No real-DB tests — raw SQL regex-matched only; transaction semantics fully mocked | ✅ | P1 | Phase 4 (minimal dockerized-Postgres suite for repositories) |
-| TEST-03 | Frontend Vitest runs in node env, no jsdom/testing-library: `useAskSubmit` orchestration, mutations, and all interactive components untested | ✅ | P1 | Phase 4; one `useAskSubmit` safety-net test may join Phase 2 |
+| TEST-03 | Frontend coverage is partial: Vitest defaults to Node, while DOM hook tests select `happy-dom` and use Testing Library | ◐ | P1 | Phase 2 added three `useAskSubmit` tests. Full route transitions, thread-management mutations, and interactive workflows still need broader tests in Phase 4; test-environment setup already exists |
 | TEST-04 | No CI pipeline (README states this honestly) | ✅ | P1 | Phase 4 (lint + typecheck + both suites) |
 | TEST-05 | Unverified externals: live Tavily payload shape (`publishedDate`), real Groq stream behavior, Docker image builds, Vercel SSE behavior | ❓ | P1 | Phase 4 verification tasks (KNOW-02) |
 
@@ -132,21 +151,20 @@ with their date, outcome, and rationale.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| SEC-01 | No auth/authz/user-scoping/rate limits on money-spending endpoints; public Vercel demo live. Documented, intentional V2 boundary (README:11-15, DEPLOYMENT.md §1) — real risk if the link circulates | ✅ | — | ✔ Decided (Register #3, revised): app-level demo-gate auth (SEC-05) + rate limiting (SEC-06) in Phase 5 before the LinkedIn launch; backend-exposure verification in Phase 4; DEPLOYMENT.md posture note in Phase 3 |
-| SEC-02 | Source favicons fetched from Google's `/s2/favicons` — every source domain leaks to a third party (flagged in frontend/README.md:37-39) | ✅ | P2 | Phase 5 (first-party proxy/cache or accept) |
-| SEC-03 | No CSP header (defense-in-depth; XSS surface already low — no `rehype-raw`, URL sanitization on) | ✅ | P2 | Phase 5 |
-| SEC-04 | Root `.gitignore` covers only `.env`/`.env.local` — `.env.production` etc. are committable | ✔ | P0 | Fixed in Phase 1 (2026-10-27): `.gitignore` now ignores `.env.*` except `.env.example` |
+| SEC-01 | Application routes have no authentication, ownership, or rate limits. The documented demo's runtime controls remain unverified | ✅ | — | Register #3 chooses a Phase-5 demo gate and rate limits; code is still absent. Backend-exposure checks remain Phase 4. DEPLOYMENT.md states that the frontend proxy itself is not an access control |
+| SEC-02 | Rendered source icons request Google's `/s2/favicons`, sending those source domains from the browser | ✅ | P2 | Phase 5 (first-party proxy/cache or accept) |
+| SEC-03 | Checked-in headers define no CSP. Markdown rendering uses URL sanitization and no `rehype-raw`; edge headers are unverified | ✅ | P2 | Phase 5 |
+| SEC-04 | Before Phase 1, root ignore rules did not cover every `.env.*` variant | ✔ | P0 | Root rules now ignore `.env` and `.env.*`, with an exception for `.env.example` |
 | SEC-05 | Demo-gate authentication (Register #3, revised 2026-10-26): single env-configured access credential; `/login` → signed HttpOnly session cookie; global guard on `/perplexity/*`. Explicitly NOT user accounts — threads stay single-tenant; full multi-user auth remains V5 | ✅ (decision) | P1 | Implement in Phase 5 (LinkedIn launch gate) |
 | SEC-06 | Rate limiting before public launch: `@nestjs/throttler` — strict limits on money-spending endpoints (`POST /perplexity/ask*`), lenient global/read limits; gateway-level limits still recommended per DEPLOYMENT.md | ✅ (decision) | P1 | Implement in Phase 5 (with SEC-05) |
 
 ## 8. Performance & Scalability
 
-No standalone performance defects at V2 scale. Items with performance
-character are tracked at their primary IDs and cross-referenced here:
-ARCH-03 (unbounded payload), DEBT-04 (keystroke queries), DEBT-07
-(sequential inserts). Caching — the only real cost/latency lever, since every
-ask spends Tavily + Groq quota — was considered and rejected at Phase 0
-(Register #1). No separate findings needed.
+Performance-related findings include ARCH-03 (unbounded payload), the resolved
+DEBT-04 (search debounce), and DEBT-07 (sequential inserts).
+Answer caching was rejected by decision, not measured benchmarking. Model choice,
+source limits, context size, and suggestion timing also affect latency and usage.
+This review did not perform a load test or establish production capacity.
 
 ## 9. Infrastructure, Integration & Deployment
 
@@ -155,16 +173,16 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 | INFRA-01 | Docker images not build-verified during the audit (`docker compose build` never ran; builder-stage placeholder `DATABASE_URL` is documented and safe) | ❓ | P1 | Phase 4 verification |
 | INFRA-02 | Vercel deployment: whether the SSE proxy guidance in DEPLOYMENT.md §7 is honored by the live deployment is unverifiable from the repo | ❓ | P1 | Phase 4 verification |
 | INFRA-03 | `DELETE /perplexity/threads` carries a JSON body — some proxies/clients strip DELETE bodies (works in the fetch-based client) | ✅/💡 | — | Accepted; revisit only if a client breaks |
-| INFRA-04 | PrismaClient: no pool tuning, no startup retry (compose `depends_on` covers ordering), no query logging | 💡 | — | Accepted for V2 |
+| INFRA-04 | No explicit pool-tuning code, connection-startup retry, or Prisma query logging. Connection URLs can supply additional settings | 💡 | — | Accepted for V2. Compose orders startup; non-Compose deployments need equivalent dependency handling |
 
 ## 10. Feature & Product Roadmap Gaps
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| ROAD-01 | Research Intelligence (V4) prerequisites hiding in current findings: ARCH-03 (payload bounds), FEAT-02/ARCH-05 (mode plumbing); cost posture settled in Phase 0 (caching rejected — Register #1; demo protection — Register #3) | ✅ | P3 | Phase 5 exit gate; RI scoping after |
-| ROAD-02 | Caching decision (notebook listed it; docs/code dropped it) — tracked here as the *decision*; duplicates DOC-02/FEAT-01 intentionally | ✅ | — | ✔ Resolved — Register #1 (rejected for answers; V4 search-level revisit trigger recorded) |
+| ROAD-01 | V4 prerequisites include ARCH-03 payload bounds, FEAT-02 research execution, and request-lifecycle limits. ARCH-05's stream-mode seed fix is complete | ✅ | P3 | Phase-5 entry decisions remain. Cost and demo-control choices are recorded; demo controls still require implementation |
+| ROAD-02 | Answer-cache policy required a decision | ✔ | — | Register #1 rejects answer caching and records the V4 search-cache revisit trigger |
 | ROAD-03 | Notebook IMG_1092 "credit based usage" checkbox — clarified by the author: an intended feature, never built; consciously deferred as not necessary now | ✔ | — | Resolved — remains covered by V5 Billing/Limits; no new work |
-| ROAD-04 | ROADMAP checkboxes vs reality: V3 "Dockerized deployment" was delivered (verified: multi-stage non-root Dockerfiles + compose on `main`) but unmarked | ✅ | P2 | ✔ Resolved — marked in ROADMAP.md during this documentation update |
+| ROAD-04 | Dockerfiles and Compose existed while roadmap status lagged | ✔ | P2 | Artifacts are marked implemented. This is distinct from build verification or a verified live rollout, which remain open |
 
 ## 11. Engineering Process & Knowledge Gaps
 
@@ -172,7 +190,7 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 |---|---|---|---|---|
 | KNOW-01 | Original thinking preservation: notebook decisions (caching, API-ordering lesson, persona, competitive analysis, naming evolution) need a durable home → DOC-11 | ✅ | P1 | Phase 3 |
 | KNOW-02 | Public write-ups should follow dynamic verification (TEST-05) — don't publish flow claims you haven't watched run | 💡 | P1 | Phase 4 |
-| KNOW-03 | Fix DOC-01 before writing public posts, or the inverted order gets published | ✔ | P1 | Phase 1 fixed (2026-10-27) → Phase 3 docs pass |
+| KNOW-03 | Public descriptions need the verified ask order from DOC-01 | ✔ | P1 | Full diagram/prose correction rechecked on 2026-11-12. Live-flow claims still require runtime verification under KNOW-02 |
 | KNOW-04 | Notebook ambiguities — answered by the author (Register #4): credit-usage intent clarified; IMG_1090 `list_recent` fields remain a best-effort reading `{context_id?, link?, status, title}` for the Phase-3 journal | ✔ | — | Resolved (Register #4) |
 
 ## 12. Other
@@ -189,12 +207,12 @@ ask spends Tavily + Groq quota — was considered and rejected at Phase 0
 
 | Phase | Finding IDs |
 |---|---|
-| 0 — Decisions | ✔ Complete (2026-10-26): ROAD-02 ✔, ARCH-01 ✔, SEC-01 ✔, KNOW-04 ✔, ROAD-03 ✔ — outcomes in the Decision Register |
-| 1 — Correctness & hygiene | ✔ Complete (2026-10-27): BUG-01 ✔, SEC-04 ✔, DEBT-01 ✔, DEBT-05 ✔, DOC-01 ✔ (KNOW-03 unblocked). Baseline: backend 125/125 tests, frontend 62/62 tests, tsc + ESLint clean both apps. |
+| 0 — Decisions | Recorded complete on 2026-10-26: cache, status, demo posture, and notebook answers. SEC-01's decision did not implement SEC-05/06 |
+| 1 — Correctness & hygiene | Recorded checkpoint, 2026-10-27: BUG-01, SEC-04, DEBT-01, DEBT-05. Historical baseline: backend 125/125 and frontend 62/62, types/lint clean. DOC-01's incomplete correction was superseded on 2026-11-12 |
 | 2 — Stream lifecycle & UX edges | ✔ Complete (2026-10-27): BUG-02 ✔, BUG-03 ✔, ARCH-04 ✔, ARCH-05 ✔, FEAT-04 ✔, FEAT-05 ✔, DEBT-02 ✔, DEBT-03 ✔, DEBT-04 ✔; BUG-04 deferred to Phase 5. Baseline: backend 127/127 tests, frontend 71/71 tests, tsc + ESLint clean both apps. |
-| 3 — Documentation & knowledge base | DOC-02–DOC-11, ROAD-04, KNOW-01, SEC-01 (posture note in DEPLOYMENT.md) |
+| 3 — Documentation & knowledge base | In progress. DOC-01/06/09/10/12 corrected; ROAD-04 status corrected and deployment posture documented. DOC-02/03/04/05/07/08/11 and KNOW-01 retain journal/attribution work |
 | 4 — Verification & reliability | TEST-01–TEST-05, INFRA-01, INFRA-02 (KNOW-02), SEC-01 (backend-exposure check) |
-| 5 — V4 readiness gate + demo hardening | SEC-05, SEC-06 (LinkedIn launch gate), SEC-02, SEC-03, ARCH-02, ARCH-03, BUG-04 |
+| 5 — V4 readiness gate + demo hardening | SEC-05/06, SEC-02/03, ARCH-02/03/06, BUG-04; implementation/runtime evidence still required |
 | V4 — Research Intelligence | ROAD-01, FEAT-02 (scoped after the Phase-5 gate) |
 
 `?` = included only if trivially resolvable in its earlier phase. FEAT-01 was removed from Phase 5 by the Phase-0 caching rejection.
