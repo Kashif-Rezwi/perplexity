@@ -4,7 +4,7 @@
 
 **Purpose**: This document tracks the development phases of the full-stack Perplexity clone from its initial MVP to future enterprise capabilities.
 **Scope**: All backend infrastructure, API design, frontend UI, state management, and external integrations.
-**Current Phase**: V2 hardening and the **Foundation Track**. Phases 0–2 have recorded implementation checkpoints; Phase 3 documentation is in progress.
+**Current Phase**: V2 hardening and the **Foundation Track**. Phases 0–2 have recorded implementation checkpoints; Phase 3 documentation completed on 12 November 2026. Phase 4 verification and reliability is next.
 **Status convention**: Implemented means code exists in the reviewed checkout. Partial means only the stated subset exists. Planned means implementation is absent.
 Recorded phase checkpoints are historical. A successful build, browser workflow, or live release needs separate evidence; none is implied by a code status.
 
@@ -76,18 +76,8 @@ Both applications pass TypeScript and ESLint checks. These checks do not verify 
 The sidebar groups pins from its first history page. The Links hook consumes the first source page per turn.
 Deep Research, authentication, rate limits, and billing are not implemented.
 
-### Contribution Scope: Frontend Loading, History, Sources, And Citations
-
-Kashif's contribution for the V2 loading, skeleton, empty-state,
-history-cache, lazy-source, and citation-tooltip polish was frontend-only
-because this feature required no backend implementation. The work covered
-React/Next.js UI components, route and panel loading states, contextual empty
-states, React Query cache sharing and request deduplication, lazy source loading
-for the Links tab, citation popup positioning plus hover/focus behavior,
-accessibility refinements, and focused frontend tests.
-
-Backend/API routes, database schema or persistence changes, object storage, and
-deployment changes were outside this feature's scope.
+The specific frontend contribution account is preserved in
+[Design history](DESIGN_HISTORY.md#contribution-scope-frontend-loading-history-sources-and-citations).
 
 ---
 
@@ -147,14 +137,26 @@ readiness pass. Research Intelligence scoping begins only after this track.
   - Added dev-only `@testing-library/react` + `happy-dom` and a `useAskSubmit` safety net.
   - Baseline: backend 127/127 tests, frontend 71/71 tests, tsc + ESLint clean both apps.
 
-### Phase 3 — Documentation & knowledge base
+### Phase 3 — Documentation & knowledge base ✔ Completed 2026-11-12
 
 - **Objective:** preserve the original engineering thinking and reconcile every doc with the post-Phase-2 behavior.
 - **Items:** DOC-11/KNOW-01 (new design-decisions/journal doc holding DOC-02, DOC-03, DOC-04, DOC-05, DOC-08), DOC-06, DOC-07, DOC-09, DOC-10.
 - **Serves the goal:** accurate docs are the design surface for V4 — and the notebook's original reasoning (preserved, not rewritten) is the material for the public engineering write-ups.
 - **Why third:** these docs describe the post-Phase-2 implementation.
 - **Acceptance:** every notebook page maps to a documented decision or an explicitly recorded change; the DOC-01 correction is live.
-- **Progress, 12 November 2026:** the Docs index and cross-file claim review are complete. DOC-01, DOC-06, DOC-09, DOC-10, and DOC-12 are corrected. The notebook/design-history account and remaining attribution/rationale work are still open; this does not complete Phase 3.
+- **Outcomes, 12 November 2026:** the Docs index and cross-file claim review are
+  complete; DOC-01/06/09/10/12 are corrected. [Design history](DESIGN_HISTORY.md)
+  accounts for all eight reviewed notebook pages, original users/comparison
+  observations, later caching/feature decisions, the ask-first lesson, corrected
+  naming evolution, technical trade-offs, and frontend contribution attribution.
+  Uncertain writing and the limits of the historical comparison remain explicit.
+- **Execution and acceptance:** the [six-task execution record](PHASE_3_PLAN.md)
+  links the original page accounts, rewritten notes/diagrams, source record, and final checks.
+  Every page has a decision/current-behavior/change mapping; DOC-01 remains live.
+  The [final source-to-image review](PHASE_3_PLAN.md#final-review--13-november-2026)
+  on 13 November confirmed completion after minor fidelity corrections.
+  This documentation checkpoint does not close Phase-4 runtime verification or
+  Phase-5 hardening work.
 
 ### Phase 4 — Verification & reliability
 

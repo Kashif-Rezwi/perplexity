@@ -42,6 +42,11 @@ Steps 1–5 explain the current application. Steps 6–7 prepare you to change i
 
 ## Use when needed
 
+- **[Design history](DESIGN_HISTORY.md):** Read the recorded product/engineering
+  decisions, changes from the notebook, technical trade-offs, contribution scope,
+  and the limits of the available historical evidence.
+- **[Phase-3 execution plan](PHASE_3_PLAN.md):** Review the scope, microtasks,
+  acceptance criteria, and completion evidence for the documentation phase.
 - **[Tech stack](TECH_STACK.md):** Look up a library's role and the reason for its use.
   Use package files and lockfiles for installed versions.
 - **[Deployment](DEPLOYMENT.md):** Configure Compose or production services, apply migrations, verify SSE, and troubleshoot deployment.

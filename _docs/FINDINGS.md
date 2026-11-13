@@ -26,7 +26,37 @@ Evidence included controllers, DTOs, services, repositories, UI callers, tests, 
 - Document checks passed: 14 route headings matched controllers, 17 API JSON examples parsed, and 52 local links/anchors resolved.
 
 Live providers, PostgreSQL integration, container builds, deployment revision, and browser workflows were not exercised in this check.
-The original notebook images are not in this checkout. Their recorded decisions remain inherited history, not newly verified notebook evidence.
+The original notebook images were unavailable during that cross-check. Its notebook
+claims were inherited history; the later Phase-3 source review below supersedes that limit.
+
+## Phase 3 Source Review — 12 November 2026
+
+All eight original HEIC photos, IMG_1087–IMG_1094, were recovered from the author's
+Downloads folder and visually inspected. [Design history](DESIGN_HISTORY.md)
+now preserves a page-by-page account and maps each page to present behavior,
+recorded decisions, or explicit changes/deferrals. At the author's request, the
+repository preserves [rewritten notes, diagrams, and regenerated visual summaries](sources/design-notebook/NOTES.md)
+and a [source record](sources/design-notebook/manifest.json) instead of original photo copies.
+The original photos remain outside the repository.
+
+- The target users and Perplexity/ChatGPT/Claude observations are preserved as
+  historical product reasoning, with no claim of a current benchmark.
+- The early `list_recent` sketch explicitly describes sources; the later page
+  separately sketches threads. The naming account now preserves that distinction.
+- Caching, the ask-first lesson, server/domain-model notes, future capabilities,
+  technical trade-offs, and the frontend contribution account have a durable home.
+- Uncertain response fields, crossed-out writing, and ambiguous checklist marks
+  remain explicit; a mark is not evidence that a feature shipped.
+
+The [execution plan](PHASE_3_PLAN.md) records the six microtasks and final checks.
+Phase-4 runtime/CI/integration work and Phase-5 hardening remain open. No
+application implementation or production-readiness claim was added by Phase 3.
+
+**Final cross-check, 13 November 2026:** all eight original/generated page pairs,
+the detailed notes, technical evidence, and completion criteria were reviewed
+again. Two image wording/source-attribution corrections and the IMG_1091 credits
+label are recorded in the [final review](PHASE_3_PLAN.md#final-review--13-november-2026).
+Phase 3 remains complete; later-phase verification and hardening remain open.
 
 ---
 
@@ -83,16 +113,16 @@ with their date, outcome, and rationale.
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
 | DOC-01 | Ask-flow documentation disagreed with `AskService.preparePendingAsk` and `createAskStream` | ✔ | P0 | Rechecked and corrected on 2026-11-12: both the diagram and prose now place query resolution before pending-turn creation and search after SSE start. This supersedes the incomplete Phase-1 correction claim |
-| DOC-02 | Recorded notebook caching notes need a durable design-history account | ◐ | P1 | The decision is already in Register #1. Its separate journal account remains Phase-3 work; caching is not an unmade decision |
-| DOC-03 | Recorded notebook lesson: build the ask vertical slice before sources/threads APIs | ◐ | P1 | The lesson is captured in this inventory; the planned Phase-3 journal remains pending |
-| DOC-04 | Target-user persona + 3-way competitive test (IMG_1088/1089) — the *why* behind sources tab, follow-ups, clean UX — undocumented | ✅ | P1 | Capture in Phase 3 |
-| DOC-05 | Endpoint naming evolution unrecorded: `perplexity-ask`→`POST /ask`, `list_recent`→`GET /threads` + `GET /sources`, `query_str`→`question` | ✅ | P2 | Optional note in Phase 3 |
+| DOC-02 | Recorded notebook caching notes needed a durable design-history account | ✔ | P1 | Recorded in [Design history](DESIGN_HISTORY.md#caching-proposal-and-later-decision), checked against IMG_1091/1092 on 2026-11-12. Register #1 remains the policy decision; no measured cache-hit claim |
+| DOC-03 | Notebook lesson: build the ask vertical slice before sources/threads APIs | ✔ | P1 | IMG_1094 directly reviewed; [journal lesson](DESIGN_HISTORY.md#build-the-ask-vertical-slice-first) preserves the reflection and its future planning implication |
+| DOC-04 | Target-user persona + 3-way comparison (IMG_1088/1089) needed a durable account | ✔ | P1 | Original photos reviewed on 2026-11-12. [Product reasoning](DESIGN_HISTORY.md#original-product-reasoning) records researchers/students/professionals and Perplexity/ChatGPT/Claude observations. Historical qualitative comparison only; prompt/settings/raw answers/scores are absent from the page |
+| DOC-05 | Early endpoint/field naming needed a history account | ✔ | P2 | [Naming evolution](DESIGN_HISTORY.md#endpoint-and-field-naming-evolution) checked against IMG_1090/1094 and current controllers/DTOs. Corrects the earlier compressed mapping: `list_recent` explicitly meant sources; threads were sketched separately. Uncertain original fields remain marked |
 | DOC-06 | Architecture omitted citation normalization and the 3-turn rewrite / 5-turn answer context split | ✔ | P2 | Added on 2026-11-12 with source references. Normalization does not establish factual support for claims |
-| DOC-07 | ROADMAP.md still contains the personal "Contribution Scope" account within phase tracking | ✅ | P2 | Move to the planned journal in Phase 3; preserve the recorded attribution |
-| DOC-08 | Technical mechanisms need a design-history account: POST SSE, SQL timestamp preservation, Groq adapter, and `fullStream` errors | ◐ | P2 | Mechanisms appear in code and current API/architecture docs. Historical rationale and trade-offs remain Phase-3 journal work |
+| DOC-07 | The personal "Contribution Scope" account was stored within roadmap phase tracking | ✔ | P2 | Moved to [Design history](DESIGN_HISTORY.md#contribution-scope-frontend-loading-history-sources-and-citations), preserving the original account and linking attribution/implementation commits; roadmap retains a link |
+| DOC-08 | Technical mechanisms needed a design-history account: POST SSE, SQL timestamp preservation, Groq adapter, and `fullStream` errors | ✔ | P2 | [Technical decisions](DESIGN_HISTORY.md#technical-decisions-and-their-consequences) links code, tests, and commits for all four mechanisms. Distinguishes original change history from inferred consequences; real DB/provider/deployment verification remains Phase 4 |
 | DOC-09 | API documentation omitted the error envelope and HTTP-200 stream failure semantics | ✔ | P2 | Added on 2026-11-12, including string/array messages, retryable flags, and client-side ApiError behavior |
 | DOC-10 | Database-host wording and live-demo assertions exceeded repository evidence | ✔ | P2 | Corrected on 2026-11-12: Compose selects PostgreSQL 17; Neon is optional; the demo URL is documented but runtime state is unverified |
-| DOC-11 | Proposal (not a defect): a design-decisions/journal doc as the durable home for DOC-02/03/04/05/08 — preserves original thinking for public write-ups | 💡 | P1 | Create in Phase 3 |
+| DOC-11 | Proposal (not a defect): a design-decisions/journal doc as the durable home for DOC-02/03/04/05/08 | ✔ | P1 | [Design history](DESIGN_HISTORY.md) created on 2026-11-12 with all eight source-page mappings, decisions, technical trade-offs, evidence limits, and attribution |
 | DOC-12 | Current features appeared under future work; test, runtime, provider, and deployment claims drifted across docs | ✔ | P1 | Cross-checked all ten Markdown files on 2026-11-12. Corrected feature status, Node minimum, test coverage, provider coupling, API details, and deployment/logging/cancellation limits; verification scope is recorded above |
 
 ## 2. Bugs & Functional Issues
@@ -188,10 +218,10 @@ This review did not perform a load test or establish production capacity.
 
 | ID | Finding | State | Priority | Disposition (Phase) |
 |---|---|---|---|---|
-| KNOW-01 | Original thinking preservation: notebook decisions (caching, API-ordering lesson, persona, competitive analysis, naming evolution) need a durable home → DOC-11 | ✅ | P1 | Phase 3 |
+| KNOW-01 | Original thinking preservation: notebook decisions, product reasoning, API-ordering lesson, and naming evolution needed a durable home | ✔ | P1 | [Design history](DESIGN_HISTORY.md#notebook-source-register) accounts for all eight recovered/visually reviewed pages and retains later decisions/changes separately; rewritten notes, diagrams, regenerated visual summaries, and original source hashes are preserved without committing the photos |
 | KNOW-02 | Public write-ups should follow dynamic verification (TEST-05) — don't publish flow claims you haven't watched run | 💡 | P1 | Phase 4 |
 | KNOW-03 | Public descriptions need the verified ask order from DOC-01 | ✔ | P1 | Full diagram/prose correction rechecked on 2026-11-12. Live-flow claims still require runtime verification under KNOW-02 |
-| KNOW-04 | Notebook ambiguities — answered by the author (Register #4): credit-usage intent clarified; IMG_1090 `list_recent` fields remain a best-effort reading `{context_id?, link?, status, title}` for the Phase-3 journal | ✔ | — | Resolved (Register #4) |
+| KNOW-04 | Notebook ambiguities — answered by the author (Register #4): credit-usage intent clarified; IMG_1090 `list_recent` fields remain a best-effort reading `{context_id?, link?, status, title}` | ✔ | — | Resolved (Register #4); uncertainty retained after direct photo review in the [source register](DESIGN_HISTORY.md#img_1090--initial-api-sketch-and-source-retrieval) |
 
 ## 12. Other
 
@@ -210,7 +240,7 @@ This review did not perform a load test or establish production capacity.
 | 0 — Decisions | Recorded complete on 2026-10-26: cache, status, demo posture, and notebook answers. SEC-01's decision did not implement SEC-05/06 |
 | 1 — Correctness & hygiene | Recorded checkpoint, 2026-10-27: BUG-01, SEC-04, DEBT-01, DEBT-05. Historical baseline: backend 125/125 and frontend 62/62, types/lint clean. DOC-01's incomplete correction was superseded on 2026-11-12 |
 | 2 — Stream lifecycle & UX edges | ✔ Complete (2026-10-27): BUG-02 ✔, BUG-03 ✔, ARCH-04 ✔, ARCH-05 ✔, FEAT-04 ✔, FEAT-05 ✔, DEBT-02 ✔, DEBT-03 ✔, DEBT-04 ✔; BUG-04 deferred to Phase 5. Baseline: backend 127/127 tests, frontend 71/71 tests, tsc + ESLint clean both apps. |
-| 3 — Documentation & knowledge base | In progress. DOC-01/06/09/10/12 corrected; ROAD-04 status corrected and deployment posture documented. DOC-02/03/04/05/07/08/11 and KNOW-01 retain journal/attribution work |
+| 3 — Documentation & knowledge base | Complete, 2026-11-12. DOC-01/06/09/10/12 and ROAD-04 were corrected; DOC-02/03/04/05/07/08/11 and KNOW-01 now have journal/source/attribution evidence. See [execution record](PHASE_3_PLAN.md) |
 | 4 — Verification & reliability | TEST-01–TEST-05, INFRA-01, INFRA-02 (KNOW-02), SEC-01 (backend-exposure check) |
 | 5 — V4 readiness gate + demo hardening | SEC-05/06, SEC-02/03, ARCH-02/03/06, BUG-04; implementation/runtime evidence still required |
 | V4 — Research Intelligence | ROAD-01, FEAT-02 (scoped after the Phase-5 gate) |
