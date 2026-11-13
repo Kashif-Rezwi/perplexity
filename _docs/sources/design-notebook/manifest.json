@@ -1,0 +1,101 @@
+{
+  "reviewed_on": "2026-11-13",
+  "format": "Edited Markdown reconstruction, editable Mermaid diagrams, and AI-regenerated minimal digital note images. No original photo copies retained in the repository.",
+  "source": "Eight original HEIC notebook photos visually reviewed. Originals remain outside the repository and are unchanged.",
+  "editorial_policy": "Cleaned wording and simplified diagrams preserve the important content, source-page IDs, and explicit uncertainties. This is not a verbatim transcription or a facsimile.",
+  "notes": "NOTES.md",
+  "pages": [
+    {
+      "page": "IMG_1087",
+      "original_filename": "IMG_1087.HEIC",
+      "original_sha256": "af2b9d041b24364b24c1b2e1973ac6ade317edaa72e18ad69770e06e514fd6a6",
+      "notes_reference": "NOTES.md#img_1087--my-design-process",
+      "visual_reference": "visuals/01-design-approach.png",
+      "visual_sha256": "b0f2226083bf0c51da5ed361c012d818c91fa2c0e43d6435bccd8bbb82398b10",
+      "visual_width": 1024,
+      "visual_height": 1536
+    },
+    {
+      "page": "IMG_1088",
+      "original_filename": "IMG_1088.HEIC",
+      "original_sha256": "d389816de8aea72732693ac19f372093f2095fd9bf95fe939d9700d86689fec1",
+      "notes_reference": "NOTES.md#img_1088--product-users-and-design-framework",
+      "visual_reference": "visuals/02-product-and-users.png",
+      "visual_sha256": "79cea599dbadcf7443eb1e5374083b33947bc12d88fdf4c67a605b1e04e2e50a",
+      "visual_width": 1024,
+      "visual_height": 1536,
+      "visual_source_pages": [
+        "IMG_1088",
+        "IMG_1089"
+      ]
+    },
+    {
+      "page": "IMG_1089",
+      "original_filename": "IMG_1089.HEIC",
+      "original_sha256": "6295f06726348b73e3c9a5b3150aa2a090473bd1e6b826ba7fec9cfb11b14ebd",
+      "notes_reference": "NOTES.md#img_1089--my-product-observations",
+      "visual_reference": "visuals/03-product-observations.png",
+      "visual_sha256": "87944efdc928f0d4c28ab5a0969e25a6eaeadd7562725dd42ad9a59773ea4e93",
+      "visual_width": 1024,
+      "visual_height": 1536
+    },
+    {
+      "page": "IMG_1090",
+      "original_filename": "IMG_1090.HEIC",
+      "original_sha256": "2ff4f3648a2dc8d98b9efa422035c514239e1085173c938654bc1a82d282b98c",
+      "notes_reference": "NOTES.md#img_1090--my-initial-api-sketch",
+      "visual_reference": "visuals/04-early-api-sketch.png",
+      "visual_sha256": "47a9aaa61b88358de9681ddce47d83d65c69ed0d217283420dfe0c354e80472c",
+      "visual_width": 1024,
+      "visual_height": 1536
+    },
+    {
+      "page": "IMG_1091",
+      "original_filename": "IMG_1091.HEIC",
+      "original_sha256": "de696b11af36180af834fd81f2276bfac4bb9e5216800eb251533c2f4bb07fd8",
+      "notes_reference": "NOTES.md#img_1091--my-component-sketch",
+      "visual_reference": "visuals/05-component-sketch.png",
+      "visual_sha256": "f02890448be513c6b6ae1265e09d1a3678e9a80d0ef76b19fe4e8ddefac19289",
+      "visual_width": 1024,
+      "visual_height": 1536
+    },
+    {
+      "page": "IMG_1092",
+      "original_filename": "IMG_1092.HEIC",
+      "original_sha256": "d96e7619114d50db3871eee0627200e6fc9381703211d79f38108b319cdec907",
+      "notes_reference": "NOTES.md#img_1092--my-mvp-and-future-priorities",
+      "visual_reference": "visuals/06-mvp-and-next-steps.png",
+      "visual_sha256": "c6cd38599e268dca288829caf4335b3df39d6e6e12fb433a1fe29205a32770a8",
+      "visual_width": 1024,
+      "visual_height": 1536,
+      "visual_decision_reference": "../../FINDINGS.md#decision-register"
+    },
+    {
+      "page": "IMG_1093",
+      "original_filename": "IMG_1093.HEIC",
+      "original_sha256": "6f04de51c3c75cb9fe1c2aebf662bbdd98f3ab7915a45749d8de25d1131d7eba",
+      "notes_reference": "NOTES.md#img_1093--my-server-setup-and-domain-model",
+      "visual_reference": "visuals/07-domain-model.png",
+      "visual_sha256": "2765381a693ce7cae97d43f48919c11bc996214fcff9ce1f27d22a8ae852a3ba",
+      "visual_width": 1024,
+      "visual_height": 1536
+    },
+    {
+      "page": "IMG_1094",
+      "original_filename": "IMG_1094.HEIC",
+      "original_sha256": "45dd9c57f076d2a8d198b245213c9bbf9fc0654ca61a697addb2a3cf05230797",
+      "notes_reference": "NOTES.md#img_1094--my-api-layers-and-implementation-order-lesson",
+      "visual_reference": "visuals/08-api-boundaries.png",
+      "visual_sha256": "8ac4aa1653337662deb0bed210279d607785a6af17c7828c8b3e5d6c455956ac",
+      "visual_width": 1024,
+      "visual_height": 1536
+    }
+  ],
+  "generation": {
+    "method": "built-in image_gen",
+    "prompts": "image-prompts.json",
+    "visual_role": "Concise visual summaries, not source photographs or verbatim transcriptions. Detailed notes retain full qualifiers and uncertainties.",
+    "review": "All eight original/generated pairs visually compared again on 2026-11-13. Corrected the page-02 source footer and page-08 implementation-order line; both revised outputs visually checked. Condensed details and uncertainties remain in NOTES.md."
+  },
+  "final_review_reference": "../../PHASE_3_PLAN.md#final-review--13-november-2026"
+}
