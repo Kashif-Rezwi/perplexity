@@ -42,6 +42,8 @@ Steps 1–5 explain the current application. Steps 6–7 prepare you to change i
 
 ## Use when needed
 
+- **[Backend and database notes](writeups/BACKEND_AND_DATABASE.md):** My write-up
+  on the backend, its database, the files involved, and the reasons behind the code.
 - **[Design history](DESIGN_HISTORY.md):** Read the recorded product/engineering
   decisions, changes from the notebook, technical trade-offs, contribution scope,
   and the limits of the available historical evidence.
