@@ -237,7 +237,7 @@ export class ThreadsRepository {
     const [thread, turn, totalSourceCount] = await this.database.$transaction([
       this.database.thread.findUnique({
         where: { id: threadId },
-        include: { _count: { select: { turns: true } } },
+        include: threadListInclude,
       }),
       this.database.turn.findFirst({
         where: { id: turnId, threadId },

@@ -45,13 +45,13 @@ model Turn {
   id             String     @id @default(uuid()) @db.Uuid
   threadId       String     @db.Uuid
 
-  question       String     @db.Text
-  searchQuery    String     @db.Text
-  answerMarkdown String?    @db.Text
+  question       String
+  searchQuery    String
+  answerMarkdown String?
   suggestedFollowUpQuestions String[] @default([])
 
   status         TurnStatus @default(PENDING)
-  errorMessage   String?    @db.Text
+  errorMessage   String?
 
   createdAt      DateTime   @default(now()) @db.Timestamp(6)
   completedAt    DateTime?  @db.Timestamp(6)
@@ -71,9 +71,9 @@ model Source {
   citationNumber Int
 
   title          String
-  url            String   @db.Text
+  url            String
   domain         String
-  snippet        String   @db.Text
+  snippet        String
 
   provider       String   @default("tavily")
   providerScore  Float?

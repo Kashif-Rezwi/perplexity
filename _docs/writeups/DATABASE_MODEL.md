@@ -31,6 +31,8 @@ These are also the models in my [original notebook notes](../DESIGN_HISTORY.md#i
    the data passed into writes, loaded from queries, and returned by the API.
    The `include` objects choose which related records Prisma loads. Types help
    TypeScript check the code; they do not validate incoming HTTP requests.
+   `ThreadHeaderRecord` reuses `ThreadListBaseRecord` so the shared response
+   mapper uses the same shape as the thread query.
 4. [threads.repository.ts](../../backend/src/threads/repositories/threads.repository.ts)
    contains the database queries. `createThreadWithPendingTurn`, `completeTurn`,
    and `failTurn` handle the attempt's initial, successful, and failed states.
@@ -165,6 +167,9 @@ is also outside this transaction, so it still needs failure handling.
   and Citations too. It handles related-record cleanup; access checks are separate.
 - **Unique rule versus index:** a unique rule prevents duplicates. A normal index
   helps queries find or order records and does not prevent duplicates.
+- **Text fields:** plain `String` fields use PostgreSQL `text` by default.
+  I keep explicit types where they matter, such as UUIDs, title length, and
+  timestamp precision.
 - **History indexes:** `(updatedAt, id)` matches history ordering;
   `(isPinned, pinnedAt, id)` supports pinned lists.
 - **Source indexes:** `(createdAt, id)` and `(turnId, createdAt, id)` support

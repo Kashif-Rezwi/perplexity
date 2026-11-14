@@ -126,18 +126,7 @@ export type ThreadListRecord = ThreadListBaseRecord & {
 };
 
 // Database thread fields and turn count used by the shared response mapper.
-export type ThreadHeaderRecord = {
-  id: string;
-  title: string;
-  answerPreview: string | null;
-  status: ThreadStatus;
-  mode: ThreadMode;
-  isPinned: boolean;
-  pinnedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  _count: { turns: number };
-};
+export type ThreadHeaderRecord = ThreadListBaseRecord;
 
 // ==========================================
 // Response Types
