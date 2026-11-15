@@ -43,7 +43,6 @@ function askResponse(turnId = 'turn-1'): AskResponse {
     thread: {
       threadId: 'thread-1',
       title: 'What is Prisma?',
-      status: 'completed',
       mode: 'web',
       isPinned: false,
       pinnedAt: null,
@@ -102,6 +101,7 @@ describe('ask cache helpers', () => {
     ]);
     expect(cachedThread?.turns).toHaveLength(1);
     expect(cachedThread).not.toHaveProperty('answerPreview');
+    expect(cachedThread).not.toHaveProperty('status');
     expect(cachedThread?.turns[0]).toMatchObject({
       turnId: 'turn-1',
       status: 'completed',
@@ -169,6 +169,7 @@ describe('ask cache helpers', () => {
       queryKeys.thread('thread-1'),
     );
     expect(hasPersistedTurn(cachedThread, 'turn-1')).toBe(false);
+    expect(cachedThread).not.toHaveProperty('status');
 
     markStreamingTurnFailed(queryClient, 'thread-1', 'turn-1', streamError);
 
@@ -176,7 +177,7 @@ describe('ask cache helpers', () => {
       queryKeys.thread('thread-1'),
     );
 
-    expect(cachedThread?.status).toBe('failed');
+    expect(cachedThread).not.toHaveProperty('status');
     expect(cachedThread?.turns[0]).toMatchObject({
       status: 'failed',
       errorMessage: 'Streaming failed',

@@ -14,7 +14,6 @@ describe('thread export utilities', () => {
   const thread: ThreadDetailResponse = {
     threadId: 'thread-1',
     title: 'Prisma overview',
-    status: 'completed',
     mode: 'web',
     isPinned: false,
     pinnedAt: null,

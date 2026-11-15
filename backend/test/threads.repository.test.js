@@ -368,7 +368,7 @@ test('ThreadsRepository.findThreadDetailById orders timestamp ties by turn ID', 
   ]);
 });
 
-test('ThreadsRepository.findThreadWithSingleTurn loads latest status independently of the selected turn', async () => {
+test('ThreadsRepository.findThreadWithSingleTurn loads a header and the selected turn without loading other turns', async () => {
   let headerQuery;
   const repository = new ThreadsRepository({
     async $transaction(queries) {
@@ -380,7 +380,6 @@ test('ThreadsRepository.findThreadWithSingleTurn loads latest status independent
         return {
           id: threadId,
           _count: { turns: 2 },
-          turns: [{ status: TurnStatus.PENDING }],
         };
       },
     },
@@ -399,12 +398,8 @@ test('ThreadsRepository.findThreadWithSingleTurn loads latest status independent
 
   const response = await repository.findThreadWithSingleTurn(threadId, turnId);
 
-  assert.deepEqual(headerQuery.include.turns, {
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 1,
-    select: { status: true },
-  });
-  assert.equal(response.thread.turns[0].status, TurnStatus.PENDING);
+  assert.equal('turns' in headerQuery.include, false);
+  assert.equal('status' in response.thread, false);
   assert.equal(response.turn.status, TurnStatus.COMPLETED);
   assert.equal(response.totalSourceCount, 0);
 });
@@ -446,11 +441,7 @@ test('ThreadsRepository.findThreads builds stable filtered pagination query', as
     include: findManyArgs.include,
   });
   assert(findManyArgs.include._count);
-  assert.deepEqual(findManyArgs.include.turns, {
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: 1,
-    select: { status: true },
-  });
+  assert.equal('turns' in findManyArgs.include, false);
   assert.deepEqual(response, []);
 });
 
@@ -511,7 +502,6 @@ test('ThreadsRepository.renameThread updates title without a normal Prisma updat
               createdAt: new Date('2026-06-04T00:00:00.000Z'),
               updatedAt: previousUpdatedAt,
               _count: { turns: 1 },
-              turns: [{ status: TurnStatus.COMPLETED }],
             };
           },
         },
@@ -622,7 +612,6 @@ test('ThreadsRepository.togglePin preserves updatedAt and returns a summary reco
               createdAt: new Date('2026-06-04T00:00:00.000Z'),
               updatedAt: previousUpdatedAt,
               _count: { turns: 1 },
-              turns: [{ status: TurnStatus.COMPLETED }],
             };
           },
         },

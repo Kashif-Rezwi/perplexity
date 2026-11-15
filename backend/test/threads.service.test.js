@@ -69,7 +69,7 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   const detail = mapThreadDetail(createThreadDetailRecord());
 
   assert.equal(detail.threadId, threadId);
-  assert.equal(detail.status, 'completed');
+  assert.equal('status' in detail, false);
   assert.equal('answerPreview' in detail, false);
   assert.equal(detail.totalSourceCount, 1);
   assert.equal(detail.turnCount, 1);
@@ -85,7 +85,7 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   assert.equal(detail.turns[0].citations[0].citationId, citationId);
 });
 
-test('mapThreadDetail follows the latest attempt through pending, failure, and retry', () => {
+test('mapThreadDetail keeps pending, failed, and retried turn statuses without a thread status', () => {
   const record = createThreadDetailRecord();
   const latestTurn = {
     ...record.turns[0],
@@ -100,13 +100,13 @@ test('mapThreadDetail follows the latest attempt through pending, failure, and r
   record._count.turns = 2;
 
   const pending = mapThreadDetail(record);
-  assert.equal(pending.status, 'running');
+  assert.equal('status' in pending, false);
   assert.equal(pending.turns[0].status, 'completed');
   assert.equal(pending.turns[0].answerMarkdown, record.turns[0].answerMarkdown);
 
   latestTurn.status = TurnStatus.FAILED;
   latestTurn.errorMessage = 'Search failed';
-  assert.equal(mapThreadDetail(record).status, 'failed');
+  assert.equal(mapThreadDetail(record).turns[1].status, 'failed');
 
   record.turns.push({
     ...latestTurn,
@@ -119,36 +119,26 @@ test('mapThreadDetail follows the latest attempt through pending, failure, and r
   record._count.turns = 3;
 
   const retried = mapThreadDetail(record);
-  assert.equal(retried.status, 'completed');
+  assert.equal('status' in retried, false);
   assert.deepEqual(retried.turns.map((turn) => turn.status), [
     'completed', 'failed', 'completed',
   ]);
 });
 
-for (const [turnStatus, expectedStatus] of [
-  [TurnStatus.PENDING, 'running'],
-  [TurnStatus.COMPLETED, 'completed'],
-  [TurnStatus.FAILED, 'failed'],
-]) {
-  test(`mapThreadSummary derives ${expectedStatus} without exposing its status-only turn`, () => {
-    const summary = mapThreadSummary(createThreadListRecord({ turnStatus }));
-
-    assert.equal(summary.status, expectedStatus);
-    assert.equal('turns' in summary, false);
-    assert.equal(summary.turnCount, 2);
-  });
-}
-
-test('thread responses keep the running fallback for a thread with no turns', () => {
+test('thread summaries omit status and threads with no turns remain valid', () => {
   const detail = createThreadDetailRecord();
   detail.turns = [];
   detail._count.turns = 0;
   const summary = createThreadListRecord();
-  summary.turns = [];
   summary._count.turns = 0;
 
-  assert.equal(mapThreadDetail(detail).status, 'running');
-  assert.equal(mapThreadSummary(summary).status, 'running');
+  const detailResponse = mapThreadDetail(detail);
+  const summaryResponse = mapThreadSummary(summary);
+  assert.equal('status' in detailResponse, false);
+  assert.deepEqual(detailResponse.turns, []);
+  assert.equal('status' in summaryResponse, false);
+  assert.equal('turns' in summaryResponse, false);
+  assert.equal(summaryResponse.turnCount, 0);
 });
 
 test('ThreadsService returns thread detail through the repository', async () => {
@@ -191,6 +181,7 @@ test('ThreadsService lists threads with defaults and nextCursor', async () => {
   assert.equal(response.items[0].threadId, threadId);
   assert.equal(response.items[0].title, 'Newest thread');
   assert.equal('answerPreview' in response.items[0], false);
+  assert.equal('status' in response.items[0], false);
   assert.equal(response.items[0].totalSourceCount, 3);
   assert.equal(response.nextCursor, threadId);
 });
@@ -355,7 +346,6 @@ function createThreadListRecord(overrides = {}) {
     createdAt,
     updatedAt,
     _count: { turns: 2 },
-    turns: [{ status: overrides.turnStatus ?? TurnStatus.COMPLETED }],
     totalSourceCount: 3,
   };
 }

@@ -28,7 +28,6 @@ function thread(
   return {
     threadId,
     title: `Thread ${threadId}`,
-    status: 'completed',
     mode: 'web',
     isPinned: false,
     pinnedAt: null,

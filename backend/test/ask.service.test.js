@@ -106,7 +106,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
   assert.equal(response.thread.threadId, threadId);
-  assert.equal(response.thread.status, 'completed');
+  assert.equal('status' in response.thread, false);
   assert.equal('answerPreview' in response.thread, false);
   assert.equal(response.thread.totalSourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
@@ -872,7 +872,7 @@ test('AskService returns its completed turn when another turn is newer', async (
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
   assert.equal(response.thread.turnCount, 2);
-  assert.equal(response.thread.status, 'running');
+  assert.equal('status' in response.thread, false);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.question, 'Explain Prisma relations');
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
