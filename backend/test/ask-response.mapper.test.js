@@ -1,14 +1,33 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const { TurnStatus } = require('@prisma/client');
 const {
+  mapAskResponse,
   mapAskTurnSummary,
 } = require('../src/ask/mappers/ask-response.mapper.ts');
 const {
   createCitationRecord,
   createSourceRecord,
   createTurnRecord,
+  createThreadRecord,
   publishedAt,
 } = require('./ask-test-helpers.js');
+
+test('mapAskResponse uses the latest status even when returning an older completed turn', () => {
+  const response = mapAskResponse({
+    thread: createThreadRecord({
+      turnCount: 2,
+      turns: [createTurnRecord({ turnStatus: TurnStatus.PENDING })],
+    }),
+    turn: createTurnRecord(),
+    totalSourceCount: 0,
+  });
+
+  assert.equal(response.thread.status, 'running');
+  assert.equal(response.thread.turnCount, 2);
+  assert.equal(response.turn.status, 'completed');
+  assert.equal('turns' in response.thread, false);
+});
 
 test('mapAskTurnSummary returns only cited source previews', () => {
   const summary = mapAskTurnSummary(

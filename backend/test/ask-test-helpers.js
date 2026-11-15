@@ -1,4 +1,4 @@
-const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
+const { ThreadMode, TurnStatus } = require('@prisma/client');
 const { ServiceUnavailableException } = require('@nestjs/common');
 const { AskService } = require('../src/ask/ask.service.ts');
 const { withTimeout } = require('../src/common/utils/with-timeout.util.ts');
@@ -245,11 +245,10 @@ function createThreadRecord(overrides = {}) {
   return {
     id: threadId,
     title: 'Explain Prisma relations',
-    status: overrides.status ?? ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     createdAt,
     updatedAt,
-    _count: { turns: turns.length },
+    _count: { turns: overrides.turnCount ?? turns.length },
     turns,
   };
 }

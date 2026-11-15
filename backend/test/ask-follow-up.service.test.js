@@ -111,7 +111,7 @@ test('AskService appends a follow-up turn with prior thread context', async () =
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          thread: createThreadRecord({ turnCount: 7 }),
           turn: completedFollowUpTurn,
           totalSourceCount: 1,
         };
@@ -254,7 +254,7 @@ test('AskService falls back to the raw follow-up question when rewrite fails', a
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          thread: createThreadRecord({ turnCount: 7 }),
           turn: completedFollowUpTurn,
           totalSourceCount: 1,
         };
@@ -385,7 +385,7 @@ test('AskService falls back to the raw follow-up question when rewrite times out
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 7 }) }),
+          thread: createThreadRecord({ turnCount: 7 }),
           turn: completedFollowUpTurn,
           totalSourceCount: 1,
         };
@@ -445,7 +445,7 @@ test('AskService rejects follow-up for a missing thread before search', async ()
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord(),
           totalSourceCount: 0,
         };

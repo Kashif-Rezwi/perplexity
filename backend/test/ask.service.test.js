@@ -95,7 +95,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions, sources: [createSourceRecord()], citations: [createCitationRecord()] }),
           totalSourceCount: 1,
         };
@@ -226,7 +226,7 @@ test('AskService streams answer deltas, persists the final turn, and emits final
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({
             answerMarkdown,
             sources: [createSourceRecord()],
@@ -356,7 +356,7 @@ test('AskService retry stream appends a new turn from the failed question', asyn
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 2 }) }),
+          thread: createThreadRecord({ turnCount: 2 }),
           turn: createTurnRecord({ answerMarkdown }),
           totalSourceCount: 0,
         };
@@ -490,7 +490,7 @@ test('AskService retry stream only uses turns before the failed turn as context'
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 4 }) }),
+          thread: createThreadRecord({ turnCount: 4 }),
           turn: createTurnRecord({
             id: turnId,
             question: failedQuestion,
@@ -657,7 +657,7 @@ test('AskService completes with empty suggestions when suggestion generation fai
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
           totalSourceCount: 0,
         };
@@ -781,7 +781,7 @@ test('AskService normalizes citation ranges before persistence', async () => {
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({
           answerMarkdown: normalizedAnswerMarkdown,
           sources: sourceInputs.map((s, i) => createSourceRecord({ id: savedSourceIds[i], ...s })),
@@ -813,9 +813,10 @@ test('AskService returns its completed turn when another turn is newer', async (
     id: '66666666-6666-4666-8666-666666666666',
     question: 'A different question',
     searchQuery: 'A different question',
-    answerMarkdown: 'A different answer.',
+    answerMarkdown: null,
+    turnStatus: TurnStatus.PENDING,
     createdAt: new Date('2026-06-04T00:06:00.000Z'),
-    completedAt: new Date('2026-06-04T00:07:00.000Z'),
+    completedAt: null,
   });
   const calls = [];
   const service = createTestAskService(
@@ -860,7 +861,7 @@ test('AskService returns its completed turn when another turn is newer', async (
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 2 }) }),
+          thread: createThreadRecord({ turns: [newerTurn], turnCount: 2 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [], sources: [], citations: [] }),
           totalSourceCount: 0,
         };
@@ -871,6 +872,7 @@ test('AskService returns its completed turn when another turn is newer', async (
   const response = await service.ask({ question: 'Explain Prisma relations' });
 
   assert.equal(response.thread.turnCount, 2);
+  assert.equal(response.thread.status, 'running');
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.question, 'Explain Prisma relations');
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
@@ -943,7 +945,7 @@ test('AskService completes successfully when search returns no sources', async (
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
           totalSourceCount: 0,
         };
@@ -1051,7 +1053,7 @@ test('AskService completes with sources and no citations when answer has no mark
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [], sources: [createSourceRecord()] }),
           totalSourceCount: 1,
         };

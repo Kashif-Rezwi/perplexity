@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { NotFoundException } = require('@nestjs/common');
-const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
+const { ThreadMode, TurnStatus } = require('@prisma/client');
 const {
   ThreadsRepository,
 } = require('../src/threads/repositories/threads.repository.ts');
@@ -9,7 +9,7 @@ const {
 const threadId = '11111111-1111-4111-8111-111111111111';
 const turnId = '22222222-2222-4222-8222-222222222222';
 
-test('ThreadsRepository.appendPendingTurnToThread marks thread running and creates a turn', async () => {
+test('ThreadsRepository.appendPendingTurnToThread creates a pending turn and updates activity', async () => {
   const repository = new ThreadsRepository({
     thread: {
       async update(args) {
@@ -27,7 +27,7 @@ test('ThreadsRepository.appendPendingTurnToThread marks thread running and creat
   assert.deepEqual(response, {
     where: { id: threadId },
     data: {
-      status: ThreadStatus.RUNNING,
+      updatedAt: response.data.updatedAt,
       turns: {
         create: {
           question: 'What about pricing?',
@@ -39,6 +39,7 @@ test('ThreadsRepository.appendPendingTurnToThread marks thread running and creat
     include: response.include,
   });
   assert(response.include.turns);
+  assert(response.data.updatedAt instanceof Date);
 });
 
 test('ThreadsRepository.completeTurn persists sources and matching citations', async () => {
@@ -161,13 +162,14 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
     {
       where: { id: threadId },
       data: {
-        status: ThreadStatus.COMPLETED,
+        updatedAt: operations[6][1].data.updatedAt,
       },
     },
   ]);
+  assert(operations[6][1].data.updatedAt instanceof Date);
 });
 
-test('ThreadsRepository.completeTurn does not overwrite thread status for an older turn', async () => {
+test('ThreadsRepository.completeTurn does not update thread activity for an older turn', async () => {
   const operations = [];
   const repository = new ThreadsRepository({
     async $transaction(callback) {
@@ -224,7 +226,7 @@ test('ThreadsRepository.completeTurn does not overwrite thread status for an old
   });
 });
 
-test('ThreadsRepository.failTurn updates the thread only when the failed turn is latest', async () => {
+test('ThreadsRepository.failTurn updates thread activity when the failed turn is latest', async () => {
   const operations = [];
   const repository = new ThreadsRepository({
     async $transaction(callback) {
@@ -261,12 +263,13 @@ test('ThreadsRepository.failTurn updates the thread only when the failed turn is
     'thread.update',
     {
       where: { id: threadId },
-      data: { status: ThreadStatus.FAILED },
+      data: { updatedAt: operations[3][1].data.updatedAt },
     },
   ]);
+  assert(operations[3][1].data.updatedAt instanceof Date);
 });
 
-test('ThreadsRepository.failTurn does not mark the thread failed for an older turn', async () => {
+test('ThreadsRepository.failTurn does not update thread activity for an older turn', async () => {
   const operations = [];
   const repository = new ThreadsRepository({
     async $transaction(callback) {
@@ -347,6 +350,65 @@ test('ThreadsRepository.completeTurn rejects mismatched thread and turn ids befo
   ]);
 });
 
+test('ThreadsRepository.findThreadDetailById orders timestamp ties by turn ID', async () => {
+  let detailQuery;
+  const repository = new ThreadsRepository({
+    thread: {
+      async findUnique(args) {
+        detailQuery = args;
+        return null;
+      },
+    },
+  });
+
+  await repository.findThreadDetailById(threadId);
+
+  assert.deepEqual(detailQuery.include.turns.orderBy, [
+    { createdAt: 'asc' }, { id: 'asc' },
+  ]);
+});
+
+test('ThreadsRepository.findThreadWithSingleTurn loads latest status independently of the selected turn', async () => {
+  let headerQuery;
+  const repository = new ThreadsRepository({
+    async $transaction(queries) {
+      return Promise.all(queries);
+    },
+    thread: {
+      async findUnique(args) {
+        headerQuery = args;
+        return {
+          id: threadId,
+          _count: { turns: 2 },
+          turns: [{ status: TurnStatus.PENDING }],
+        };
+      },
+    },
+    turn: {
+      async findFirst(args) {
+        assert.deepEqual(args.where, { id: turnId, threadId });
+        return { id: turnId, status: TurnStatus.COMPLETED };
+      },
+    },
+    source: {
+      async count() {
+        return 0;
+      },
+    },
+  });
+
+  const response = await repository.findThreadWithSingleTurn(threadId, turnId);
+
+  assert.deepEqual(headerQuery.include.turns, {
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 1,
+    select: { status: true },
+  });
+  assert.equal(response.thread.turns[0].status, TurnStatus.PENDING);
+  assert.equal(response.turn.status, TurnStatus.COMPLETED);
+  assert.equal(response.totalSourceCount, 0);
+});
+
 test('ThreadsRepository.findThreads builds stable filtered pagination query', async () => {
   let findManyArgs;
   const repository = new ThreadsRepository({
@@ -384,6 +446,11 @@ test('ThreadsRepository.findThreads builds stable filtered pagination query', as
     include: findManyArgs.include,
   });
   assert(findManyArgs.include._count);
+  assert.deepEqual(findManyArgs.include.turns, {
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 1,
+    select: { status: true },
+  });
   assert.deepEqual(response, []);
 });
 
@@ -440,11 +507,11 @@ test('ThreadsRepository.renameThread updates title without a normal Prisma updat
             return {
               id: threadId,
               title: 'Renamed thread',
-              status: ThreadStatus.COMPLETED,
               mode: ThreadMode.WEB,
               createdAt: new Date('2026-06-04T00:00:00.000Z'),
               updatedAt: previousUpdatedAt,
               _count: { turns: 1 },
+              turns: [{ status: TurnStatus.COMPLETED }],
             };
           },
         },
@@ -549,13 +616,13 @@ test('ThreadsRepository.togglePin preserves updatedAt and returns a summary reco
             return {
               id: threadId,
               title: 'Pinned thread',
-              status: ThreadStatus.COMPLETED,
               mode: ThreadMode.WEB,
               isPinned: true,
               pinnedAt: new Date('2026-06-04T00:06:00.000Z'),
               createdAt: new Date('2026-06-04T00:00:00.000Z'),
               updatedAt: previousUpdatedAt,
               _count: { turns: 1 },
+              turns: [{ status: TurnStatus.COMPLETED }],
             };
           },
         },

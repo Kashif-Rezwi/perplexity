@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { NotFoundException } = require('@nestjs/common');
-const { ThreadMode, ThreadStatus, TurnStatus } = require('@prisma/client');
-const { mapThreadDetail } = require('../src/threads/mappers/thread-response.mapper.ts');
+const { ThreadMode, TurnStatus } = require('@prisma/client');
+const { mapThreadDetail, mapThreadSummary } = require('../src/threads/mappers/thread-response.mapper.ts');
 const { ThreadsService } = require('../src/threads/threads.service.ts');
 
 const threadId = '11111111-1111-4111-8111-111111111111';
@@ -17,7 +17,6 @@ function createThreadDetailRecord() {
   return {
     id: threadId,
     title: 'What changed in Next.js 15?',
-    status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     isPinned: false,
     pinnedAt: null,
@@ -84,6 +83,72 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   ]);
   assert.equal(detail.turns[0].sources[0].sourceId, sourceId);
   assert.equal(detail.turns[0].citations[0].citationId, citationId);
+});
+
+test('mapThreadDetail follows the latest attempt through pending, failure, and retry', () => {
+  const record = createThreadDetailRecord();
+  const latestTurn = {
+    ...record.turns[0],
+    id: '55555555-5555-4555-8555-555555555555',
+    status: TurnStatus.PENDING,
+    answerMarkdown: null,
+    completedAt: null,
+    sources: [],
+    citations: [],
+  };
+  record.turns.push(latestTurn);
+  record._count.turns = 2;
+
+  const pending = mapThreadDetail(record);
+  assert.equal(pending.status, 'running');
+  assert.equal(pending.turns[0].status, 'completed');
+  assert.equal(pending.turns[0].answerMarkdown, record.turns[0].answerMarkdown);
+
+  latestTurn.status = TurnStatus.FAILED;
+  latestTurn.errorMessage = 'Search failed';
+  assert.equal(mapThreadDetail(record).status, 'failed');
+
+  record.turns.push({
+    ...latestTurn,
+    id: '66666666-6666-4666-8666-666666666666',
+    status: TurnStatus.COMPLETED,
+    answerMarkdown: 'Retry succeeded.',
+    errorMessage: null,
+    completedAt,
+  });
+  record._count.turns = 3;
+
+  const retried = mapThreadDetail(record);
+  assert.equal(retried.status, 'completed');
+  assert.deepEqual(retried.turns.map((turn) => turn.status), [
+    'completed', 'failed', 'completed',
+  ]);
+});
+
+for (const [turnStatus, expectedStatus] of [
+  [TurnStatus.PENDING, 'running'],
+  [TurnStatus.COMPLETED, 'completed'],
+  [TurnStatus.FAILED, 'failed'],
+]) {
+  test(`mapThreadSummary derives ${expectedStatus} without exposing its status-only turn`, () => {
+    const summary = mapThreadSummary(createThreadListRecord({ turnStatus }));
+
+    assert.equal(summary.status, expectedStatus);
+    assert.equal('turns' in summary, false);
+    assert.equal(summary.turnCount, 2);
+  });
+}
+
+test('thread responses keep the running fallback for a thread with no turns', () => {
+  const detail = createThreadDetailRecord();
+  detail.turns = [];
+  detail._count.turns = 0;
+  const summary = createThreadListRecord();
+  summary.turns = [];
+  summary._count.turns = 0;
+
+  assert.equal(mapThreadDetail(detail).status, 'running');
+  assert.equal(mapThreadSummary(summary).status, 'running');
 });
 
 test('ThreadsService returns thread detail through the repository', async () => {
@@ -284,13 +349,13 @@ function createThreadListRecord(overrides = {}) {
   return {
     id: overrides.id ?? threadId,
     title: overrides.title ?? 'What changed in Next.js 15?',
-    status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     isPinned: overrides.isPinned ?? false,
     pinnedAt: overrides.pinnedAt ?? null,
     createdAt,
     updatedAt,
     _count: { turns: 2 },
+    turns: [{ status: overrides.turnStatus ?? TurnStatus.COMPLETED }],
     totalSourceCount: 3,
   };
 }

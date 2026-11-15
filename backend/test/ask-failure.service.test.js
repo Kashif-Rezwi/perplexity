@@ -62,7 +62,7 @@ test('AskService marks the appended follow-up turn failed when search fails', as
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord(),
           totalSourceCount: 0,
         };
@@ -401,7 +401,7 @@ test('AskService completes with empty suggestions when suggestion generation tim
       async findThreadWithSingleTurn(id, tId) {
         calls.push(['findThreadWithSingleTurn', id, tId]);
         return {
-          thread: createThreadRecord({ turns: Array.from({ length: 1 }) }),
+          thread: createThreadRecord({ turnCount: 1 }),
           turn: createTurnRecord({ answerMarkdown, suggestedFollowUpQuestions: [] }),
           totalSourceCount: 0,
         };
