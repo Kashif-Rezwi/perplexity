@@ -7,12 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ThreadStatus {
-  RUNNING
-  COMPLETED
-  FAILED
-}
-
 enum ThreadMode {
   WEB
 }
@@ -20,7 +14,6 @@ enum ThreadMode {
 model Thread {
   id            String   @id @default(uuid()) @db.Uuid
   title         String   @db.VarChar(80)
-  status        ThreadStatus @default(RUNNING)
   mode          ThreadMode   @default(WEB)
   isPinned      Boolean  @default(false)
   pinnedAt      DateTime? @db.Timestamp(6)

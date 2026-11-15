@@ -162,7 +162,7 @@ The stream path follows this order. The JSON ask route shares query preparation 
    With context, the fast model receives at most three recent turns. Each prior answer uses 300 characters before an optional ellipsis.
    Rewrite failure falls back to the original question.
 4. **Create the turn:** The repository saves the original question and resolved `searchQuery` in a new `PENDING` turn.
-   It creates a thread when necessary and sets the thread to `RUNNING`.
+   It also creates a thread when the question starts a new conversation.
 5. **Start the stream:** Only after preparation does the controller open SSE and emit `start` with the saved identifiers.
    The browser seeds a temporary cached turn. For a new thread, its `start` handler navigates to `/thread/[threadId]`.
 6. **Search:** `TavilySearchService` searches with the resolved query.
@@ -172,7 +172,7 @@ The stream path follows this order. The JSON ask route shares query preparation 
 8. **Prepare completion:** The citation helper normalizes supported number groups and extracts valid source numbers.
    The fast model then generates suggested follow-up questions. Suggestion failure returns an empty array without failing the answer.
 9. **Save:** A transaction inserts sources and matching citations, then completes the turn.
-   It updates the thread status only if this turn is latest.
+   It updates the thread's activity timestamp only if this turn is latest.
 10. **Finish:** The backend reloads the saved turn and emits `final`, completion progress, and `done`.
     The frontend replaces temporary cached text with the saved result and invalidates thread-list queries.
 
@@ -194,7 +194,11 @@ Zustand retains up to 50 local history summaries for optimistic display and fall
 
 ### Status, recovery, and current limits
 
-Thread status describes the latest activity. A failed latest turn can coexist with earlier completed answers.
+Thread status is derived from the latest turn rather than stored on Thread.
+`PENDING` maps to `running`; the terminal values map to `completed` and `failed`.
+Latest means greatest `createdAt`, with `id` breaking ties; a thread with no turns reports `running`.
+History summaries load only that turn's status and the turn count, not full answers.
+A failed latest turn can coexist with earlier completed answers.
 A successful appended retry can restore the thread's completed state. This follows the [recorded status decision](FINDINGS.md#decision-register).
 
 The client rejects a stream that ends without `final` or `error`. It can refetch detail after a failure with known turn identifiers.

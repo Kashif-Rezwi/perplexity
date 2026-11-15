@@ -355,7 +355,11 @@ A failed latest turn can coexist with earlier successful answers; a successful
 appended retry can restore `COMPLETED`. Each turn retains its own status/history.
 This avoids presenting the thread status as an aggregate verdict on every answer.
 
-The latest-turn checks and cleanup do not enforce a single pending turn or
+The API now derives this status from the latest Turn instead of storing a second
+status on Thread. Turn ordering uses `createdAt` and then `id`. The latest-turn
+write check now preserves activity timestamps rather than updating a stored status.
+
+The activity checks and cleanup do not enforce a single pending turn or
 guarantee recovery after process termination. Those limits remain ARCH-02/ARCH-06.
 Evidence: [repository tests](../backend/test/threads.repository.test.js),
 [ask service](../backend/src/ask/ask.service.ts), and

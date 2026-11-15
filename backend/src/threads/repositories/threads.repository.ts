@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
+import { Prisma, ThreadMode, TurnStatus } from '@prisma/client';
 import { DatabaseService } from '../../database/database.service';
 import type {
   AppendPendingTurnToThreadInput,
@@ -38,7 +38,6 @@ export class ThreadsRepository {
     return this.database.thread.create({
       data: {
         title: input.title,
-        status: ThreadStatus.RUNNING,
         turns: {
           create: {
             question: input.question,
@@ -57,7 +56,7 @@ export class ThreadsRepository {
     return this.database.thread.update({
       where: { id: input.threadId },
       data: {
-        status: ThreadStatus.RUNNING,
+        updatedAt: new Date(),
         turns: {
           create: {
             question: input.question,
@@ -89,7 +88,7 @@ export class ThreadsRepository {
       await this.completeTurnRecord(tx, input);
 
       if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
-        await this.completeThreadRecord(tx, input.threadId);
+        await this.updateThreadActivity(tx, input.threadId);
       }
     });
   }
@@ -100,7 +99,7 @@ export class ThreadsRepository {
       await this.failTurnRecord(tx, input);
 
       if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
-        await this.failThreadRecord(tx, input.threadId);
+        await this.updateThreadActivity(tx, input.threadId);
       }
     });
   }
@@ -399,14 +398,14 @@ export class ThreadsRepository {
     });
   }
 
-  private async completeThreadRecord(
+  private async updateThreadActivity(
     tx: RepositoryTransaction,
     threadId: string,
   ): Promise<void> {
     await tx.thread.update({
       where: { id: threadId },
       data: {
-        status: ThreadStatus.COMPLETED,
+        updatedAt: new Date(),
       },
     });
   }
@@ -421,18 +420,6 @@ export class ThreadsRepository {
         status: TurnStatus.FAILED,
         errorMessage: input.errorMessage,
         completedAt: new Date(),
-      },
-    });
-  }
-
-  private async failThreadRecord(
-    tx: RepositoryTransaction,
-    threadId: string,
-  ): Promise<void> {
-    await tx.thread.update({
-      where: { id: threadId },
-      data: {
-        status: ThreadStatus.FAILED,
       },
     });
   }

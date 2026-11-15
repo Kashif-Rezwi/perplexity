@@ -80,13 +80,18 @@ without loading every answer.
 `isPinned` and `pinnedAt` support pinning. `createdAt` and `updatedAt` support
 history ordering. The only stored mode right now is `WEB`.
 
-The status follows the latest turn. When an older turn finishes, the repository
-avoids replacing the newer turn's status. This check alone does not prevent two
-requests from running at the same time.
+Thread has no stored status. The API reads it from the latest Turn: `PENDING`
+becomes `running`, `COMPLETED` becomes `completed`, and `FAILED` becomes `failed`.
+A thread with no turns falls back to `running`. I keep the status in one place
+so an older answer finishing cannot replace a newer attempt's status.
 
-Thread status starts as `RUNNING` and describes the latest activity. A failed
-latest attempt can exist alongside older successful answers. This is the
+A failed latest attempt can exist alongside older successful answers. This is the
 [status decision already recorded](../DESIGN_HISTORY.md#keep-thread-status-as-latest-activity).
+The latest turn is chosen by `createdAt`, then `id` when timestamps match.
+
+Appending a turn updates the thread's activity time. Completion or failure
+updates it only when that turn is still latest. These checks do not prevent
+concurrent requests.
 
 `turns Turn[]` is how Prisma represents the relationship. PostgreSQL does not
 store an array of Turn rows in Thread; it connects them through `Turn.threadId`.
@@ -151,7 +156,8 @@ For example, a question retrieves two sources and the answer uses only `[1]`:
 2. Search and answer generation run while that pending Turn already exists.
 3. Once the answer is ready, `completeTurn` checks that the Turn belongs to the
    Thread. It saves both Sources, saves one Citation for Source 1, marks the Turn
-   `COMPLETED`, and marks the Thread `COMPLETED` if this is its latest Turn.
+   `COMPLETED`, and updates the Thread's activity time if this is its latest Turn.
+   The API derives `completed` from that Turn when reading the Thread.
 4. A follow-up adds another Turn. Its source numbering can start at 1 again.
 
 After the first answer, this example has one Thread, one Turn, two Sources,
@@ -200,6 +206,10 @@ queries, but real PostgreSQL behavior still needs the Phase 4 integration tests.
   adds pin fields and history indexes.
 - [Source pagination](../../backend/prisma/migrations/20260624090000_add_source_pagination_indexes/migration.sql):
   adds indexes for source-list ordering.
+- [Preview removal](../../backend/prisma/migrations/20261115000000_remove_thread_answer_preview/migration.sql):
+  removes the unused thread preview.
+- [Stored status removal](../../backend/prisma/migrations/20261115010000_remove_stored_thread_status/migration.sql):
+  removes `Thread.status` and its enum. Turn statuses and existing history stay intact.
 
 References: [Prisma 6 relationships and deletion rules](https://www.prisma.io/docs/orm/v6/prisma-schema/data-model/relations/referential-actions)
 and [Prisma 6 indexes](https://www.prisma.io/docs/orm/v6/prisma-schema/data-model/indexes).

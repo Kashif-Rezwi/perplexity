@@ -2,14 +2,8 @@ import type {
   ThreadWithSingleTurnRecord,
   TurnDetailRecord,
 } from '../../threads/types/threads.types';
-import type {
-  ThreadSummaryItem,
-} from '../../threads/types/threads.types';
-import {
-  THREAD_MODE_MAP,
-  THREAD_STATUS_MAP,
-  TURN_STATUS_MAP,
-} from '../../threads/types/threads.types';
+import { TURN_STATUS_MAP } from '../../threads/types/threads.types';
+import { mapHeader } from '../../threads/mappers/thread-response.mapper';
 import type {
   AskCitationReference,
   AskResponse,
@@ -18,7 +12,7 @@ import type {
 
 export function mapAskResponse(record: ThreadWithSingleTurnRecord): AskResponse {
   return {
-    thread: mapAskThreadSummary(record.thread, record.totalSourceCount),
+    thread: mapHeader(record.thread, record.totalSourceCount),
     turn: mapAskTurnSummary(record.turn),
   };
 }
@@ -39,24 +33,6 @@ export function mapAskTurnSummary(turn: TurnDetailRecord): AskTurnSummary {
     citations,
     createdAt: turn.createdAt.toISOString(),
     completedAt: turn.completedAt?.toISOString() ?? null,
-  };
-}
-
-function mapAskThreadSummary(
-  thread: ThreadWithSingleTurnRecord['thread'],
-  totalSourceCount: number,
-): ThreadSummaryItem {
-  return {
-    threadId: thread.id,
-    title: thread.title,
-    status: THREAD_STATUS_MAP[thread.status],
-    mode: THREAD_MODE_MAP[thread.mode],
-    isPinned: thread.isPinned,
-    pinnedAt: thread.pinnedAt?.toISOString() ?? null,
-    totalSourceCount,
-    turnCount: thread._count.turns,
-    createdAt: thread.createdAt.toISOString(),
-    updatedAt: thread.updatedAt.toISOString(),
   };
 }
 

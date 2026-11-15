@@ -1,4 +1,4 @@
-import { ThreadMode, ThreadStatus, TurnStatus } from '@prisma/client';
+import { ThreadMode, TurnStatus } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { CreateTurnSourceInput } from '../../sources/types/sources.types';
 
@@ -88,11 +88,11 @@ export type TurnDetailRecord = Prisma.TurnGetPayload<{
   include: typeof turnDetailInclude;
 }>;
 
-// Load turns oldest first with their sources/citations, plus the turn count.
+// Load turns oldest first; ID breaks timestamp ties so the latest turn is last.
 export const threadDetailInclude = {
   _count: { select: { turns: true } },
   turns: {
-    orderBy: { createdAt: 'asc' as const },
+    orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }],
     include: turnDetailInclude,
   },
 } satisfies Prisma.ThreadInclude;
@@ -102,16 +102,21 @@ export type ThreadDetailRecord = Prisma.ThreadGetPayload<{
   include: typeof threadDetailInclude;
 }>;
 
-// Thread data and one selected turn, with a source count for the whole thread.
+// Thread header/latest status and one selected turn, plus the total source count.
 export type ThreadWithSingleTurnRecord = {
-  thread: Omit<ThreadDetailRecord, 'turns'>;
+  thread: ThreadListBaseRecord;
   turn: TurnDetailRecord;
   totalSourceCount: number;
 };
 
-// Load the turn count alongside each thread, without loading full turns.
+// Load the turn count and only the latest turn's status for thread summaries.
 export const threadListInclude = {
   _count: { select: { turns: true } },
+  turns: {
+    orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+    take: 1,
+    select: { status: true },
+  },
 } satisfies Prisma.ThreadInclude;
 
 // Prisma result type for a thread loaded with threadListInclude.
@@ -124,7 +129,7 @@ export type ThreadListRecord = ThreadListBaseRecord & {
   totalSourceCount: number;
 };
 
-// Database thread fields and turn count used by the shared response mapper.
+// Thread fields, turn count, and latest status used by the shared response mapper.
 export type ThreadHeaderRecord = ThreadListBaseRecord;
 
 // ==========================================
@@ -132,7 +137,7 @@ export type ThreadHeaderRecord = ThreadListBaseRecord;
 // ==========================================
 // Data returned by thread APIs after mapping database records.
 
-// Lowercase thread status values exposed by the API.
+// Thread API status is derived from the latest turn; it is not stored on Thread.
 export type ApiThreadStatus = 'running' | 'completed' | 'failed';
 
 // Thread modes returned by the API; only web is implemented.
@@ -205,11 +210,11 @@ export type ThreadListResponse = {
   nextCursor: string | null;
 };
 
-// Convert database thread statuses such as RUNNING into API strings like running.
-export const THREAD_STATUS_MAP: Record<ThreadStatus, ApiThreadStatus> = {
-  [ThreadStatus.RUNNING]: 'running',
-  [ThreadStatus.COMPLETED]: 'completed',
-  [ThreadStatus.FAILED]: 'failed',
+// Keep the thread API's running/completed/failed values using the latest turn.
+export const THREAD_STATUS_FROM_TURN: Record<TurnStatus, ApiThreadStatus> = {
+  [TurnStatus.PENDING]: 'running',
+  [TurnStatus.COMPLETED]: 'completed',
+  [TurnStatus.FAILED]: 'failed',
 };
 
 // Converts Prisma thread modes into API mode values.

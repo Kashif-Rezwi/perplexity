@@ -1,3 +1,4 @@
+// Derived from the latest turn by the API; not stored on the Thread database row.
 export type ApiThreadStatus = 'running' | 'completed' | 'failed';
 export type ApiThreadMode = 'web';
 export type ApiTurnStatus = 'pending' | 'completed' | 'failed';

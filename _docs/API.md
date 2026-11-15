@@ -423,8 +423,9 @@ Missing or already-deleted IDs are ignored so bulk delete is idempotent.
 ## GET /perplexity/threads/:threadId
 
 Loads a full research session with all turns, sources, and citations.
-The response has no turn limit or cursor. Turns sort by `createdAt` ascending; source and citation arrays sort by `citationNumber` ascending.
-Thread status describes the latest activity, not the success of every turn. A failed latest turn leaves earlier completed answers available.
+The response has no turn limit or cursor. Turns sort by `createdAt`, then `id`, ascending; source and citation arrays sort by `citationNumber` ascending.
+Thread status is derived from the latest turn: `PENDING` becomes `running`, `COMPLETED` becomes `completed`, and `FAILED` becomes `failed`. A thread with no turns reports `running`.
+A failed latest turn leaves earlier completed answers available. The same derived status is returned in all thread summaries, including ask responses.
 
 Response:
 

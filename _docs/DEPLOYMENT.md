@@ -313,12 +313,14 @@ Use an immutable release tag or digest, not only `latest`.
 
 ### Step 3: run the migration release job
 
-For `20261115000000_remove_thread_answer_preview`, drain in-flight requests and
-stop all older backend instances before applying the migration. Their Prisma
-clients still read the removed column. Apply the migration, then start the new
+For the thread preview and stored-status removal migrations
+(`20261115000000` and `20261115010000`), drain in-flight requests and stop all
+older backend instances before applying them. Their Prisma clients still read
+the removed columns. Apply the migrations, then start the new
 backend and deploy the matching frontend. Existing questions, answers, sources,
-and citations stay intact; stored thread previews are discarded. Rolling back
-to the older backend requires restoring the column first.
+citations, and turn statuses stay intact; stored thread previews and the duplicate
+thread status are discarded. Rolling back to the older backend requires restoring
+the dropped columns and `ThreadStatus` enum first.
 
 Run exactly one short-lived job using the new migration image and a direct
 database URL:
