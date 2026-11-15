@@ -172,7 +172,7 @@ The stream path follows this order. The JSON ask route shares query preparation 
 8. **Prepare completion:** The citation helper normalizes supported number groups and extracts valid source numbers.
    The fast model then generates suggested follow-up questions. Suggestion failure returns an empty array without failing the answer.
 9. **Save:** A transaction inserts sources and matching citations, then completes the turn.
-   It updates the thread preview and status only if this turn is latest.
+   It updates the thread status only if this turn is latest.
 10. **Finish:** The backend reloads the saved turn and emits `final`, completion progress, and `done`.
     The frontend replaces temporary cached text with the saved result and invalidates thread-list queries.
 

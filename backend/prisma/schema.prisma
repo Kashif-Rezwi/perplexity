@@ -20,7 +20,6 @@ enum ThreadMode {
 model Thread {
   id            String   @id @default(uuid()) @db.Uuid
   title         String   @db.VarChar(80)
-  answerPreview String?  @db.VarChar(300)
   status        ThreadStatus @default(RUNNING)
   mode          ThreadMode   @default(WEB)
   isPinned      Boolean  @default(false)

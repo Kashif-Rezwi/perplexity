@@ -89,11 +89,7 @@ export class ThreadsRepository {
       await this.completeTurnRecord(tx, input);
 
       if (await this.isLatestTurn(tx, input.threadId, input.turnId)) {
-        await this.completeThreadRecord(
-          tx,
-          input.threadId,
-          input.answerPreview,
-        );
+        await this.completeThreadRecord(tx, input.threadId);
       }
     });
   }
@@ -406,12 +402,10 @@ export class ThreadsRepository {
   private async completeThreadRecord(
     tx: RepositoryTransaction,
     threadId: string,
-    answerPreview: string,
   ): Promise<void> {
     await tx.thread.update({
       where: { id: threadId },
       data: {
-        answerPreview,
         status: ThreadStatus.COMPLETED,
       },
     });

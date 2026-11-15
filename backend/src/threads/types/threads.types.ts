@@ -26,7 +26,6 @@ export type CompleteTurnInput = {
   threadId: string;
   turnId: string;
   answerMarkdown: string;
-  answerPreview: string;
   sources: CreateTurnSourceInput[];
   citationNumbers: number[];
   suggestedFollowUpQuestions: string[];
@@ -148,7 +147,6 @@ export type ThreadSummaryItem = {
   title: string;
   status: ApiThreadStatus;
   mode: ApiThreadMode;
-  answerPreview: string | null;
   isPinned: boolean;
   pinnedAt: string | null;
   totalSourceCount: number;

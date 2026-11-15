@@ -50,14 +50,13 @@ ask -> preparePendingAsk -> searchSources -> generateAnswer -> completeAskTurn
   [controller](../../backend/src/ask/ask.controller.ts).
 - **Main flow:** [ask service](../../backend/src/ask/ask.service.ts) and
   [input/output types](../../backend/src/ask/types/ask.types.ts).
-- **Response details:** [title and preview helpers](../../backend/src/ask/utils/ask-text.util.ts)
+- **Response details:** [title helper](../../backend/src/ask/utils/ask-text.util.ts)
   and [response mapper](../../backend/src/ask/mappers/ask-response.mapper.ts).
 
 The JSON route returns one completed response. The browser uses the streaming
 route, which sends progress and answer text as the work happens.
 
 Tests: [ask flow](../../backend/test/ask.service.test.js),
-[previews](../../backend/test/ask-preview.service.test.js),
 [response mapping](../../backend/test/ask-response.mapper.test.js), and
 [shared test data and mocks](../../backend/test/ask-test-helpers.js).
 

@@ -7,7 +7,6 @@ export type ThreadSummaryItem = {
   title: string;
   status: ApiThreadStatus;
   mode: ApiThreadMode;
-  answerPreview: string | null;
   isPinned: boolean;
   pinnedAt: string | null;
   totalSourceCount: number;

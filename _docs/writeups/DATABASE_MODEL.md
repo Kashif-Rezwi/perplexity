@@ -75,14 +75,14 @@ saves one mapping per used source number in a turn.
 
 ## Thread - the conversation
 
-`id` identifies the conversation. `title` and `answerPreview` give the history
-list enough information to display a short summary without loading every answer.
+`id` identifies the conversation. `title` gives the history list a label
+without loading every answer.
 `isPinned` and `pinnedAt` support pinning. `createdAt` and `updatedAt` support
 history ordering. The only stored mode right now is `WEB`.
 
-The summary needs to stay in sync with the latest turn. When an older turn
-finishes, the repository avoids replacing the newer turn's summary. This check
-alone does not prevent two requests from running at the same time.
+The status follows the latest turn. When an older turn finishes, the repository
+avoids replacing the newer turn's status. This check alone does not prevent two
+requests from running at the same time.
 
 Thread status starts as `RUNNING` and describes the latest activity. A failed
 latest attempt can exist alongside older successful answers. This is the
@@ -151,7 +151,7 @@ For example, a question retrieves two sources and the answer uses only `[1]`:
 2. Search and answer generation run while that pending Turn already exists.
 3. Once the answer is ready, `completeTurn` checks that the Turn belongs to the
    Thread. It saves both Sources, saves one Citation for Source 1, marks the Turn
-   `COMPLETED`, and updates the Thread summary if this is its latest Turn.
+   `COMPLETED`, and marks the Thread `COMPLETED` if this is its latest Turn.
 4. A follow-up adds another Turn. Its source numbering can start at 1 again.
 
 After the first answer, this example has one Thread, one Turn, two Sources,

@@ -25,10 +25,7 @@ import type {
   AskStreamEvent,
   AskStreamProgressStage,
 } from './types/ask-stream.types';
-import {
-  createAnswerPreview,
-  createThreadTitle,
-} from './utils/ask-text.util';
+import { createThreadTitle } from './utils/ask-text.util';
 
 type PendingAskContext = Awaited<ReturnType<AskService['preparePendingAsk']>>;
 
@@ -213,7 +210,6 @@ export class AskService {
       threadId: thread.id,
       turnId: turn.id,
       answerMarkdown,
-      answerPreview: createAnswerPreview(answerMarkdown),
       sources,
       citationNumbers: answerCitations.citationNumbers,
       suggestedFollowUpQuestions,

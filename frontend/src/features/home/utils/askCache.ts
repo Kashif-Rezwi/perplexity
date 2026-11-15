@@ -44,7 +44,6 @@ export function createStreamingThread(
     title: event.question,
     status: 'running',
     mode: event.mode,
-    answerPreview: null,
     isPinned: false,
     pinnedAt: null,
     totalSourceCount: 0,

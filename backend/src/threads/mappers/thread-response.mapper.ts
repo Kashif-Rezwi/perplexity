@@ -67,7 +67,6 @@ export function mapHeader(thread: ThreadHeaderRecord, totalSourceCount: number):
     title: thread.title,
     status: THREAD_STATUS_MAP[thread.status],
     mode: THREAD_MODE_MAP[thread.mode],
-    answerPreview: thread.answerPreview,
     isPinned: thread.isPinned,
     pinnedAt: thread.pinnedAt?.toISOString() ?? null,
     totalSourceCount,
