@@ -42,7 +42,6 @@ export function createStreamingThread(
   return {
     threadId: event.threadId,
     title: event.question,
-    status: 'running',
     mode: event.mode,
     isPinned: false,
     pinnedAt: null,
@@ -112,7 +111,6 @@ export function appendStreamingTurnToThread(
 
       return {
         ...existing,
-        status: 'running',
         turnCount: turnAlreadyPresent
           ? existing.turnCount
           : existing.turnCount + 1,
@@ -158,7 +156,6 @@ export function markStreamingTurnFailed(
 
       return {
         ...existing,
-        status: 'failed',
         turns: existing.turns.map((turn) =>
           turn.turnId === turnId
             ? {

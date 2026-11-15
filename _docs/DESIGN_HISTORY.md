@@ -355,9 +355,12 @@ A failed latest turn can coexist with earlier successful answers; a successful
 appended retry can restore `COMPLETED`. Each turn retains its own status/history.
 This avoids presenting the thread status as an aggregate verdict on every answer.
 
-The API now derives this status from the latest Turn instead of storing a second
-status on Thread. Turn ordering uses `createdAt` and then `id`. The latest-turn
-write check now preserves activity timestamps rather than updating a stored status.
+**Update, 2026-11-15:** the separate thread status was removed from both the
+database and API because the current app uses turn statuses. An intermediate
+implementation derived it from the latest Turn; that extra response field was
+also removed. Each Turn still keeps its own status, including failed attempts
+and retries. Turn ordering uses `createdAt` and then `id`. The latest-turn write
+check preserves activity timestamps for history ordering.
 
 The activity checks and cleanup do not enforce a single pending turn or
 guarantee recovery after process termination. Those limits remain ARCH-02/ARCH-06.

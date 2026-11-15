@@ -102,21 +102,16 @@ export type ThreadDetailRecord = Prisma.ThreadGetPayload<{
   include: typeof threadDetailInclude;
 }>;
 
-// Thread header/latest status and one selected turn, plus the total source count.
+// Thread header and one selected turn, plus the total source count.
 export type ThreadWithSingleTurnRecord = {
   thread: ThreadListBaseRecord;
   turn: TurnDetailRecord;
   totalSourceCount: number;
 };
 
-// Load the turn count and only the latest turn's status for thread summaries.
+// Load the turn count without loading turns for thread summaries.
 export const threadListInclude = {
   _count: { select: { turns: true } },
-  turns: {
-    orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
-    take: 1,
-    select: { status: true },
-  },
 } satisfies Prisma.ThreadInclude;
 
 // Prisma result type for a thread loaded with threadListInclude.
@@ -129,16 +124,13 @@ export type ThreadListRecord = ThreadListBaseRecord & {
   totalSourceCount: number;
 };
 
-// Thread fields, turn count, and latest status used by the shared response mapper.
+// Thread fields and turn count used by the shared response mapper.
 export type ThreadHeaderRecord = ThreadListBaseRecord;
 
 // ==========================================
 // Response Types
 // ==========================================
 // Data returned by thread APIs after mapping database records.
-
-// Thread API status is derived from the latest turn; it is not stored on Thread.
-export type ApiThreadStatus = 'running' | 'completed' | 'failed';
 
 // Thread modes returned by the API; only web is implemented.
 export type ApiThreadMode = 'web';
@@ -150,7 +142,6 @@ export type ApiTurnStatus = 'pending' | 'completed' | 'failed';
 export type ThreadSummaryItem = {
   threadId: string;
   title: string;
-  status: ApiThreadStatus;
   mode: ApiThreadMode;
   isPinned: boolean;
   pinnedAt: string | null;
@@ -208,13 +199,6 @@ export type ThreadDetailResponse = ThreadSummaryItem & {
 export type ThreadListResponse = {
   items: ThreadSummaryItem[];
   nextCursor: string | null;
-};
-
-// Keep the thread API's running/completed/failed values using the latest turn.
-export const THREAD_STATUS_FROM_TURN: Record<TurnStatus, ApiThreadStatus> = {
-  [TurnStatus.PENDING]: 'running',
-  [TurnStatus.COMPLETED]: 'completed',
-  [TurnStatus.FAILED]: 'failed',
 };
 
 // Converts Prisma thread modes into API mode values.

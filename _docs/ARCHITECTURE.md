@@ -194,12 +194,12 @@ Zustand retains up to 50 local history summaries for optimistic display and fall
 
 ### Status, recovery, and current limits
 
-Thread status is derived from the latest turn rather than stored on Thread.
-`PENDING` maps to `running`; the terminal values map to `completed` and `failed`.
-Latest means greatest `createdAt`, with `id` breaking ties; a thread with no turns reports `running`.
-History summaries load only that turn's status and the turn count, not full answers.
-A failed latest turn can coexist with earlier completed answers.
-A successful appended retry can restore the thread's completed state. This follows the [recorded status decision](FINDINGS.md#decision-register).
+Status is stored and returned only on turns. The UI uses each turn's status for
+loading, errors, retry actions, and completed-answer controls. Thread summaries
+carry no status and load only the turn count, without fetching turns or answers.
+Turns sort by `createdAt`, with `id` breaking ties. A failed turn can coexist with
+earlier completed answers; a retry adds a separate turn with its own status.
+The [status decision record](FINDINGS.md#decision-register) records this simplification.
 
 The client rejects a stream that ends without `final` or `error`. It can refetch detail after a failure with known turn identifiers.
 The ask hook aborts on unmount. The backend passes disconnect cancellation to answer generation and attempts pending-turn failure cleanup.

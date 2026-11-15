@@ -60,7 +60,6 @@ Response:
   "thread": {
     "threadId": "uuid",
     "title": "What changed in Next.js 15?",
-    "status": "completed",
     "mode": "web",
     "isPinned": false,
     "pinnedAt": null,
@@ -276,7 +275,6 @@ Response:
     {
       "threadId": "uuid",
       "title": "What changed in Next.js 15?",
-      "status": "completed",
       "mode": "web",
       "isPinned": false,
       "pinnedAt": null,
@@ -318,7 +316,6 @@ Response:
   {
     "threadId": "uuid",
     "title": "What changed in Next.js 15?",
-    "status": "completed",
     "mode": "web",
     "isPinned": true,
     "pinnedAt": "2026-06-04T00:00:00.000Z",
@@ -348,7 +345,6 @@ Response:
 {
   "threadId": "uuid",
   "title": "Renamed thread title",
-  "status": "completed",
   "mode": "web",
   "isPinned": false,
   "pinnedAt": null,
@@ -384,7 +380,6 @@ Response:
 {
   "threadId": "uuid",
   "title": "What changed in Next.js 15?",
-  "status": "completed",
   "mode": "web",
   "isPinned": true,
   "pinnedAt": "2026-06-04T00:00:00.000Z",
@@ -424,8 +419,7 @@ Missing or already-deleted IDs are ignored so bulk delete is idempotent.
 
 Loads a full research session with all turns, sources, and citations.
 The response has no turn limit or cursor. Turns sort by `createdAt`, then `id`, ascending; source and citation arrays sort by `citationNumber` ascending.
-Thread status is derived from the latest turn: `PENDING` becomes `running`, `COMPLETED` becomes `completed`, and `FAILED` becomes `failed`. A thread with no turns reports `running`.
-A failed latest turn leaves earlier completed answers available. The same derived status is returned in all thread summaries, including ask responses.
+Status belongs to each turn, not the thread summary. A failed turn leaves earlier completed answers available. Thread summaries in every endpoint, including ask responses, omit `status`.
 
 Response:
 
@@ -433,7 +427,6 @@ Response:
 {
   "threadId": "uuid",
   "title": "What changed in Next.js 15?",
-  "status": "completed",
   "mode": "web",
   "isPinned": false,
   "pinnedAt": null,

@@ -11,7 +11,6 @@ import type {
 } from '../types/threads.types';
 import {
   THREAD_MODE_MAP,
-  THREAD_STATUS_FROM_TURN,
   TURN_STATUS_MAP,
 } from '../types/threads.types';
 
@@ -62,13 +61,9 @@ export function mapTurnDetail(turn: TurnDetailRecord): TurnItem {
 }
 
 export function mapHeader(thread: ThreadHeaderRecord, totalSourceCount: number): ThreadSummaryItem {
-  // Detail has all turns oldest first; summaries have only the latest turn.
-  const latestTurn = thread.turns[thread.turns.length - 1];
-
   return {
     threadId: thread.id,
     title: thread.title,
-    status: latestTurn ? THREAD_STATUS_FROM_TURN[latestTurn.status] : 'running',
     mode: THREAD_MODE_MAP[thread.mode],
     isPinned: thread.isPinned,
     pinnedAt: thread.pinnedAt?.toISOString() ?? null,

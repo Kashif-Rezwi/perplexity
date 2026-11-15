@@ -102,7 +102,7 @@ readiness pass. Research Intelligence scoping begins only after this track.
 - **Serves the goal:** caching and guardrail decisions directly shape V4 economics — deep research multiplies Tavily + Groq spend, so cost posture must be decided before designing it.
 - **Outcomes (recorded in [FINDINGS.md](FINDINGS.md) Decision Register):**
   1. **Answer-level caching rejected** — the recorded rationale prioritizes freshness and expects low reuse for contextual questions. This is a decision, not a measured cache-hit result. Revisit search-result caching in V4 if research loops show actual query overlap.
-  2. **Thread failure semantics kept** — thread status = latest-activity state; self-heals on retry; the per-turn failed card is the real user surface. Rationale documented in Phase 3.
+  2. **Thread failure semantics originally kept** — Phase 3 recorded thread status as latest activity. **Update, 2026-11-15:** thread status was removed from storage and API responses; individual turn statuses remain the user-facing source of state.
   3. **Demo posture: app-level demo-gate auth + rate limiting** before the LinkedIn launch: a single env-configured credential, `/login`, signed HttpOnly session cookie, global `/perplexity/*` guard, and strict ask limits. These are planned Phase-5 controls; full multi-user auth remains V5. Backend-exposure verification is still Phase-4 work.
   4. **Credit-based usage clarified** — an intention, never built; consciously deferred (covered by V5 Billing/Limits).
 - **Exit:** every Decision Register row carries a recorded outcome. ✔ Met.

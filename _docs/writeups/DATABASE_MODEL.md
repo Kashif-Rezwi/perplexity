@@ -80,14 +80,11 @@ without loading every answer.
 `isPinned` and `pinnedAt` support pinning. `createdAt` and `updatedAt` support
 history ordering. The only stored mode right now is `WEB`.
 
-Thread has no stored status. The API reads it from the latest Turn: `PENDING`
-becomes `running`, `COMPLETED` becomes `completed`, and `FAILED` becomes `failed`.
-A thread with no turns falls back to `running`. I keep the status in one place
-so an older answer finishing cannot replace a newer attempt's status.
+Thread has no status in the database or API. Each Turn keeps its own status;
+that is what the app uses for loading, errors, retries, and completed answers.
+There is no need to keep another status for the whole conversation.
 
-A failed latest attempt can exist alongside older successful answers. This is the
-[status decision already recorded](../DESIGN_HISTORY.md#keep-thread-status-as-latest-activity).
-The latest turn is chosen by `createdAt`, then `id` when timestamps match.
+Turns are ordered by `createdAt`, then `id` when timestamps match.
 
 Appending a turn updates the thread's activity time. Completion or failure
 updates it only when that turn is still latest. These checks do not prevent
@@ -157,7 +154,7 @@ For example, a question retrieves two sources and the answer uses only `[1]`:
 3. Once the answer is ready, `completeTurn` checks that the Turn belongs to the
    Thread. It saves both Sources, saves one Citation for Source 1, marks the Turn
    `COMPLETED`, and updates the Thread's activity time if this is its latest Turn.
-   The API derives `completed` from that Turn when reading the Thread.
+   The API returns that status on the Turn.
 4. A follow-up adds another Turn. Its source numbering can start at 1 again.
 
 After the first answer, this example has one Thread, one Turn, two Sources,
