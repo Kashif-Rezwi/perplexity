@@ -16,7 +16,6 @@ describe('thread export utilities', () => {
     title: 'Prisma overview',
     status: 'completed',
     mode: 'web',
-    answerPreview: 'Prisma is an ORM.',
     isPinned: false,
     pinnedAt: null,
     totalSourceCount: 1,

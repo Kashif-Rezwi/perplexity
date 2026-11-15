@@ -30,7 +30,6 @@ function thread(
     title: `Thread ${threadId}`,
     status: 'completed',
     mode: 'web',
-    answerPreview: null,
     isPinned: false,
     pinnedAt: null,
     totalSourceCount: 0,

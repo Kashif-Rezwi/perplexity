@@ -82,7 +82,6 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
     threadId,
     turnId,
     answerMarkdown: 'Answer [2] then [1].',
-    answerPreview: 'Answer [2] then [1].',
     sources: [
       {
         citationNumber: 1,
@@ -162,14 +161,13 @@ test('ThreadsRepository.completeTurn persists sources and matching citations', a
     {
       where: { id: threadId },
       data: {
-        answerPreview: 'Answer [2] then [1].',
         status: ThreadStatus.COMPLETED,
       },
     },
   ]);
 });
 
-test('ThreadsRepository.completeTurn does not overwrite thread summary for an older turn', async () => {
+test('ThreadsRepository.completeTurn does not overwrite thread status for an older turn', async () => {
   const operations = [];
   const repository = new ThreadsRepository({
     async $transaction(callback) {
@@ -210,7 +208,6 @@ test('ThreadsRepository.completeTurn does not overwrite thread summary for an ol
     threadId,
     turnId,
     answerMarkdown: 'Older answer',
-    answerPreview: 'Older answer',
     sources: [],
     citationNumbers: [],
     suggestedFollowUpQuestions: [],
@@ -330,7 +327,6 @@ test('ThreadsRepository.completeTurn rejects mismatched thread and turn ids befo
         threadId,
         turnId,
         answerMarkdown: 'Answer',
-        answerPreview: 'Answer',
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -444,7 +440,6 @@ test('ThreadsRepository.renameThread updates title without a normal Prisma updat
             return {
               id: threadId,
               title: 'Renamed thread',
-              answerPreview: 'Preview',
               status: ThreadStatus.COMPLETED,
               mode: ThreadMode.WEB,
               createdAt: new Date('2026-06-04T00:00:00.000Z'),
@@ -554,7 +549,6 @@ test('ThreadsRepository.togglePin preserves updatedAt and returns a summary reco
             return {
               id: threadId,
               title: 'Pinned thread',
-              answerPreview: 'Preview',
               status: ThreadStatus.COMPLETED,
               mode: ThreadMode.WEB,
               isPinned: true,

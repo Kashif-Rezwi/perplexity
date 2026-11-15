@@ -45,7 +45,6 @@ function askResponse(turnId = 'turn-1'): AskResponse {
       title: 'What is Prisma?',
       status: 'completed',
       mode: 'web',
-      answerPreview: 'Prisma is an ORM.',
       isPinned: false,
       pinnedAt: null,
       totalSourceCount: 1,
@@ -102,6 +101,7 @@ describe('ask cache helpers', () => {
       },
     ]);
     expect(cachedThread?.turns).toHaveLength(1);
+    expect(cachedThread).not.toHaveProperty('answerPreview');
     expect(cachedThread?.turns[0]).toMatchObject({
       turnId: 'turn-1',
       status: 'completed',

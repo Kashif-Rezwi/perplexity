@@ -36,7 +36,6 @@ function createEmptyStreamAskService({ streamError }) {
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });

@@ -245,7 +245,6 @@ function createThreadRecord(overrides = {}) {
   return {
     id: threadId,
     title: 'Explain Prisma relations',
-    answerPreview: overrides.answerPreview ?? 'Prisma relations connect rows.',
     status: overrides.status ?? ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     createdAt,

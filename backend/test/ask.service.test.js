@@ -76,7 +76,6 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -108,6 +107,7 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
 
   assert.equal(response.thread.threadId, threadId);
   assert.equal(response.thread.status, 'completed');
+  assert.equal('answerPreview' in response.thread, false);
   assert.equal(response.thread.totalSourceCount, 1);
   assert.equal(response.turn.turnId, turnId);
   assert.equal(response.turn.answerMarkdown, answerMarkdown);
@@ -163,7 +163,6 @@ test('AskService creates a thread, completes its turn, and returns persisted dat
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
         suggestedFollowUpQuestions,
@@ -217,7 +216,6 @@ test('AskService streams answer deltas, persists the final turn, and emits final
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -298,7 +296,6 @@ test('AskService streams answer deltas, persists the final turn, and emits final
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
         suggestedFollowUpQuestions: [],
@@ -347,7 +344,6 @@ test('AskService retry stream appends a new turn from the failed question', asyn
         calls.push(['appendPendingTurnToThread', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           question: failedQuestion,
           searchQuery: failedQuestion,
           turnStatus: TurnStatus.PENDING,
@@ -406,7 +402,6 @@ test('AskService retry stream appends a new turn from the failed question', asyn
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -563,7 +558,6 @@ test('AskService streaming failure marks the pending turn failed and emits an er
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -649,7 +643,6 @@ test('AskService completes with empty suggestions when suggestion generation fai
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -708,7 +701,6 @@ test('AskService completes with empty suggestions when suggestion generation fai
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -760,7 +752,6 @@ test('AskService normalizes citation ranges before persistence', async () => {
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -846,7 +837,6 @@ test('AskService returns its completed turn when another turn is newer', async (
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -908,7 +898,6 @@ test('AskService returns its completed turn when another turn is newer', async (
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -940,7 +929,6 @@ test('AskService completes successfully when search returns no sources', async (
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -994,7 +982,6 @@ test('AskService completes successfully when search returns no sources', async (
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -1047,7 +1034,6 @@ test('AskService completes with sources and no citations when answer has no mark
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -1104,7 +1090,6 @@ test('AskService completes with sources and no citations when answer has no mark
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -1138,7 +1123,6 @@ test('AskService marks the pending turn failed when the stream is abandoned duri
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -1147,7 +1131,6 @@ test('AskService marks the pending turn failed when the stream is abandoned duri
         calls.push(['findThreadDetailById', id]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -1196,7 +1179,6 @@ test('AskService does not fail an abandoned stream whose turn already completed'
       async createThreadWithPendingTurn() {
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });

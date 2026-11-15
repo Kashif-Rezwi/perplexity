@@ -17,7 +17,6 @@ function createThreadDetailRecord() {
   return {
     id: threadId,
     title: 'What changed in Next.js 15?',
-    answerPreview: 'A concise preview',
     status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     isPinned: false,
@@ -71,6 +70,8 @@ test('mapThreadDetail returns the thread detail API contract', () => {
   const detail = mapThreadDetail(createThreadDetailRecord());
 
   assert.equal(detail.threadId, threadId);
+  assert.equal(detail.status, 'completed');
+  assert.equal('answerPreview' in detail, false);
   assert.equal(detail.totalSourceCount, 1);
   assert.equal(detail.turnCount, 1);
   assert.equal(detail.turns[0].turnId, turnId);
@@ -124,6 +125,7 @@ test('ThreadsService lists threads with defaults and nextCursor', async () => {
   assert.equal(response.items.length, 1);
   assert.equal(response.items[0].threadId, threadId);
   assert.equal(response.items[0].title, 'Newest thread');
+  assert.equal('answerPreview' in response.items[0], false);
   assert.equal(response.items[0].totalSourceCount, 3);
   assert.equal(response.nextCursor, threadId);
 });
@@ -282,7 +284,6 @@ function createThreadListRecord(overrides = {}) {
   return {
     id: overrides.id ?? threadId,
     title: overrides.title ?? 'What changed in Next.js 15?',
-    answerPreview: 'A concise preview',
     status: ThreadStatus.COMPLETED,
     mode: ThreadMode.WEB,
     isPinned: overrides.isPinned ?? false,

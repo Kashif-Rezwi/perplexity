@@ -133,7 +133,6 @@ test('AskService marks the pending turn failed when search fails', async () => {
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -189,7 +188,6 @@ test('AskService marks the pending turn failed when search times out', async () 
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -248,7 +246,6 @@ test('AskService marks the pending turn failed when AI generation fails', async 
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -316,7 +313,6 @@ test('AskService marks the pending turn failed when answer generation times out'
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -391,7 +387,6 @@ test('AskService completes with empty suggestions when suggestion generation tim
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -450,7 +445,6 @@ test('AskService completes with empty suggestions when suggestion generation tim
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: [],
         citationNumbers: [],
         suggestedFollowUpQuestions: [],
@@ -504,7 +498,6 @@ test('AskService marks the pending turn failed when completion fails', async () 
         calls.push(['createThreadWithPendingTurn', input]);
         return createThreadRecord({
           answerMarkdown: null,
-          answerPreview: null,
           turnStatus: TurnStatus.PENDING,
           completedAt: null,
         });
@@ -547,7 +540,6 @@ test('AskService marks the pending turn failed when completion fails', async () 
         threadId,
         turnId,
         answerMarkdown,
-        answerPreview: answerMarkdown,
         sources: sourceInputs,
         citationNumbers: [1],
         suggestedFollowUpQuestions: [],
